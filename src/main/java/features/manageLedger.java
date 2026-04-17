@@ -7,11 +7,16 @@ package features;
 import com.kelsz.esla.Database;
 import java.awt.Color;
 import java.awt.Image;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import javax.swing.Timer;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import ui.style;
 
@@ -23,6 +28,9 @@ public class manageLedger extends javax.swing.JPanel {
 
     private Runnable backButtonCallback;
     private int ledgerId;
+    private String ledgerType;
+    private java.util.List<Integer> memberIds = new java.util.ArrayList<>();
+    private Timer searchTimer;
 
     /**
      * Creates new form manageLedger
@@ -59,6 +67,49 @@ public class manageLedger extends javax.swing.JPanel {
         memberList.setSelectionBackground(new java.awt.Color(220, 235, 255));
         memberList.setSelectionForeground(new java.awt.Color(21, 55, 143));
         memberList.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        // Style scroll pane for member list
+        jScrollPane3.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+            javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200), 1),
+            javax.swing.BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+        jScrollPane3.setBackground(Color.WHITE);
+        jScrollPane3.getVerticalScrollBar().setUnitIncrement(16);
+        jScrollPane3.getVerticalScrollBar().setPreferredSize(new java.awt.Dimension(8, 8));
+
+        // Add mouse listener to memberList
+        memberList.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                memberListMouseClicked(evt);
+            }
+        });
+
+        // Setup debounced search
+        searchTimer = new Timer(300, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                performSearch();
+            }
+        });
+        searchTimer.setRepeats(false);
+
+        formSearch.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                searchTimer.restart();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                searchTimer.restart();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                searchTimer.restart();
+            }
+        });
         
         // Style tabbed pane
         paymentTab.setFont(new java.awt.Font("Ubuntu", java.awt.Font.BOLD, 14));
@@ -78,38 +129,40 @@ public class manageLedger extends javax.swing.JPanel {
     /**
      * Load ledger data into table
      * @param ledgerId The ledger ID to load data for
+     * @param ledgerType The ledger type to filter members by
      */
-    public void loadLedgerData(int ledgerId) {
+    public void loadLedgerData(int ledgerId, String ledgerType) {
         this.ledgerId = ledgerId;
-        loadMembersByLedger(ledgerId);
+        this.ledgerType = ledgerType;
+        loadMembersByLedger(ledgerType);
         loadFormDataByLedger(ledgerId);
         loadLoansByLedger(ledgerId);
     }
 
     /**
-     * Load members that belong to this ledger (via form_data)
-     * @param ledgerId The ledger ID
+     * Load members that belong to this ledger type
+     * @param ledgerType The ledger type to filter members by
      */
-    private void loadMembersByLedger(int ledgerId) {
+    private void loadMembersByLedger(String ledgerType) {
+        memberIds.clear();
         try {
             Connection con = Database.getConnection();
             String sql = """
-                SELECT DISTINCT m.id, m.name, m.email, m.phone
-                FROM members m
-                INNER JOIN form_data fd ON m.id = fd.member_id
-                WHERE fd.ledger_id = ?
-                ORDER BY m.name
+                SELECT id, name, email, phone
+                FROM members
+                WHERE member_type = ?
+                ORDER BY name
             """;
             PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, ledgerId);
+            ps.setString(1, ledgerType);
             ResultSet rs = ps.executeQuery();
 
             java.util.Vector<String> memberNames = new java.util.Vector<>();
             while (rs.next()) {
+                int memberId = rs.getInt("id");
+                memberIds.add(memberId);
+
                 String memberInfo = rs.getString("name");
-                if (rs.getString("email") != null && !rs.getString("email").isEmpty()) {
-                    memberInfo += " (" + rs.getString("email") + ")";
-                }
                 memberNames.add(memberInfo);
             }
 
@@ -117,7 +170,7 @@ public class manageLedger extends javax.swing.JPanel {
 
             if (memberNames.isEmpty()) {
                 javax.swing.JOptionPane.showMessageDialog(this,
-                    "No members found for ledger ID: " + ledgerId,
+                    "No members found for ledger type: " + ledgerType,
                     "Info",
                     javax.swing.JOptionPane.INFORMATION_MESSAGE);
             }
@@ -139,6 +192,15 @@ public class manageLedger extends javax.swing.JPanel {
      * @param ledgerId The ledger ID
      */
     private void loadFormDataByLedger(int ledgerId) {
+        loadFormDataByLedger(ledgerId, null);
+    }
+
+    /**
+     * Load form_data records for this ledger into payment table
+     * @param ledgerId The ledger ID
+     * @param memberId The member ID to filter by (null for all members)
+     */
+    private void loadFormDataByLedger(int ledgerId, Integer memberId) {
         DefaultTableModel model = (DefaultTableModel) paymentTable.getModel();
         model.setRowCount(0); // Clear existing data
 
@@ -149,17 +211,36 @@ public class manageLedger extends javax.swing.JPanel {
 
         try {
             Connection con = Database.getConnection();
-            String sql = """
-                SELECT fd.form_number, fd.date, fd.should_be_paid,
-                       fd.actual_payment, fd.balance, fd.under_paid,
-                       fd.scheduled_payment, fd.remarks, m.name as member_name
-                FROM form_data fd
-                LEFT JOIN members m ON fd.member_id = m.id
-                WHERE fd.ledger_id = ?
-                ORDER BY fd.date DESC
-            """;
-            PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, ledgerId);
+            String sql;
+            PreparedStatement ps;
+
+            if (memberId != null) {
+                sql = """
+                    SELECT fd.form_number, fd.date, fd.should_be_paid,
+                           fd.actual_payment, fd.balance, fd.under_paid,
+                           fd.scheduled_payment, fd.remarks, m.name as member_name
+                    FROM form_data fd
+                    LEFT JOIN members m ON fd.member_id = m.id
+                    WHERE fd.ledger_id = ? AND fd.member_id = ?
+                    ORDER BY fd.date DESC
+                """;
+                ps = con.prepareStatement(sql);
+                ps.setInt(1, ledgerId);
+                ps.setInt(2, memberId);
+            } else {
+                sql = """
+                    SELECT fd.form_number, fd.date, fd.should_be_paid,
+                           fd.actual_payment, fd.balance, fd.under_paid,
+                           fd.scheduled_payment, fd.remarks, m.name as member_name
+                    FROM form_data fd
+                    LEFT JOIN members m ON fd.member_id = m.id
+                    WHERE fd.ledger_id = ?
+                    ORDER BY fd.date DESC
+                """;
+                ps = con.prepareStatement(sql);
+                ps.setInt(1, ledgerId);
+            }
+
             ResultSet rs = ps.executeQuery();
 
             int rowCount = 0;
@@ -178,7 +259,8 @@ public class manageLedger extends javax.swing.JPanel {
             }
 
             if (rowCount == 0) {
-                System.out.println("No form_data found for ledger ID: " + ledgerId);
+                System.out.println("No form_data found for ledger ID: " + ledgerId + 
+                    (memberId != null ? ", member ID: " + memberId : ""));
             }
 
             rs.close();
@@ -198,6 +280,15 @@ public class manageLedger extends javax.swing.JPanel {
      * @param ledgerId The ledger ID
      */
     private void loadLoansByLedger(int ledgerId) {
+        loadLoansByLedger(ledgerId, null);
+    }
+
+    /**
+     * Load loan records for this ledger into loan table
+     * @param ledgerId The ledger ID
+     * @param memberId The member ID to filter by (null for all members)
+     */
+    private void loadLoansByLedger(int ledgerId, Integer memberId) {
         DefaultTableModel model = (DefaultTableModel) loanTable.getModel();
         model.setRowCount(0); // Clear existing data
 
@@ -208,16 +299,34 @@ public class manageLedger extends javax.swing.JPanel {
 
         try {
             Connection con = Database.getConnection();
-            String sql = """
-                SELECT l.form_number, l.date, l.principal, l.service_charge,
-                       l.interest, l.total, l.cutoffs, l.remarks, m.name as member_name
-                FROM loans l
-                LEFT JOIN members m ON l.member_id = m.id
-                WHERE l.ledger_id = ?
-                ORDER BY l.date DESC
-            """;
-            PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, ledgerId);
+            String sql;
+            PreparedStatement ps;
+
+            if (memberId != null) {
+                sql = """
+                    SELECT l.form_number, l.date, l.principal, l.service_charge,
+                           l.interest, l.total, l.cutoffs, l.remarks, m.name as member_name
+                    FROM loans l
+                    LEFT JOIN members m ON l.member_id = m.id
+                    WHERE l.ledger_id = ? AND l.member_id = ?
+                    ORDER BY l.date DESC
+                """;
+                ps = con.prepareStatement(sql);
+                ps.setInt(1, ledgerId);
+                ps.setInt(2, memberId);
+            } else {
+                sql = """
+                    SELECT l.form_number, l.date, l.principal, l.service_charge,
+                           l.interest, l.total, l.cutoffs, l.remarks, m.name as member_name
+                    FROM loans l
+                    LEFT JOIN members m ON l.member_id = m.id
+                    WHERE l.ledger_id = ?
+                    ORDER BY l.date DESC
+                """;
+                ps = con.prepareStatement(sql);
+                ps.setInt(1, ledgerId);
+            }
+
             ResultSet rs = ps.executeQuery();
 
             int rowCount = 0;
@@ -236,7 +345,8 @@ public class manageLedger extends javax.swing.JPanel {
             }
 
             if (rowCount == 0) {
-                System.out.println("No loans found for ledger ID: " + ledgerId);
+                System.out.println("No loans found for ledger ID: " + ledgerId + 
+                    (memberId != null ? ", member ID: " + memberId : ""));
             }
 
             rs.close();
@@ -291,7 +401,6 @@ public class manageLedger extends javax.swing.JPanel {
             public int getSize() { return strings.length; }
             public String getElementAt(int i) { return strings[i]; }
         });
-        memberList.setLayoutOrientation(javax.swing.JList.HORIZONTAL_WRAP);
         jScrollPane3.setViewportView(memberList);
         memberList.getAccessibleContext().setAccessibleName("");
 
@@ -351,28 +460,27 @@ public class manageLedger extends javax.swing.JPanel {
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(formSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 144, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 180, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 988, Short.MAX_VALUE))
-                    .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(formSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 0, Short.MAX_VALUE)))
+                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 952, Short.MAX_VALUE)))
                 .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(formSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane3)
-                    .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 431, Short.MAX_VALUE))
-                .addGap(14, 14, 14))
+                    .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 454, Short.MAX_VALUE))
+                .addContainerGap())
         );
 
         backButton.setText("Back");
+        backButton.addActionListener(this::backButtonActionPerformed);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -400,10 +508,44 @@ public class manageLedger extends javax.swing.JPanel {
     }// </editor-fold>//GEN-END:initComponents
 
     private void formSearchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_formSearchActionPerformed
-        String searchText = formSearch.getText().toLowerCase().trim();
-        filterPaymentTable(searchText);
-        filterLoanTable(searchText);
+        performSearch();
     }//GEN-LAST:event_formSearchActionPerformed
+
+    /**
+     * Perform search with debouncing
+     */
+    private void performSearch() {
+        String searchText = formSearch.getText().toLowerCase().trim();
+        if (searchText.isEmpty()) {
+            // If search is empty, reload all data for current member selection
+            int selectedIndex = memberList.getSelectedIndex();
+            if (selectedIndex >= 0 && selectedIndex < memberIds.size()) {
+                int memberId = memberIds.get(selectedIndex);
+                loadFormDataByLedger(ledgerId, memberId);
+                loadLoansByLedger(ledgerId, memberId);
+            } else {
+                loadFormDataByLedger(ledgerId, null);
+                loadLoansByLedger(ledgerId, null);
+            }
+        } else {
+            // Filter in memory for search
+            filterPaymentTable(searchText);
+            filterLoanTable(searchText);
+        }
+    }
+
+    private void memberListMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_memberListMouseClicked
+        int selectedIndex = memberList.getSelectedIndex();
+        if (selectedIndex >= 0 && selectedIndex < memberIds.size()) {
+            int memberId = memberIds.get(selectedIndex);
+            loadFormDataByLedger(ledgerId, memberId);
+            loadLoansByLedger(ledgerId, memberId);
+        } else {
+            // If no selection or invalid selection, show all data
+            loadFormDataByLedger(ledgerId, null);
+            loadLoansByLedger(ledgerId, null);
+        }
+    }//GEN-LAST:event_memberListMouseClicked
 
     /**
      * Filter payment table based on search text

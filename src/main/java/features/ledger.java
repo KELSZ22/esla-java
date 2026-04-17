@@ -473,7 +473,8 @@ model.addColumn("Delete");
         
         if (ledgerData != null) {
             // Load actual payment and loan data for this ledger
-            currentManagePanel.loadLedgerData(id);
+            String ledgerType = (String) ledgerData[2]; // type is at index 2
+            currentManagePanel.loadLedgerData(id, ledgerType);
         }
         
         // Set back button callback

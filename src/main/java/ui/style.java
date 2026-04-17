@@ -153,4 +153,86 @@ public static void applyTableStyle(JTable table, int fontSize, int headerFontSiz
         }
     });
 }
+
+    // 🎨 Transparent TabPane Style
+    public static void applyTransparentTabbedPane(JTabbedPane tabbedPane) {
+        tabbedPane.setFont(new Font("Ubuntu", Font.BOLD, 14));
+        tabbedPane.setOpaque(false);
+        
+        // Tab area background - semi-transparent
+        tabbedPane.setBackground(new Color(242, 242, 248, 200));
+        
+        // Custom UI for transparent tabs
+        tabbedPane.setUI(new javax.swing.plaf.basic.BasicTabbedPaneUI() {
+            @Override
+            protected void paintTab(Graphics g, int tabPlacement, Rectangle[] rects, int tabIndex, Rectangle iconRect, Rectangle textRect) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                Rectangle tabRect = rects[tabIndex];
+                boolean isSelected = tabbedPane.getSelectedIndex() == tabIndex;
+                
+                // Tab background with transparency
+                if (isSelected) {
+                    g2d.setColor(new Color(255, 255, 255, 240));
+                    g2d.fillRoundRect(tabRect.x + 2, tabRect.y + 4, tabRect.width - 4, tabRect.height - 6, 8, 8);
+                    
+                    // Active tab border
+                    g2d.setColor(new Color(21, 55, 143, 180));
+                    g2d.drawRoundRect(tabRect.x + 2, tabRect.y + 4, tabRect.width - 4, tabRect.height - 6, 8, 8);
+                } else {
+                    g2d.setColor(new Color(255, 255, 255, 120));
+                    g2d.fillRoundRect(tabRect.x + 2, tabRect.y + 4, tabRect.width - 4, tabRect.height - 6, 8, 8);
+                    
+                    // Inactive tab border
+                    g2d.setColor(new Color(200, 200, 210, 100));
+                    g2d.drawRoundRect(tabRect.x + 2, tabRect.y + 4, tabRect.width - 4, tabRect.height - 6, 8, 8);
+                }
+                
+                // Tab text
+                String title = tabbedPane.getTitleAt(tabIndex);
+                g2d.setFont(new Font("Ubuntu", isSelected ? Font.BOLD : Font.PLAIN, 14));
+                g2d.setColor(isSelected ? new Color(21, 55, 143) : new Color(100, 100, 110));
+                
+                FontMetrics fm = g2d.getFontMetrics();
+                int textWidth = fm.stringWidth(title);
+                int textHeight = fm.getHeight();
+                int textX = tabRect.x + (tabRect.width - textWidth) / 2;
+                int textY = tabRect.y + (tabRect.height + textHeight) / 2 - fm.getDescent() + 2;
+                
+                g2d.drawString(title, textX, textY);
+                g2d.dispose();
+            }
+            
+            @Override
+            protected void paintTabArea(Graphics g, int tabPlacement, int selectedIndex) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Semi-transparent tab area background
+                int tabHeight = calculateMaxTabHeight(tabPlacement);
+                g2d.setColor(new Color(242, 242, 248, 150));
+                g2d.fillRoundRect(0, 0, tabbedPane.getWidth(), tabHeight + 10, 12, 12);
+                
+                g2d.dispose();
+                
+                super.paintTabArea(g, tabPlacement, selectedIndex);
+            }
+            
+            @Override
+            protected int calculateTabWidth(int tabPlacement, int tabIndex, FontMetrics metrics) {
+                int width = super.calculateTabWidth(tabPlacement, tabIndex, metrics);
+                return width + 30; // Add padding
+            }
+            
+            @Override
+            protected int calculateTabHeight(int tabPlacement, int tabIndex, int fontHeight) {
+                int height = super.calculateTabHeight(tabPlacement, tabIndex, fontHeight);
+                return height + 10; // Add padding
+            }
+        });
+        
+        tabbedPane.revalidate();
+        tabbedPane.repaint();
+    }
 }

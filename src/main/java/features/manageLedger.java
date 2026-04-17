@@ -12,6 +12,7 @@ import java.awt.event.ActionListener;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.text.DecimalFormat;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.Timer;
@@ -38,8 +39,8 @@ public class manageLedger extends javax.swing.JPanel {
     public manageLedger() {
         initComponents();
         setBackground(Color.WHITE);
-        style.applyTableStyle(paymentTable, 15, 18);
-        style.applyTableStyle(loanTable, 15, 18);
+        style.applyTableStyle(paymentTable, 15, 14);
+        style.applyTableStyle(loanTable, 15, 14);
         
         // Style search field
         formSearchPanel.removeAll();
@@ -111,11 +112,21 @@ public class manageLedger extends javax.swing.JPanel {
             }
         });
         
-        // Style tabbed pane
-        paymentTab.setFont(new java.awt.Font("Ubuntu", java.awt.Font.BOLD, 14));
-        paymentTab.setBackground(Color.WHITE);
-        paymentTab.setForeground(new java.awt.Color(40, 40, 40));
-        paymentTab.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 5, 5, 5));
+        // Style tabbed pane with transparent design
+        style.applyTransparentTabbedPane(paymentTab);
+    }
+
+    /**
+     * Format BigDecimal value as currency string
+     * @param value The BigDecimal value to format
+     * @return Formatted currency string or empty string if value is null
+     */
+    private String formatCurrency(java.math.BigDecimal value) {
+        if (value == null) {
+            return "";
+        }
+        DecimalFormat currencyFormat = new DecimalFormat("#,##0.00");
+        return currencyFormat.format(value);
     }
 
     /**
@@ -205,8 +216,9 @@ public class manageLedger extends javax.swing.JPanel {
         model.setRowCount(0); // Clear existing data
 
         model.setColumnIdentifiers(new Object[]{
-            "Form Number", "Date", "Should Be Paid", "Actual Payment",
-            "Balance", "Under Paid", "Scheduled Payment", "Remarks"
+            "Loan", "Date", "Should Be Paid", "Actual Payment",
+            "Balance", "Under Paid", "Scheduled Payment", "Premium Total", 
+            "Premium", "Actual Payroll", "Remarks"
         });
 
         try {
@@ -218,9 +230,14 @@ public class manageLedger extends javax.swing.JPanel {
                 sql = """
                     SELECT fd.form_number, fd.date, fd.should_be_paid,
                            fd.actual_payment, fd.balance, fd.under_paid,
-                           fd.scheduled_payment, fd.remarks, m.name as member_name
+                           fd.scheduled_payment, fd.premium_total, fd.premium, fd.actual_payroll,
+                           fd.remarks, m.name as member_name,
+                           l.id as loan_id
                     FROM form_data fd
                     LEFT JOIN members m ON fd.member_id = m.id
+                    LEFT JOIN loans l ON fd.ledger_id = l.ledger_id 
+                                      AND fd.member_id = l.member_id 
+                                      AND fd.date = l.date
                     WHERE fd.ledger_id = ? AND fd.member_id = ?
                     ORDER BY fd.date DESC
                 """;
@@ -231,9 +248,14 @@ public class manageLedger extends javax.swing.JPanel {
                 sql = """
                     SELECT fd.form_number, fd.date, fd.should_be_paid,
                            fd.actual_payment, fd.balance, fd.under_paid,
-                           fd.scheduled_payment, fd.remarks, m.name as member_name
+                           fd.scheduled_payment, fd.premium_total, fd.premium, fd.actual_payroll,
+                           fd.remarks, m.name as member_name,
+                           l.id as loan_id
                     FROM form_data fd
                     LEFT JOIN members m ON fd.member_id = m.id
+                    LEFT JOIN loans l ON fd.ledger_id = l.ledger_id 
+                                      AND fd.member_id = l.member_id 
+                                      AND fd.date = l.date
                     WHERE fd.ledger_id = ?
                     ORDER BY fd.date DESC
                 """;
@@ -245,14 +267,20 @@ public class manageLedger extends javax.swing.JPanel {
 
             int rowCount = 0;
             while (rs.next()) {
+                int loanId = rs.getInt("loan_id");
+                String loanStatus = (loanId != 0 && !rs.wasNull()) ? "Has loan" : "";
+                
                 model.addRow(new Object[]{
-                    rs.getInt("form_number"),
+                    loanStatus,
                     rs.getDate("date"),
-                    rs.getBigDecimal("should_be_paid"),
-                    rs.getBigDecimal("actual_payment"),
-                    rs.getBigDecimal("balance"),
-                    rs.getBigDecimal("under_paid"),
-                    rs.getBigDecimal("scheduled_payment"),
+                    formatCurrency(rs.getBigDecimal("should_be_paid")),
+                    formatCurrency(rs.getBigDecimal("actual_payment")),
+                    formatCurrency(rs.getBigDecimal("balance")),
+                    formatCurrency(rs.getBigDecimal("under_paid")),
+                    formatCurrency(rs.getBigDecimal("scheduled_payment")),
+                    formatCurrency(rs.getBigDecimal("premium_total")),
+                    formatCurrency(rs.getBigDecimal("premium")),
+                    formatCurrency(rs.getBigDecimal("actual_payroll")),
                     rs.getString("remarks")
                 });
                 rowCount++;
@@ -294,7 +322,7 @@ public class manageLedger extends javax.swing.JPanel {
 
         model.setColumnIdentifiers(new Object[]{
             "Form Number", "Date", "Principal", "Service Charge",
-            "Interest", "Total", "Cutoffs", "Remarks"
+            "Interest", "Total", "No. of Months", "Cutoff Amount", "Remarks"
         });
 
         try {
@@ -305,7 +333,7 @@ public class manageLedger extends javax.swing.JPanel {
             if (memberId != null) {
                 sql = """
                     SELECT l.form_number, l.date, l.principal, l.service_charge,
-                           l.interest, l.total, l.cutoffs, l.remarks, m.name as member_name
+                           l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
                     WHERE l.ledger_id = ? AND l.member_id = ?
@@ -317,7 +345,7 @@ public class manageLedger extends javax.swing.JPanel {
             } else {
                 sql = """
                     SELECT l.form_number, l.date, l.principal, l.service_charge,
-                           l.interest, l.total, l.cutoffs, l.remarks, m.name as member_name
+                           l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
                     WHERE l.ledger_id = ?
@@ -334,11 +362,12 @@ public class manageLedger extends javax.swing.JPanel {
                 model.addRow(new Object[]{
                     rs.getInt("form_number"),
                     rs.getDate("date"),
-                    rs.getBigDecimal("principal"),
-                    rs.getBigDecimal("service_charge"),
-                    rs.getBigDecimal("interest"),
-                    rs.getBigDecimal("total"),
+                    formatCurrency(rs.getBigDecimal("principal")),
+                    formatCurrency(rs.getBigDecimal("service_charge")),
+                    formatCurrency(rs.getBigDecimal("interest")),
+                    formatCurrency(rs.getBigDecimal("total")),
                     rs.getInt("cutoffs"),
+                    formatCurrency(rs.getBigDecimal("cutoffs_amount")),
                     rs.getString("remarks")
                 });
                 rowCount++;

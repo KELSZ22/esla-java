@@ -216,8 +216,8 @@ public class manageLedger extends javax.swing.JPanel {
         model.setRowCount(0); // Clear existing data
 
         model.setColumnIdentifiers(new Object[]{
-            "Loan", "Date", "Should Be Paid", "Actual Payment",
-            "Balance", "Under Paid", "Scheduled Payment", "Premium Total", 
+            "Date", "Should Be Paid", "Actual Payment",
+            "Balance", "Under Paid", "Scheduled Payment", "Premium Total",
             "Premium", "Actual Payroll", "Remarks"
         });
 
@@ -231,13 +231,9 @@ public class manageLedger extends javax.swing.JPanel {
                     SELECT fd.form_number, fd.date, fd.should_be_paid,
                            fd.actual_payment, fd.balance, fd.under_paid,
                            fd.scheduled_payment, fd.premium_total, fd.premium, fd.actual_payroll,
-                           fd.remarks, m.name as member_name,
-                           l.id as loan_id
+                           fd.remarks, m.name as member_name
                     FROM form_data fd
                     LEFT JOIN members m ON fd.member_id = m.id
-                    LEFT JOIN loans l ON fd.ledger_id = l.ledger_id 
-                                      AND fd.member_id = l.member_id 
-                                      AND fd.date = l.date
                     WHERE fd.ledger_id = ? AND fd.member_id = ?
                     ORDER BY fd.date DESC
                 """;
@@ -249,13 +245,9 @@ public class manageLedger extends javax.swing.JPanel {
                     SELECT fd.form_number, fd.date, fd.should_be_paid,
                            fd.actual_payment, fd.balance, fd.under_paid,
                            fd.scheduled_payment, fd.premium_total, fd.premium, fd.actual_payroll,
-                           fd.remarks, m.name as member_name,
-                           l.id as loan_id
+                           fd.remarks, m.name as member_name
                     FROM form_data fd
                     LEFT JOIN members m ON fd.member_id = m.id
-                    LEFT JOIN loans l ON fd.ledger_id = l.ledger_id 
-                                      AND fd.member_id = l.member_id 
-                                      AND fd.date = l.date
                     WHERE fd.ledger_id = ?
                     ORDER BY fd.date DESC
                 """;
@@ -267,11 +259,7 @@ public class manageLedger extends javax.swing.JPanel {
 
             int rowCount = 0;
             while (rs.next()) {
-                int loanId = rs.getInt("loan_id");
-                String loanStatus = (loanId != 0 && !rs.wasNull()) ? "Has loan" : "";
-                
                 model.addRow(new Object[]{
-                    loanStatus,
                     rs.getDate("date"),
                     formatCurrency(rs.getBigDecimal("should_be_paid")),
                     formatCurrency(rs.getBigDecimal("actual_payment")),

@@ -11,23 +11,19 @@ public class Database {
     private static final String USER = "root";
     private static final String PASSWORD = "";
 
-    private static Connection connection;
-
     private Database() {
         // prevent instantiation
     }
 
     public static Connection getConnection() {
         try {
-            if (connection == null || connection.isClosed()) {
-                connection = DriverManager.getConnection(URL, USER, PASSWORD);
-                System.out.println("✅ MySQL Connected!");
-            }
+            Connection connection = DriverManager.getConnection(URL, USER, PASSWORD);
+            System.out.println("✅ MySQL Connected!");
+            return connection;
         } catch (SQLException e) {
             System.out.println("❌ DB Connection Failed");
             e.printStackTrace();
+            return null;
         }
-
-        return connection;
     }
 }

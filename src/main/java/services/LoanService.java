@@ -259,125 +259,249 @@ public class LoanService {
 
     /**
      * Calculate scheduled payment for a specific position
-     * Iterates through all loans (ordered by ID) and sums up deductions for the given position
+     * Iterates through all loans for a member across all same-type ledgers (ordered by ID) and sums up deductions for the given position
      *
-     * @param ledgerId Ledger ID
+     * @param memberId Member ID (to filter loans by member)
+     * @param ledgerType Ledger type (to query across all same-type ledgers)
      * @param position Payment position (1-based)
      * @return Total scheduled payment amount for the position
      */
-    public BigDecimal getScheduledPaymentForPosition(int ledgerId, int position) {
+    public BigDecimal getScheduledPaymentForPosition(int memberId, String ledgerType, int position) {
+        Connection con = null;
+        PreparedStatement loanPs = null;
+        ResultSet loanRs = null;
+        PreparedStatement paymentPs = null;
+        ResultSet paymentRs = null;
+
         try {
-            Connection con = Database.getConnection();
-            String sql = """
-                SELECT id, form_number, date, start_deduction_date, start_deduction_on_loan_date,
-                       principal, service_charge_balance, interest_balance, total, cutoffs
-                FROM loans
-                WHERE ledger_id = ? AND deleted_at IS NULL
-                ORDER BY id ASC
+            con = Database.getConnection();
+
+            // Get all loans for the member across all same-type ledgers ordered by ID
+            String loanSql = """
+                SELECT l.id, l.form_number, l.date, l.start_deduction_date, l.start_deduction_on_loan_date,
+                       l.principal, l.service_charge_balance, l.interest_balance, l.total, l.cutoffs
+                FROM loans l
+                INNER JOIN ledgers led ON l.ledger_id = led.id
+                WHERE led.type = ? AND l.member_id = ? AND l.deleted_at IS NULL
+                ORDER BY l.id ASC
             """;
-            PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, ledgerId);
-            ResultSet rs = ps.executeQuery();
+            loanPs = con.prepareStatement(loanSql);
+            loanPs.setString(1, ledgerType);
+            loanPs.setInt(2, memberId);
+            loanRs = loanPs.executeQuery();
 
             BigDecimal totalPayment = BigDecimal.ZERO;
-            int startPos = 1;
 
-            while (rs.next()) {
-                LocalDate loanDate = rs.getDate("date") != null ? rs.getDate("date").toLocalDate() : null;
-                LocalDate startDeductionDate = rs.getDate("start_deduction_date") != null ? rs.getDate("start_deduction_date").toLocalDate() : null;
-                Boolean startDeductionOnLoanDate = rs.getBoolean("start_deduction_on_loan_date");
-                BigDecimal total = rs.getBigDecimal("total");
-                Integer cutoffs = rs.getInt("cutoffs");
+            while (loanRs.next()) {
+                LocalDate loanDate = loanRs.getDate("date") != null ? loanRs.getDate("date").toLocalDate() : null;
+                LocalDate startDeductionDate = loanRs.getDate("start_deduction_date") != null ? loanRs.getDate("start_deduction_date").toLocalDate() : null;
+                Boolean startDeductionOnLoanDate = loanRs.getBoolean("start_deduction_on_loan_date");
+                BigDecimal total = loanRs.getBigDecimal("total");
+                Integer cutoffs = loanRs.getInt("cutoffs");
 
                 if (total == null || cutoffs == null || cutoffs == 0) {
-                    startPos += 1;
                     continue;
                 }
 
-                BigDecimal range = BigDecimal.valueOf(cutoffs * 2);
-                BigDecimal amountPerCutoff = total.divide(range, 2, java.math.RoundingMode.HALF_UP);
+                // Step 2: Calculate loan's deduction range
+                int range = cutoffs * 2;
 
-                LocalDate effectiveStartDate = getEffectiveDeductionStartDate(loanDate, startDeductionDate, startDeductionOnLoanDate);
+                // Step 3: Calculate per-payment deduction amount
+                BigDecimal amountPerCutoff = total.divide(BigDecimal.valueOf(range), 2, java.math.RoundingMode.HALF_UP);
 
+                // Step 4: Determine loan's active payment range
                 int rangeStart;
-                if (effectiveStartDate != null) {
-                    rangeStart = startPos;
+
+                if (startDeductionOnLoanDate != null && startDeductionOnLoanDate) {
+                    // Starts at position 1 (immediate)
+                    rangeStart = 1;
+                } else if (startDeductionDate != null) {
+                    // Starts at the payment position after start_deduction_date
+                    String paymentSql = """
+                        SELECT COUNT(*) as payment_count
+                        FROM form_data fd
+                        JOIN ledgers led ON fd.ledger_id = led.id
+                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
+                    """;
+                    paymentPs = con.prepareStatement(paymentSql);
+                    paymentPs.setString(1, ledgerType);
+                    paymentPs.setInt(2, memberId);
+                    paymentPs.setDate(3, java.sql.Date.valueOf(startDeductionDate));
+                    paymentRs = paymentPs.executeQuery();
+
+                    int paymentsBeforeDate = 0;
+                    if (paymentRs.next()) {
+                        paymentsBeforeDate = paymentRs.getInt("payment_count");
+                    }
+                    paymentRs.close();
+                    paymentPs.close();
+                    paymentRs = null;
+                    paymentPs = null;
+
+                    rangeStart = paymentsBeforeDate + 1;
                 } else {
-                    rangeStart = startPos + 1;
+                    // Starts at position 2 (skips first payment after loan date)
+                    String paymentSql = """
+                        SELECT COUNT(*) as payment_count
+                        FROM form_data fd
+                        JOIN ledgers led ON fd.ledger_id = led.id
+                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
+                    """;
+                    paymentPs = con.prepareStatement(paymentSql);
+                    paymentPs.setString(1, ledgerType);
+                    paymentPs.setInt(2, memberId);
+                    paymentPs.setDate(3, loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
+                    paymentRs = paymentPs.executeQuery();
+
+                    int paymentsBeforeLoan = 0;
+                    if (paymentRs.next()) {
+                        paymentsBeforeLoan = paymentRs.getInt("payment_count");
+                    }
+                    paymentRs.close();
+                    paymentPs.close();
+                    paymentRs = null;
+                    paymentPs = null;
+
+                    rangeStart = paymentsBeforeLoan + 2;
                 }
 
-                int rangeEnd = rangeStart + cutoffs * 2 - 1;
+                int rangeEnd = rangeStart + range - 1;
 
+                // Step 5: Check if current position is within loan range
                 if (position >= rangeStart && position <= rangeEnd) {
+                    // Step 6: Sum active loan deduction
                     totalPayment = totalPayment.add(amountPerCutoff);
                 }
-
-                startPos += cutoffs * 2;
             }
-
-            rs.close();
-            ps.close();
-            con.close();
 
             return totalPayment.setScale(2, java.math.RoundingMode.HALF_UP);
         } catch (SQLException e) {
             e.printStackTrace();
             return BigDecimal.ZERO;
+        } finally {
+            try {
+                if (paymentRs != null) paymentRs.close();
+                if (paymentPs != null) paymentPs.close();
+                if (loanRs != null) loanRs.close();
+                if (loanPs != null) loanPs.close();
+                if (con != null) con.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 
     /**
      * Get active loans at a specific position with detailed information
+     * Queries loans for a member across all same-type ledgers
      *
-     * @param ledgerId Ledger ID
+     * @param memberId Member ID (to filter loans by member)
+     * @param ledgerType Ledger type (to query across all same-type ledgers)
      * @param position Payment position (1-based)
      * @return List of active loan details for the position
      */
-    public java.util.List<java.util.Map<String, Object>> getActiveLoansAtPosition(int ledgerId, int position) {
+    public java.util.List<java.util.Map<String, Object>> getActiveLoansAtPosition(int memberId, String ledgerType, int position) {
         java.util.List<java.util.Map<String, Object>> activeLoans = new java.util.ArrayList<>();
+        Connection con = null;
+        PreparedStatement loanPs = null;
+        ResultSet loanRs = null;
+        PreparedStatement paymentPs = null;
+        ResultSet paymentRs = null;
 
         try {
-            Connection con = Database.getConnection();
-            String sql = """
-                SELECT id, form_number, date, start_deduction_date, start_deduction_on_loan_date,
-                       principal, service_charge_balance, interest_balance, total, cutoffs
-                FROM loans
-                WHERE ledger_id = ? AND deleted_at IS NULL
-                ORDER BY id ASC
+            con = Database.getConnection();
+
+            // Get all loans for the member across all same-type ledgers ordered by ID
+            String loanSql = """
+                SELECT l.id, l.form_number, l.date, l.start_deduction_date, l.start_deduction_on_loan_date,
+                       l.principal, l.service_charge_balance, l.interest_balance, l.total, l.cutoffs
+                FROM loans l
+                INNER JOIN ledgers led ON l.ledger_id = led.id
+                WHERE led.type = ? AND l.member_id = ? AND l.deleted_at IS NULL
+                ORDER BY l.id ASC
             """;
-            PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, ledgerId);
-            ResultSet rs = ps.executeQuery();
+            loanPs = con.prepareStatement(loanSql);
+            loanPs.setString(1, ledgerType);
+            loanPs.setInt(2, memberId);
+            loanRs = loanPs.executeQuery();
 
-            int startPos = 1;
-
-            while (rs.next()) {
-                int formNumber = rs.getInt("form_number");
-                LocalDate loanDate = rs.getDate("date") != null ? rs.getDate("date").toLocalDate() : null;
-                LocalDate startDeductionDate = rs.getDate("start_deduction_date") != null ? rs.getDate("start_deduction_date").toLocalDate() : null;
-                Boolean startDeductionOnLoanDate = rs.getBoolean("start_deduction_on_loan_date");
-                BigDecimal total = rs.getBigDecimal("total");
-                Integer cutoffs = rs.getInt("cutoffs");
+            while (loanRs.next()) {
+                int formNumber = loanRs.getInt("form_number");
+                LocalDate loanDate = loanRs.getDate("date") != null ? loanRs.getDate("date").toLocalDate() : null;
+                LocalDate startDeductionDate = loanRs.getDate("start_deduction_date") != null ? loanRs.getDate("start_deduction_date").toLocalDate() : null;
+                Boolean startDeductionOnLoanDate = loanRs.getBoolean("start_deduction_on_loan_date");
+                BigDecimal total = loanRs.getBigDecimal("total");
+                Integer cutoffs = loanRs.getInt("cutoffs");
 
                 if (total == null || cutoffs == null || cutoffs == 0) {
-                    startPos += 1;
                     continue;
                 }
 
-                BigDecimal range = BigDecimal.valueOf(cutoffs * 2);
-                BigDecimal amountPerCutoff = total.divide(range, 2, java.math.RoundingMode.HALF_UP);
+                // Calculate loan's deduction range
+                int range = cutoffs * 2;
 
-                LocalDate effectiveStartDate = getEffectiveDeductionStartDate(loanDate, startDeductionDate, startDeductionOnLoanDate);
+                // Calculate per-payment deduction amount
+                BigDecimal amountPerCutoff = total.divide(BigDecimal.valueOf(range), 2, java.math.RoundingMode.HALF_UP);
 
+                // Determine loan's active payment range
                 int rangeStart;
-                if (effectiveStartDate != null) {
-                    rangeStart = startPos;
+
+                if (startDeductionOnLoanDate != null && startDeductionOnLoanDate) {
+                    // Starts at position 1 (immediate)
+                    rangeStart = 1;
+                } else if (startDeductionDate != null) {
+                    // Starts at the payment position after start_deduction_date
+                    String paymentSql = """
+                        SELECT COUNT(*) as payment_count
+                        FROM form_data fd
+                        JOIN ledgers led ON fd.ledger_id = led.id
+                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
+                    """;
+                    paymentPs = con.prepareStatement(paymentSql);
+                    paymentPs.setString(1, ledgerType);
+                    paymentPs.setInt(2, memberId);
+                    paymentPs.setDate(3, java.sql.Date.valueOf(startDeductionDate));
+                    paymentRs = paymentPs.executeQuery();
+
+                    int paymentsBeforeDate = 0;
+                    if (paymentRs.next()) {
+                        paymentsBeforeDate = paymentRs.getInt("payment_count");
+                    }
+                    paymentRs.close();
+                    paymentPs.close();
+                    paymentRs = null;
+                    paymentPs = null;
+
+                    rangeStart = paymentsBeforeDate + 1;
                 } else {
-                    rangeStart = startPos + 1;
+                    // Starts at position 2 (skips first payment after loan date)
+                    String paymentSql = """
+                        SELECT COUNT(*) as payment_count
+                        FROM form_data fd
+                        JOIN ledgers led ON fd.ledger_id = led.id
+                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
+                    """;
+                    paymentPs = con.prepareStatement(paymentSql);
+                    paymentPs.setString(1, ledgerType);
+                    paymentPs.setInt(2, memberId);
+                    paymentPs.setDate(3, loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
+                    paymentRs = paymentPs.executeQuery();
+
+                    int paymentsBeforeLoan = 0;
+                    if (paymentRs.next()) {
+                        paymentsBeforeLoan = paymentRs.getInt("payment_count");
+                    }
+                    paymentRs.close();
+                    paymentPs.close();
+                    paymentRs = null;
+                    paymentPs = null;
+
+                    rangeStart = paymentsBeforeLoan + 2;
                 }
 
-                int rangeEnd = rangeStart + cutoffs * 2 - 1;
+                int rangeEnd = rangeStart + range - 1;
 
+                // Check if current position is within loan range
                 if (position >= rangeStart && position <= rangeEnd) {
                     int paymentsCompleted = position - rangeStart + 1;
                     BigDecimal remainingBalance = total.subtract(amountPerCutoff.multiply(BigDecimal.valueOf(paymentsCompleted)));
@@ -391,16 +515,20 @@ public class LoanService {
                     loanInfo.put("is_first_deduction", isFirstDeduction);
                     activeLoans.add(loanInfo);
                 }
-
-                startPos += cutoffs * 2;
             }
-
-            rs.close();
-            ps.close();
-            con.close();
 
         } catch (SQLException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                if (paymentRs != null) paymentRs.close();
+                if (paymentPs != null) paymentPs.close();
+                if (loanRs != null) loanRs.close();
+                if (loanPs != null) loanPs.close();
+                if (con != null) con.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
 
         return activeLoans;
@@ -464,11 +592,11 @@ public class LoanService {
      * Get scheduled payment for the next position
      * Counts existing payment entries across all same-type ledgers and calls getScheduledPaymentForPosition
      *
-     * @param ledgerId Ledger ID
+     * @param memberId Member ID (to filter loans by member)
      * @param ledgerType Ledger type
      * @return Scheduled payment for the next position
      */
-    public BigDecimal getScheduledPaymentForNextPosition(int ledgerId, String ledgerType) {
+    public BigDecimal getScheduledPaymentForNextPosition(int memberId, String ledgerType) {
         try {
             Connection con = Database.getConnection();
             String sql = """
@@ -490,7 +618,7 @@ public class LoanService {
             ps.close();
             con.close();
 
-            return getScheduledPaymentForPosition(ledgerId, paymentCount + 1);
+            return getScheduledPaymentForPosition(memberId, ledgerType, paymentCount + 1);
         } catch (SQLException e) {
             e.printStackTrace();
             return BigDecimal.ZERO;
@@ -499,50 +627,40 @@ public class LoanService {
 
     /**
      * Get scheduled payment considering prospective date
-     * Most complex logic - calculates scheduled payment considering prospective date
+     * Calculates scheduled payment for the prospective date based on actual loan deduction date ranges
+     * Queries loans for a member across all same-type ledgers
      *
-     * @param ledgerId Ledger ID
+     * @param memberId Member ID (to filter loans by member)
      * @param ledgerType Ledger type
      * @param prospectiveDate Prospective payment date
      * @return Scheduled payment amount
      */
-    public BigDecimal getScheduledPaymentWithDate(int ledgerId, String ledgerType, LocalDate prospectiveDate) {
+    public BigDecimal getScheduledPaymentWithDate(int memberId, String ledgerType, LocalDate prospectiveDate) {
+        Connection con = null;
+        PreparedStatement loanPs = null;
+        ResultSet loanRs = null;
+
         try {
-            Connection con = Database.getConnection();
-
-            // Get all payment rows ordered by date
-            String paymentSql = """
-                SELECT fd.id, fd.date
-                FROM form_data fd
-                JOIN ledgers led ON fd.ledger_id = led.id
-                WHERE led.type = ? AND fd.deleted_at IS NULL
-                ORDER BY fd.date ASC
-            """;
-            PreparedStatement paymentPs = con.prepareStatement(paymentSql);
-            paymentPs.setString(1, ledgerType);
-            ResultSet paymentRs = paymentPs.executeQuery();
-
-            int position = 1;
-            while (paymentRs.next()) {
-                position++;
+            con = Database.getConnection();
+            if (con == null) {
+                return BigDecimal.ZERO;
             }
-            paymentRs.close();
-            paymentPs.close();
 
-            // Get all loans ordered by ID
+            // Get all loans for the member across all same-type ledgers ordered by ID
             String loanSql = """
-                SELECT id, form_number, date, start_deduction_date, start_deduction_on_loan_date,
-                       principal, service_charge_balance, interest_balance, total, cutoffs
-                FROM loans
-                WHERE ledger_id = ? AND deleted_at IS NULL
-                ORDER BY id ASC
+                SELECT l.id, l.form_number, l.date, l.start_deduction_date, l.start_deduction_on_loan_date,
+                       l.principal, l.service_charge_balance, l.interest_balance, l.total, l.cutoffs
+                FROM loans l
+                INNER JOIN ledgers led ON l.ledger_id = led.id
+                WHERE led.type = ? AND l.member_id = ? AND l.deleted_at IS NULL
+                ORDER BY l.id ASC
             """;
-            PreparedStatement loanPs = con.prepareStatement(loanSql);
-            loanPs.setInt(1, ledgerId);
-            ResultSet loanRs = loanPs.executeQuery();
+            loanPs = con.prepareStatement(loanSql);
+            loanPs.setString(1, ledgerType);
+            loanPs.setInt(2, memberId);
+            loanRs = loanPs.executeQuery();
 
             BigDecimal totalPayment = BigDecimal.ZERO;
-            int startPos = 1;
 
             while (loanRs.next()) {
                 LocalDate loanDate = loanRs.getDate("date") != null ? loanRs.getDate("date").toLocalDate() : null;
@@ -552,68 +670,73 @@ public class LoanService {
                 Integer cutoffs = loanRs.getInt("cutoffs");
 
                 if (total == null || cutoffs == null || cutoffs == 0) {
-                    startPos += 1;
                     continue;
                 }
 
-                BigDecimal range = BigDecimal.valueOf(cutoffs * 2);
-                BigDecimal amountPerCutoff = total.divide(range, 2, java.math.RoundingMode.HALF_UP);
+                // Calculate loan's deduction range in terms of payment periods
+                int range = cutoffs * 2;
 
+                // Calculate per-payment deduction amount
+                BigDecimal amountPerCutoff = total.divide(BigDecimal.valueOf(range), 2, java.math.RoundingMode.HALF_UP);
+
+                // Determine the actual date when deductions should start
                 LocalDate effectiveStartDate = getEffectiveDeductionStartDate(loanDate, startDeductionDate, startDeductionOnLoanDate);
 
-                int rangeStart;
-                if (position > 1) {
-                    // Payments exist - count payments before loan's effective start date
-                    String beforeLoanSql = """
-                        SELECT COUNT(*) as before_count
-                        FROM form_data fd
-                        JOIN ledgers led ON fd.ledger_id = led.id
-                        WHERE led.type = ? AND fd.deleted_at IS NULL
-                        AND fd.date < ?
-                    """;
-                    PreparedStatement beforeLoanPs = con.prepareStatement(beforeLoanSql);
-                    beforeLoanPs.setString(1, ledgerType);
-                    beforeLoanPs.setDate(2, effectiveStartDate != null ? java.sql.Date.valueOf(effectiveStartDate) : null);
-                    ResultSet beforeLoanRs = beforeLoanPs.executeQuery();
-
-                    int beforeLoan = 0;
-                    if (beforeLoanRs.next()) {
-                        beforeLoan = beforeLoanRs.getInt("before_count");
-                    }
-                    beforeLoanRs.close();
-                    beforeLoanPs.close();
-
-                    rangeStart = 1 + beforeLoan;
-
-                    if (prospectiveDate != null && shouldDelayDeductionStart(prospectiveDate, loanDate, effectiveStartDate)) {
-                        rangeStart += 1;
-                    }
-                } else {
-                    // No payments exist - calculate start position based on previous loans' ranges
-                    rangeStart = startPos;
-
-                    if (prospectiveDate != null && shouldDelayDeductionStart(prospectiveDate, loanDate, effectiveStartDate)) {
-                        rangeStart += 1;
-                    }
+                // If no effective start date, skip this loan
+                if (effectiveStartDate == null) {
+                    continue;
                 }
 
-                int rangeEnd = rangeStart + cutoffs * 2 - 1;
+                // If prospective date is before effective start date, skip this loan
+                if (prospectiveDate != null && prospectiveDate.isBefore(effectiveStartDate)) {
+                    continue;
+                }
 
-                if (position >= rangeStart && position <= rangeEnd) {
+                // Count how many payment periods have occurred from effectiveStartDate to prospectiveDate
+                // Cutoff dates are 15th and last day of each month
+                LocalDate currentDate = effectiveStartDate;
+                int paymentPeriod = 0;
+                boolean loanIsActive = false;
+
+                while (!currentDate.isAfter(prospectiveDate)) {
+                    int dayOfMonth = currentDate.getDayOfMonth();
+                    int lastDayOfMonth = currentDate.lengthOfMonth();
+                    
+                    // Check if currentDate is a cutoff date (15th or last day)
+                    if (dayOfMonth == 15 || dayOfMonth == lastDayOfMonth) {
+                        paymentPeriod++;
+                        
+                        // Check if this payment period is within the loan's range
+                        if (paymentPeriod >= 1 && paymentPeriod <= range) {
+                            // Check if prospectiveDate matches this cutoff date
+                            if (currentDate.equals(prospectiveDate)) {
+                                loanIsActive = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    currentDate = currentDate.plusDays(1);
+                }
+
+                // If the prospective date falls within the loan's active payment periods, add the amount
+                if (loanIsActive) {
                     totalPayment = totalPayment.add(amountPerCutoff);
                 }
-
-                startPos += cutoffs * 2;
             }
-
-            loanRs.close();
-            loanPs.close();
-            con.close();
 
             return totalPayment.setScale(2, java.math.RoundingMode.HALF_UP);
         } catch (SQLException e) {
             e.printStackTrace();
             return BigDecimal.ZERO;
+        } finally {
+            try {
+                if (loanRs != null) loanRs.close();
+                if (loanPs != null) loanPs.close();
+                if (con != null) con.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

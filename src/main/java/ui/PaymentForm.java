@@ -15,6 +15,9 @@ public class PaymentForm extends javax.swing.JDialog {
     private int ledgerId;
     private int memberId;
     private String ledgerType;
+    private boolean isEditMode = false;
+    private java.math.BigDecimal scheduledPaymentForDate;
+    private java.math.BigDecimal shouldBePaidForDate;
 
     /**
      * Creates new form PaymentForm as a modal dialog
@@ -35,8 +38,14 @@ public class PaymentForm extends javax.swing.JDialog {
         // Auto-fill date with next cutoff date
         autoFillCutoffDate();
         
-        // Auto-compute and disable scheduled payment and should be paid
-        autoComputePaymentFields();
+        // Auto-fill premium from member data
+        autoFillPremium();
+        
+        // Add date change listener for real-time computation
+        addDateChangeListener();
+        
+        // Initial computation for prospective date
+        fetchProspectivePayments();
         
         // Disable scheduled payment and should be paid fields
         scheduledPayment.setEnabled(false);
@@ -129,40 +138,108 @@ public class PaymentForm extends javax.swing.JDialog {
     }
 
     /**
-     * Auto-compute scheduled payment and should be paid based on previous entries
+     * Auto-fill premium from member data
      */
-    private void autoComputePaymentFields() {
+    private void autoFillPremium() {
         try {
-            services.PaymentService paymentService = new services.PaymentService();
-            
-            // Find previous entry
-            services.PaymentService.PreviousEntry previousEntry = 
-                paymentService.findPreviousEntry(ledgerId, memberId, ledgerType);
-            
-            if (previousEntry != null) {
-                // Calculate scheduled payment (this would typically come from loan service)
-                // For now, we'll use a default or previous value
-                java.math.BigDecimal scheduledPaymentValue = previousEntry.scheduledPayment != null 
-                    ? previousEntry.scheduledPayment 
-                    : java.math.BigDecimal.ZERO;
-                scheduledPayment.setText(formatCurrency(scheduledPaymentValue));
-                
-                // Calculate should be paid: previous under_paid + scheduled_payment
-                java.math.BigDecimal previousUnderPaid = previousEntry.underPaid != null 
-                    ? previousEntry.underPaid 
-                    : java.math.BigDecimal.ZERO;
-                java.math.BigDecimal shouldBePaidValue = previousUnderPaid.add(scheduledPaymentValue);
-                shouldBePaid.setText(formatCurrency(shouldBePaidValue));
-            } else {
-                // No previous entry, set to zero
-                scheduledPayment.setText("0.00");
-                shouldBePaid.setText("0.00");
+            services.FormDataService formDataService = new services.FormDataService();
+            java.math.BigDecimal memberPremium = formDataService.getMemberPremium(memberId);
+            if (memberPremium != null) {
+                premium.setText(formatCurrency(memberPremium));
             }
         } catch (Exception e) {
             e.printStackTrace();
-            // On error, set to zero
-            scheduledPayment.setText("0.00");
-            shouldBePaid.setText("0.00");
+        }
+    }
+
+    /**
+     * Add PropertyChangeListener to date chooser for real-time computation
+     */
+    private void addDateChangeListener() {
+        date.addPropertyChangeListener("date", evt -> {
+            if (!isEditMode) {
+                fetchProspectivePayments();
+            }
+        });
+    }
+
+    /**
+     * Fetch prospective payments from server for the selected date
+     * Updates scheduledPaymentForDate and shouldBePaidForDate state variables
+     */
+    private void fetchProspectivePayments() {
+        try {
+            java.util.Date selectedDate = date.getDate();
+            if (selectedDate == null) {
+                scheduledPaymentForDate = null;
+                shouldBePaidForDate = null;
+                updatePaymentFieldsDisplay();
+                return;
+            }
+
+            LocalDate paymentDate = selectedDate.toInstant()
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDate();
+
+            services.FormDataService formDataService = new services.FormDataService();
+            services.FormDataService.ProspectivePayment prospective =
+                formDataService.getProspectivePaymentsForDate(memberId, ledgerType, paymentDate);
+
+            System.out.println("DEBUG: memberId=" + memberId + ", ledgerType=" + ledgerType + ", paymentDate=" + paymentDate);
+            System.out.println("DEBUG: scheduledPayment=" + prospective.scheduledPayment);
+            System.out.println("DEBUG: shouldBePaid=" + prospective.shouldBePaid);
+
+            scheduledPaymentForDate = prospective.scheduledPayment;
+            shouldBePaidForDate = prospective.shouldBePaid;
+
+            updatePaymentFieldsDisplay();
+        } catch (Exception e) {
+            e.printStackTrace();
+            scheduledPaymentForDate = null;
+            shouldBePaidForDate = null;
+            updatePaymentFieldsDisplay();
+        }
+    }
+
+    /**
+     * Update payment fields display with priority order
+     * 
+     * Scheduled Payment Priority:
+     * 1. If editing: uses formData.scheduled_payment
+     * 2. If creating with date: uses scheduledPaymentForDate (live server value)
+     * 3. Fallback: uses nextScheduledPayment prop (from parent component)
+     * 4. Default: '0.00'
+     * 
+     * Should Be Paid Priority:
+     * 1. If editing: uses formData.should_be_paid
+     * 2. If creating with date: uses shouldBePaidForDate (live server value)
+     * 3. Default: '—'
+     */
+    private void updatePaymentFieldsDisplay() {
+        // Scheduled Payment display logic
+        if (isEditMode) {
+            // In edit mode, keep existing value (would be set from formData)
+            // For now, keep current text
+        } else {
+            // In create mode, use prospective value
+            if (scheduledPaymentForDate != null) {
+                scheduledPayment.setText(formatCurrency(scheduledPaymentForDate));
+            } else {
+                scheduledPayment.setText("0.00");
+            }
+        }
+
+        // Should Be Paid display logic
+        if (isEditMode) {
+            // In edit mode, keep existing value (would be set from formData)
+            // For now, keep current text
+        } else {
+            // In create mode, use prospective value
+            if (shouldBePaidForDate != null) {
+                shouldBePaid.setText(formatCurrency(shouldBePaidForDate));
+            } else {
+                shouldBePaid.setText("—");
+            }
         }
     }
 

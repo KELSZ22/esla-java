@@ -13,6 +13,7 @@ import java.time.LocalDate;
  * Handles all payment calculations and record creation according to ESLA business rules
  */
 public class PaymentService {
+    private LoanService loanService = new LoanService();
 
     /**
      * Represents computed payment fields
@@ -232,9 +233,8 @@ public class PaymentService {
             computed.total = BigDecimal.ZERO;
         }
 
-        // Scheduled Payment: Fetches from LoanService based on position and date
-        // For now, use the provided scheduledPayment value
-        computed.scheduledPayment = scheduledPayment != null ? scheduledPayment : BigDecimal.ZERO;
+        // Scheduled Payment: Calculate based on active loans at this date
+        computed.scheduledPayment = loanService.getScheduledPaymentWithDate(memberId, ledgerType, date);
 
         // Should Be Paid: Previous under_paid + scheduled_payment
         BigDecimal previousUnderPaid = (previousEntry != null && previousEntry.underPaid != null) 
@@ -242,18 +242,28 @@ public class PaymentService {
             : BigDecimal.ZERO;
         computed.shouldBePaid = previousUnderPaid.add(computed.scheduledPayment);
 
-        // Balance: Previous balance - actual_payment + total
+        // Balance: Previous balance - actual_payment + total (where total is new loan's cutoffs_amount if loan starts on this date)
         BigDecimal previousBalance = (previousEntry != null && previousEntry.balance != null) 
             ? previousEntry.balance 
             : BigDecimal.ZERO;
+        
+        // Determine if a new loan starts on this date and get its cutoffs_amount
+        BigDecimal newLoanAmount = BigDecimal.ZERO;
+        if (loanInfo != null && loanInfo.cutoffsAmount != null) {
+            newLoanAmount = loanInfo.cutoffsAmount;
+        }
+        
         computed.balance = previousBalance
             .subtract(actualPayment != null ? actualPayment : BigDecimal.ZERO)
-            .add(computed.total);
+            .add(newLoanAmount);
 
-        // Under Paid: should_be_paid - actual_payment
-        computed.underPaid = computed.shouldBePaid.subtract(
-            actualPayment != null ? actualPayment : BigDecimal.ZERO
-        );
+        // Under Paid: should_be_paid - actual_payment (only when actual_payment < should_be_paid)
+        BigDecimal actualPaymentValue = actualPayment != null ? actualPayment : BigDecimal.ZERO;
+        if (actualPaymentValue.compareTo(computed.shouldBePaid) < 0) {
+            computed.underPaid = computed.shouldBePaid.subtract(actualPaymentValue);
+        } else {
+            computed.underPaid = BigDecimal.ZERO;
+        }
 
         // Premium Total: Previous premium_total + current premium
         BigDecimal previousPremiumTotal = premiumTotalBaseline != null ? premiumTotalBaseline : BigDecimal.ZERO;

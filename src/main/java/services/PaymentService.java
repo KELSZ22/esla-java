@@ -242,20 +242,14 @@ public class PaymentService {
             : BigDecimal.ZERO;
         computed.shouldBePaid = previousUnderPaid.add(computed.scheduledPayment);
 
-        // Balance: Previous balance - actual_payment + total (where total is new loan's cutoffs_amount if loan starts on this date)
+        // Balance: Previous balance - actual_payment + total
         BigDecimal previousBalance = (previousEntry != null && previousEntry.balance != null) 
             ? previousEntry.balance 
             : BigDecimal.ZERO;
         
-        // Determine if a new loan starts on this date and get its cutoffs_amount
-        BigDecimal newLoanAmount = BigDecimal.ZERO;
-        if (loanInfo != null && loanInfo.cutoffsAmount != null) {
-            newLoanAmount = loanInfo.cutoffsAmount;
-        }
-        
         computed.balance = previousBalance
             .subtract(actualPayment != null ? actualPayment : BigDecimal.ZERO)
-            .add(newLoanAmount);
+            .add(computed.total);
 
         // Under Paid: should_be_paid - actual_payment (only when actual_payment < should_be_paid)
         BigDecimal actualPaymentValue = actualPayment != null ? actualPayment : BigDecimal.ZERO;

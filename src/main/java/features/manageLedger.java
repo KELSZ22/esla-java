@@ -416,6 +416,8 @@ public class manageLedger extends javax.swing.JPanel {
         loanTable = new javax.swing.JTable();
         formSearchPanel = new javax.swing.JPanel();
         formSearch = new javax.swing.JTextField();
+        paymentLoanButton = new javax.swing.JButton();
+        rightPanel = new javax.swing.JPanel();
         backButton = new javax.swing.JButton();
 
         setBackground(new java.awt.Color(255, 255, 255));
@@ -482,34 +484,61 @@ public class manageLedger extends javax.swing.JPanel {
                 .addContainerGap())
         );
 
+        paymentLoanButton.setText("Add Payment");
+        paymentLoanButton.addActionListener(this::paymentLoanButtonActionPerformed);
+
+        rightPanel.setBackground(new java.awt.Color(240, 240, 240));
+        rightPanel.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200), 1));
+        rightPanel.setVisible(false);
+
+        rightPanel.setLayout(new java.awt.GridBagLayout());
+        java.awt.GridBagConstraints gbc = new java.awt.GridBagConstraints();
+        gbc.insets = new java.awt.Insets(5, 5, 5, 5);
+        gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        gbc.anchor = java.awt.GridBagConstraints.WEST;
+
+        paymentTab.addChangeListener(new javax.swing.event.ChangeListener() {
+            @Override
+            public void stateChanged(javax.swing.event.ChangeEvent e) {
+                updateButtonAndForm();
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
             jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(formSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 180, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 214, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 952, Short.MAX_VALUE)))
+                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 568, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(rightPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 350, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addComponent(formSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(paymentLoanButton)))
                 .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(formSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(formSearchPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(paymentLoanButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane3)
-                    .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 454, Short.MAX_VALUE))
-                .addContainerGap())
+                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(rightPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
         );
 
         backButton.setText("Back");
-        backButton.addActionListener(this::backButtonActionPerformed);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -652,6 +681,61 @@ public class manageLedger extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_backButtonActionPerformed
 
+    private void paymentLoanButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_paymentLoanButtonActionPerformed
+        int selectedIndex = paymentTab.getSelectedIndex();
+        if (selectedIndex == 0) {
+            // Check if a member is selected
+            int selectedMemberIndex = memberList.getSelectedIndex();
+            if (selectedMemberIndex < 0 || selectedMemberIndex >= memberIds.size()) {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                    "Please select a member first",
+                    "Info",
+                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            int memberId = memberIds.get(selectedMemberIndex);
+
+            // Show PaymentForm as modal dialog with required parameters
+            java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
+            ui.PaymentForm paymentForm = new ui.PaymentForm(parentFrame, ledgerId, memberId, ledgerType);
+            paymentForm.setVisible(true);
+
+            // Reload data after payment form closes
+            loadFormDataByLedger(ledgerId, memberId);
+        } else {
+            // Check if a member is selected
+            int selectedMemberIndex = memberList.getSelectedIndex();
+            if (selectedMemberIndex < 0 || selectedMemberIndex >= memberIds.size()) {
+                javax.swing.JOptionPane.showMessageDialog(this,
+                    "Please select a member first",
+                    "Info",
+                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+
+            int memberId = memberIds.get(selectedMemberIndex);
+
+            // Show LoanForm as modal dialog with required parameters
+            java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
+            ui.LoanForm loanForm = new ui.LoanForm(parentFrame, ledgerId, memberId, ledgerType);
+            loanForm.setVisible(true);
+
+            // Reload data after loan form closes
+            loadLoansByLedger(ledgerId, memberId);
+        }
+    }//GEN-LAST:event_paymentLoanButtonActionPerformed
+
+    private void updateButtonAndForm() {
+        int selectedIndex = paymentTab.getSelectedIndex();
+
+        if (selectedIndex == 0) {
+            paymentLoanButton.setText("Add Payment");
+        } else {
+            paymentLoanButton.setText("Add Loan");
+        }
+    }
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton backButton;
@@ -664,7 +748,9 @@ public class manageLedger extends javax.swing.JPanel {
     private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JTable loanTable;
     private javax.swing.JList<String> memberList;
+    private javax.swing.JButton paymentLoanButton;
     private javax.swing.JTabbedPane paymentTab;
     private javax.swing.JTable paymentTable;
+    private javax.swing.JPanel rightPanel;
     // End of variables declaration//GEN-END:variables
 }

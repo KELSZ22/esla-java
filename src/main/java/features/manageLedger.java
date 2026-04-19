@@ -19,6 +19,12 @@ import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellEditor;
+import javax.swing.AbstractCellEditor;
+import javax.swing.JTable;
+import java.awt.Component;
+import java.util.Date;
+import com.toedter.calendar.JDateChooser;
 import ui.style;
 
 /**
@@ -32,6 +38,86 @@ public class manageLedger extends javax.swing.JPanel {
     private String ledgerType;
     private java.util.List<Integer> memberIds = new java.util.ArrayList<>();
     private Timer searchTimer;
+
+    /**
+     * Custom table model for payment table with inline editing
+     * Editable columns: Date (1), Actual Payment (3), Premium (8)
+     * All other columns are read-only
+     * ID column (0) is hidden from view
+     */
+    class PaymentTableModel extends DefaultTableModel {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            // Only allow editing for Date (1), Actual Payment (3), and Premium (8)
+            // ID column (0) is not editable
+            return column == 1 || column == 3 || column == 8;
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            if (columnIndex == 0) {
+                return Integer.class; // ID
+            } else if (columnIndex == 1) {
+                return Date.class; // Date
+            }
+            return String.class;
+        }
+    }
+
+    /**
+     * Custom cell editor for date column using JDateChooser
+     */
+    class DateCellEditor extends AbstractCellEditor implements TableCellEditor {
+        private JDateChooser dateChooser;
+
+        public DateCellEditor() {
+            dateChooser = new JDateChooser();
+            dateChooser.setDateFormatString("yyyy-MM-dd");
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            return dateChooser.getDate();
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value,
+                boolean isSelected, int row, int column) {
+            if (value instanceof Date) {
+                dateChooser.setDate((Date) value);
+            }
+            return dateChooser;
+        }
+    }
+
+    /**
+     * Custom table model for loan table with inline editing
+     * Editable columns: Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
+     * Computed/read-only columns: Service Charge (4), Interest (5), Total (6), Cutoff Amount (8)
+     * ID column (0) is hidden from view
+     */
+    class LoanTableModel extends DefaultTableModel {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            // Only allow editing for Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
+            // ID column (0), Service Charge (4), Interest (5), Total (6), and Cutoff Amount (8) are not editable (computed fields)
+            return column == 1 || column == 2 || column == 3 || column == 7 || column == 9;
+        }
+
+        @Override
+        public Class<?> getColumnClass(int columnIndex) {
+            if (columnIndex == 0) {
+                return Integer.class; // ID
+            } else if (columnIndex == 1) {
+                return Integer.class; // Form Number
+            } else if (columnIndex == 2) {
+                return Date.class; // Date
+            } else if (columnIndex == 7) {
+                return Integer.class; // No. of Months
+            }
+            return String.class;
+        }
+    }
 
     /**
      * Creates new form manageLedger
@@ -130,6 +216,343 @@ public class manageLedger extends javax.swing.JPanel {
     }
 
     /**
+     * Update loan record when a cell is edited
+     * @param row The row index
+     * @param column The column index
+     */
+    private void updateLoanRecord(int row, int column) {
+        try {
+            LoanTableModel model = (LoanTableModel) loanTable.getModel();
+            
+            // Only update editable columns: Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
+            if (column != 1 && column != 2 && column != 3 && column != 7 && column != 9) {
+                return;
+            }
+            
+            // Get the record ID from column 0
+            Object idObj = model.getValueAt(row, 0);
+            if (idObj == null || !(idObj instanceof Integer)) {
+                System.out.println("Invalid ID for row " + row);
+                return;
+            }
+            int recordId = (Integer) idObj;
+            
+            Object value = model.getValueAt(row, column);
+            String columnName = model.getColumnName(column);
+            
+            // Show confirmation dialog before updating
+            int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to update " + columnName + " to: " + (value != null ? value.toString() : "") + "?",
+                "Confirm Update",
+                javax.swing.JOptionPane.YES_NO_OPTION,
+                javax.swing.JOptionPane.QUESTION_MESSAGE);
+            
+            if (confirm != javax.swing.JOptionPane.YES_OPTION) {
+                // Reload data to revert the change
+                String searchText = formSearch.getText().toLowerCase().trim();
+                if (!searchText.isEmpty()) {
+                    filterLoanTable(searchText);
+                } else {
+                    int selectedMemberIndex = memberList.getSelectedIndex();
+                    if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                        int memberId = memberIds.get(selectedMemberIndex);
+                        loadLoansByLedger(ledgerId, memberId);
+                    } else {
+                        loadLoansByLedger(ledgerId, null);
+                    }
+                }
+                return;
+            }
+            
+            // Determine the database column name and value
+            String dbColumn;
+            Object dbValue;
+            
+            if (column == 1) {
+                // Form Number column
+                dbColumn = "form_number";
+                try {
+                    dbValue = Integer.parseInt(value != null ? value.toString() : "0");
+                } catch (NumberFormatException e) {
+                    dbValue = 0;
+                }
+            } else if (column == 2) {
+                // Date column
+                dbColumn = "date";
+                if (value instanceof Date) {
+                    dbValue = new java.sql.Date(((Date) value).getTime());
+                } else {
+                    System.out.println("Invalid date value");
+                    return;
+                }
+            } else if (column == 3) {
+                // Principal column - will trigger recalculation of computed fields
+                dbColumn = "principal";
+                dbValue = parseCurrency(value != null ? value.toString() : "0");
+            } else if (column == 7) {
+                // No. of Months column - will trigger recalculation of computed fields
+                dbColumn = "cutoffs";
+                try {
+                    dbValue = Integer.parseInt(value != null ? value.toString() : "0");
+                } catch (NumberFormatException e) {
+                    dbValue = 0;
+                }
+            } else if (column == 9) {
+                // Remarks column
+                dbColumn = "remarks";
+                dbValue = value != null ? value.toString() : "";
+            } else {
+                return;
+            }
+            
+            // Update the database
+            Connection con = Database.getConnection();
+            String sql;
+            PreparedStatement ps;
+            
+            // If Principal or No. of Months is updated, recalculate all computed fields
+            if (column == 3 || column == 7) {
+                // Get current values from the table
+                java.math.BigDecimal principal = parseCurrency(model.getValueAt(row, 3) != null ? model.getValueAt(row, 3).toString() : "0");
+                Integer cutoffs = 0;
+                try {
+                    cutoffs = Integer.parseInt(model.getValueAt(row, 7) != null ? model.getValueAt(row, 7).toString() : "0");
+                } catch (NumberFormatException e) {
+                    cutoffs = 0;
+                }
+                
+                // Calculate computed fields
+                // Service Charge = principal * 0.03 (3%)
+                java.math.BigDecimal serviceCharge = principal.multiply(new java.math.BigDecimal("0.03")).setScale(2, java.math.RoundingMode.HALF_UP);
+                
+                // Interest = principal * 0.03 * cutoffs
+                java.math.BigDecimal interest = principal.multiply(new java.math.BigDecimal("0.03")).multiply(java.math.BigDecimal.valueOf(cutoffs));
+                
+                // Total = principal + service_charge + interest
+                java.math.BigDecimal total = principal.add(serviceCharge).add(interest);
+                
+                // Cutoff Amount = total / (cutoffs * 2)
+                java.math.BigDecimal cutoffsAmount = java.math.BigDecimal.ZERO;
+                if (cutoffs > 0) {
+                    cutoffsAmount = total.divide(java.math.BigDecimal.valueOf(cutoffs * 2), 2, java.math.RoundingMode.HALF_UP);
+                }
+                
+                // Update all fields including computed ones
+                sql = "UPDATE loans SET form_number = ?, date = ?, principal = ?, service_charge = ?, interest = ?, total = ?, cutoffs = ?, cutoffs_amount = ?, remarks = ? WHERE id = ?";
+                ps = con.prepareStatement(sql);
+                
+                // Get other column values
+                Object formNumberObj = model.getValueAt(row, 1);
+                Integer formNumber = formNumberObj instanceof Integer ? (Integer) formNumberObj : Integer.parseInt(formNumberObj != null ? formNumberObj.toString() : "0");
+                
+                Object dateObj = model.getValueAt(row, 2);
+                java.sql.Date date = (dateObj instanceof Date) ? new java.sql.Date(((Date) dateObj).getTime()) : null;
+                
+                Object remarksObj = model.getValueAt(row, 9);
+                String remarks = remarksObj != null ? remarksObj.toString() : "";
+                
+                ps.setInt(1, formNumber);
+                ps.setDate(2, date);
+                ps.setBigDecimal(3, principal);
+                ps.setBigDecimal(4, serviceCharge);
+                ps.setBigDecimal(5, interest);
+                ps.setBigDecimal(6, total);
+                ps.setInt(7, cutoffs);
+                ps.setBigDecimal(8, cutoffsAmount);
+                ps.setString(9, remarks);
+                ps.setInt(10, recordId);
+            } else {
+                // For other columns, just update the single column
+                sql = "UPDATE loans SET " + dbColumn + " = ? WHERE id = ?";
+                ps = con.prepareStatement(sql);
+                
+                if (dbValue instanceof java.sql.Date) {
+                    ps.setDate(1, (java.sql.Date) dbValue);
+                } else if (dbValue instanceof java.math.BigDecimal) {
+                    ps.setBigDecimal(1, (java.math.BigDecimal) dbValue);
+                } else if (dbValue instanceof Integer) {
+                    ps.setInt(1, (Integer) dbValue);
+                } else {
+                    ps.setObject(1, dbValue);
+                }
+                ps.setInt(2, recordId);
+            }
+            
+            int rowsAffected = ps.executeUpdate();
+            ps.close();
+            con.close();
+            
+            if (rowsAffected > 0) {
+                System.out.println("Successfully updated " + columnName + " for loan record ID " + recordId);
+                // Check if search filter is active
+                String searchText = formSearch.getText().toLowerCase().trim();
+                if (!searchText.isEmpty()) {
+                    // Reapply the filter to preserve search state
+                    filterLoanTable(searchText);
+                } else {
+                    // Reload data to recalculate computed fields (Total, Cutoff Amount)
+                    int selectedMemberIndex = memberList.getSelectedIndex();
+                    if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                        int memberId = memberIds.get(selectedMemberIndex);
+                        loadLoansByLedger(ledgerId, memberId);
+                    } else {
+                        loadLoansByLedger(ledgerId, null);
+                    }
+                }
+            } else {
+                System.out.println("No rows affected for loan record ID " + recordId);
+            }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            javax.swing.JOptionPane.showMessageDialog(this,
+                "Error updating loan record: " + e.getMessage(),
+                "Error",
+                javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Update payment record when a cell is edited
+     * @param row The row index
+     * @param column The column index
+     */
+    private void updatePaymentRecord(int row, int column) {
+        try {
+            PaymentTableModel model = (PaymentTableModel) paymentTable.getModel();
+            
+            // Only update editable columns: Date (1), Actual Payment (3), Premium (8)
+            if (column != 1 && column != 3 && column != 8) {
+                return;
+            }
+            
+            // Get the record ID from column 0
+            Object idObj = model.getValueAt(row, 0);
+            if (idObj == null || !(idObj instanceof Integer)) {
+                System.out.println("Invalid ID for row " + row);
+                return;
+            }
+            int recordId = (Integer) idObj;
+            
+            Object value = model.getValueAt(row, column);
+            String columnName = model.getColumnName(column);
+            
+            // Show confirmation dialog before updating
+            int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to update " + columnName + " to: " + (value != null ? value.toString() : "") + "?",
+                "Confirm Update",
+                javax.swing.JOptionPane.YES_NO_OPTION,
+                javax.swing.JOptionPane.QUESTION_MESSAGE);
+            
+            if (confirm != javax.swing.JOptionPane.YES_OPTION) {
+                // Reload data to revert the change
+                String searchText = formSearch.getText().toLowerCase().trim();
+                if (!searchText.isEmpty()) {
+                    filterPaymentTable(searchText);
+                } else {
+                    int selectedMemberIndex = memberList.getSelectedIndex();
+                    if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                        int memberId = memberIds.get(selectedMemberIndex);
+                        loadFormDataByLedger(ledgerId, memberId);
+                    } else {
+                        loadFormDataByLedger(ledgerId, null);
+                    }
+                }
+                return;
+            }
+            
+            // Determine the database column name and value
+            String dbColumn;
+            Object dbValue;
+            
+            if (column == 1) {
+                // Date column
+                dbColumn = "date";
+                if (value instanceof Date) {
+                    dbValue = new java.sql.Date(((Date) value).getTime());
+                } else {
+                    System.out.println("Invalid date value");
+                    return;
+                }
+            } else if (column == 3) {
+                // Actual Payment column
+                dbColumn = "actual_payment";
+                dbValue = parseCurrency(value != null ? value.toString() : "0");
+            } else if (column == 8) {
+                // Premium column
+                dbColumn = "premium";
+                dbValue = parseCurrency(value != null ? value.toString() : "0");
+            } else {
+                return;
+            }
+            
+            // Update the database
+            Connection con = Database.getConnection();
+            String sql = "UPDATE form_data SET " + dbColumn + " = ? WHERE id = ?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            
+            if (dbValue instanceof java.sql.Date) {
+                ps.setDate(1, (java.sql.Date) dbValue);
+            } else if (dbValue instanceof java.math.BigDecimal) {
+                ps.setBigDecimal(1, (java.math.BigDecimal) dbValue);
+            } else {
+                ps.setObject(1, dbValue);
+            }
+            ps.setInt(2, recordId);
+            
+            int rowsAffected = ps.executeUpdate();
+            ps.close();
+            con.close();
+            
+            if (rowsAffected > 0) {
+                System.out.println("Successfully updated " + columnName + " for record ID " + recordId);
+                // Check if search filter is active
+                String searchText = formSearch.getText().toLowerCase().trim();
+                if (!searchText.isEmpty()) {
+                    // Reapply the filter to preserve search state
+                    filterPaymentTable(searchText);
+                } else {
+                    // Reload data to recalculate computed fields
+                    int selectedMemberIndex = memberList.getSelectedIndex();
+                    if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                        int memberId = memberIds.get(selectedMemberIndex);
+                        loadFormDataByLedger(ledgerId, memberId);
+                    } else {
+                        loadFormDataByLedger(ledgerId, null);
+                    }
+                }
+            } else {
+                System.out.println("No rows affected for record ID " + recordId);
+            }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            javax.swing.JOptionPane.showMessageDialog(this,
+                "Error updating payment record: " + e.getMessage(),
+                "Error",
+                javax.swing.JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /**
+     * Parse currency string to BigDecimal
+     * @param value The string value to parse
+     * @return BigDecimal value
+     */
+    private java.math.BigDecimal parseCurrency(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return java.math.BigDecimal.ZERO;
+        }
+        // Remove commas and whitespace
+        String cleaned = value.replaceAll("[,\\s]", "");
+        try {
+            return new java.math.BigDecimal(cleaned);
+        } catch (NumberFormatException e) {
+            return java.math.BigDecimal.ZERO;
+        }
+    }
+
+    /**
      * Set callback for back button to return to ledger table
      * @param callback Runnable to execute when back is clicked
      */
@@ -212,13 +635,37 @@ public class manageLedger extends javax.swing.JPanel {
      * @param memberId The member ID to filter by (null for all members)
      */
     private void loadFormDataByLedger(int ledgerId, Integer memberId) {
-        DefaultTableModel model = (DefaultTableModel) paymentTable.getModel();
+        PaymentTableModel model = new PaymentTableModel();
         model.setRowCount(0); // Clear existing data
 
         model.setColumnIdentifiers(new Object[]{
-            "Date", "Should Be Paid", "Actual Payment",
+            "ID", "Date", "Should Be Paid", "Actual Payment",
             "Balance", "Under Paid", "Scheduled Payment", "Premium Total",
             "Premium", "Actual Payroll", "Remarks"
+        });
+
+        paymentTable.setModel(model);
+
+        // Hide the ID column (column 0) from view
+        paymentTable.getColumnModel().getColumn(0).setMinWidth(0);
+        paymentTable.getColumnModel().getColumn(0).setMaxWidth(0);
+        paymentTable.getColumnModel().getColumn(0).setPreferredWidth(0);
+
+        // Apply custom cell editor to date column (column 1)
+        paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
+
+        // Add table model listener for inline editing updates
+        model.addTableModelListener(new javax.swing.event.TableModelListener() {
+            @Override
+            public void tableChanged(javax.swing.event.TableModelEvent e) {
+                if (e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
+                    int row = e.getFirstRow();
+                    int column = e.getColumn();
+                    if (row >= 0 && column >= 0) {
+                        updatePaymentRecord(row, column);
+                    }
+                }
+            }
         });
 
         try {
@@ -228,7 +675,7 @@ public class manageLedger extends javax.swing.JPanel {
 
             if (memberId != null) {
                 sql = """
-                    SELECT fd.form_number, fd.date, fd.should_be_paid,
+                    SELECT fd.id, fd.form_number, fd.date, fd.should_be_paid,
                            fd.actual_payment, fd.balance, fd.under_paid,
                            fd.scheduled_payment, fd.premium_total, fd.premium, fd.actual_payroll,
                            fd.remarks, m.name as member_name
@@ -242,7 +689,7 @@ public class manageLedger extends javax.swing.JPanel {
                 ps.setInt(2, memberId);
             } else {
                 sql = """
-                    SELECT fd.form_number, fd.date, fd.should_be_paid,
+                    SELECT fd.id, fd.form_number, fd.date, fd.should_be_paid,
                            fd.actual_payment, fd.balance, fd.under_paid,
                            fd.scheduled_payment, fd.premium_total, fd.premium, fd.actual_payroll,
                            fd.remarks, m.name as member_name
@@ -260,6 +707,7 @@ public class manageLedger extends javax.swing.JPanel {
             int rowCount = 0;
             while (rs.next()) {
                 model.addRow(new Object[]{
+                    rs.getInt("id"),
                     rs.getDate("date"),
                     formatCurrency(rs.getBigDecimal("should_be_paid")),
                     formatCurrency(rs.getBigDecimal("actual_payment")),
@@ -305,12 +753,36 @@ public class manageLedger extends javax.swing.JPanel {
      * @param memberId The member ID to filter by (null for all members)
      */
     private void loadLoansByLedger(int ledgerId, Integer memberId) {
-        DefaultTableModel model = (DefaultTableModel) loanTable.getModel();
+        LoanTableModel model = new LoanTableModel();
         model.setRowCount(0); // Clear existing data
 
         model.setColumnIdentifiers(new Object[]{
-            "Form Number", "Date", "Principal", "Service Charge",
+            "ID", "Form Number", "Date", "Principal", "Service Charge",
             "Interest", "Total", "No. of Months", "Cutoff Amount", "Remarks"
+        });
+
+        loanTable.setModel(model);
+
+        // Hide the ID column (column 0) from view
+        loanTable.getColumnModel().getColumn(0).setMinWidth(0);
+        loanTable.getColumnModel().getColumn(0).setMaxWidth(0);
+        loanTable.getColumnModel().getColumn(0).setPreferredWidth(0);
+
+        // Apply custom cell editor to date column (column 2)
+        loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
+
+        // Add table model listener for inline editing updates
+        model.addTableModelListener(new javax.swing.event.TableModelListener() {
+            @Override
+            public void tableChanged(javax.swing.event.TableModelEvent e) {
+                if (e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
+                    int row = e.getFirstRow();
+                    int column = e.getColumn();
+                    if (row >= 0 && column >= 0) {
+                        updateLoanRecord(row, column);
+                    }
+                }
+            }
         });
 
         try {
@@ -320,7 +792,7 @@ public class manageLedger extends javax.swing.JPanel {
 
             if (memberId != null) {
                 sql = """
-                    SELECT l.form_number, l.date, l.principal, l.service_charge,
+                    SELECT l.id, l.form_number, l.date, l.principal, l.service_charge,
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
@@ -332,7 +804,7 @@ public class manageLedger extends javax.swing.JPanel {
                 ps.setInt(2, memberId);
             } else {
                 sql = """
-                    SELECT l.form_number, l.date, l.principal, l.service_charge,
+                    SELECT l.id, l.form_number, l.date, l.principal, l.service_charge,
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
@@ -348,6 +820,7 @@ public class manageLedger extends javax.swing.JPanel {
             int rowCount = 0;
             while (rs.next()) {
                 model.addRow(new Object[]{
+                    rs.getInt("id"),
                     rs.getInt("form_number"),
                     rs.getDate("date"),
                     formatCurrency(rs.getBigDecimal("principal")),
@@ -598,8 +1071,8 @@ public class manageLedger extends javax.swing.JPanel {
      * @param searchText The search text to filter by
      */
     private void filterPaymentTable(String searchText) {
-        DefaultTableModel model = (DefaultTableModel) paymentTable.getModel();
-        DefaultTableModel filteredModel = new DefaultTableModel();
+        PaymentTableModel model = (PaymentTableModel) paymentTable.getModel();
+        PaymentTableModel filteredModel = new PaymentTableModel();
 
         // Copy column identifiers
         for (int i = 0; i < model.getColumnCount(); i++) {
@@ -626,6 +1099,28 @@ public class manageLedger extends javax.swing.JPanel {
         }
 
         paymentTable.setModel(filteredModel);
+
+        // Hide the ID column (column 0) from view
+        paymentTable.getColumnModel().getColumn(0).setMinWidth(0);
+        paymentTable.getColumnModel().getColumn(0).setMaxWidth(0);
+        paymentTable.getColumnModel().getColumn(0).setPreferredWidth(0);
+
+        // Apply custom cell editor to date column (column 1)
+        paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
+
+        // Add table model listener for inline editing updates
+        filteredModel.addTableModelListener(new javax.swing.event.TableModelListener() {
+            @Override
+            public void tableChanged(javax.swing.event.TableModelEvent e) {
+                if (e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
+                    int row = e.getFirstRow();
+                    int column = e.getColumn();
+                    if (row >= 0 && column >= 0) {
+                        updatePaymentRecord(row, column);
+                    }
+                }
+            }
+        });
     }
 
     /**
@@ -633,8 +1128,8 @@ public class manageLedger extends javax.swing.JPanel {
      * @param searchText The search text to filter by
      */
     private void filterLoanTable(String searchText) {
-        DefaultTableModel model = (DefaultTableModel) loanTable.getModel();
-        DefaultTableModel filteredModel = new DefaultTableModel();
+        LoanTableModel model = (LoanTableModel) loanTable.getModel();
+        LoanTableModel filteredModel = new LoanTableModel();
 
         // Copy column identifiers
         for (int i = 0; i < model.getColumnCount(); i++) {
@@ -661,6 +1156,28 @@ public class manageLedger extends javax.swing.JPanel {
         }
 
         loanTable.setModel(filteredModel);
+
+        // Hide the ID column (column 0) from view
+        loanTable.getColumnModel().getColumn(0).setMinWidth(0);
+        loanTable.getColumnModel().getColumn(0).setMaxWidth(0);
+        loanTable.getColumnModel().getColumn(0).setPreferredWidth(0);
+
+        // Apply custom cell editor to date column (column 2)
+        loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
+
+        // Add table model listener for inline editing updates
+        filteredModel.addTableModelListener(new javax.swing.event.TableModelListener() {
+            @Override
+            public void tableChanged(javax.swing.event.TableModelEvent e) {
+                if (e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
+                    int row = e.getFirstRow();
+                    int column = e.getColumn();
+                    if (row >= 0 && column >= 0) {
+                        updateLoanRecord(row, column);
+                    }
+                }
+            }
+        });
     }
 
     private void backButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_backButtonActionPerformed

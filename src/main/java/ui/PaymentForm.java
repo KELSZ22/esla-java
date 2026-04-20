@@ -46,11 +46,11 @@ public class PaymentForm extends javax.swing.JDialog {
         
         // Initial computation for prospective date
         fetchProspectivePayments();
-        
-        // Disable scheduled payment and should be paid fields
-        scheduledPayment.setEnabled(false);
-        shouldBePaid.setEnabled(false);
-        
+
+        // Make scheduled payment and should be paid fields read-only
+        scheduledPayment.setEditable(false);
+        shouldBePaid.setEditable(false);
+
         pack();
         setLocationRelativeTo(parent);
     }

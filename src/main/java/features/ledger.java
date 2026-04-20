@@ -337,12 +337,26 @@ model.addColumn("Delete");
 
         if (columnName == null) return;
 
+        // Show confirmation dialog before updating
+        Object newValue = model.getValueAt(row, col);
+        int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
+            "Are you sure you want to update " + columnName + " to: " + (newValue != null ? newValue.toString() : "") + "?",
+            "Confirm Update",
+            javax.swing.JOptionPane.YES_NO_OPTION,
+            javax.swing.JOptionPane.QUESTION_MESSAGE);
+
+        if (confirm != javax.swing.JOptionPane.YES_OPTION) {
+            // Reload data to revert the change
+            applyFilters();
+            return;
+        }
+
         Connection con = Database.getConnection();
 
         String sql = "UPDATE ledgers SET " + columnName + " = ? WHERE id = ?";
         PreparedStatement ps = con.prepareStatement(sql);
 
-        ps.setObject(1, model.getValueAt(row, col));
+        ps.setObject(1, newValue);
         ps.setInt(2, id);
 
         ps.executeUpdate();
@@ -405,8 +419,8 @@ model.addColumn("Delete");
         ledgerSearchPanelLayout.setHorizontalGroup(
             ledgerSearchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, ledgerSearchPanelLayout.createSequentialGroup()
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(ledgerSearchField, javax.swing.GroupLayout.PREFERRED_SIZE, 870, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap()
+                .addComponent(ledgerSearchField, javax.swing.GroupLayout.DEFAULT_SIZE, 264, Short.MAX_VALUE)
                 .addContainerGap())
         );
         ledgerSearchPanelLayout.setVerticalGroup(
@@ -425,15 +439,14 @@ model.addColumn("Delete");
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addGap(40, 40, 40)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
                         .addComponent(jLabel1)
                         .addGap(0, 0, Short.MAX_VALUE))
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(0, 0, Short.MAX_VALUE)
-                        .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 276, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(612, 612, 612)
+                        .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 159, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(40, 40, 40))
         );
@@ -443,7 +456,7 @@ model.addColumn("Delete");
                 .addGap(25, 25, 25)
                 .addComponent(jLabel1)
                 .addGap(59, 59, 59)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)

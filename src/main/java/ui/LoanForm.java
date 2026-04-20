@@ -31,6 +31,10 @@ public class LoanForm extends javax.swing.JDialog {
         initComponents();
         applyStyling();
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+
+        // Set default service charge to 0.03
+        serviceCharge.setText("0.03");
+
         pack();
         setLocationRelativeTo(parent);
     }
@@ -109,6 +113,7 @@ public class LoanForm extends javax.swing.JDialog {
         jLabel3.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
         jLabel3.setText("Service charge %");
 
+        jLabel4.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
         jLabel4.setText("No. of months");
 
         jLabel5.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
@@ -123,6 +128,7 @@ public class LoanForm extends javax.swing.JDialog {
         loanCanvelButton.setText("Cancel");
         loanCanvelButton.addActionListener(this::loanCanvelButtonActionPerformed);
 
+        jLabel6.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
         jLabel6.setText("Deduction date");
 
         jLabel7.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N

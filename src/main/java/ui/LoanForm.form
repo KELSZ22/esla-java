@@ -153,6 +153,9 @@
     </Component>
     <Component class="javax.swing.JLabel" name="jLabel4">
       <Properties>
+        <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
+          <Font name="Dialog" size="15" style="0"/>
+        </Property>
         <Property name="text" type="java.lang.String" value="No. of months"/>
       </Properties>
     </Component>
@@ -196,6 +199,9 @@
     </Component>
     <Component class="javax.swing.JLabel" name="jLabel6">
       <Properties>
+        <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
+          <Font name="Dialog" size="15" style="0"/>
+        </Property>
         <Property name="text" type="java.lang.String" value="Deduction date"/>
       </Properties>
     </Component>

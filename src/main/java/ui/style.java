@@ -23,6 +23,7 @@ public class style {
         btn.setFont(new Font("Ubuntu", Font.BOLD, 20));
         btn.setBackground(PRIMARY);
         btn.setForeground(Color.WHITE);
+        btn.setBorder(BorderFactory.createEmptyBorder(10, 30, 10, 30));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
     }
 
@@ -32,7 +33,17 @@ public class style {
         btn.setFont(new Font("Ubuntu", Font.BOLD, 20));
         btn.setBackground(Color.WHITE);
         btn.setForeground(PRIMARY);
-        btn.setBorder(BorderFactory.createLineBorder(PRIMARY, 2));
+        btn.setBorder(BorderFactory.createEmptyBorder(10, 30, 10, 30));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    }
+
+    // 🎯 Back Button Style (text-only, no border)
+    public static void applyBackButton(JButton btn) {
+        btn.setFocusPainted(false);
+        btn.setFont(new Font("Ubuntu", Font.BOLD, 16));
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setForeground(new Color(0, 0, 0));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
     }
     

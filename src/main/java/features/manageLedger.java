@@ -149,6 +149,24 @@ public class manageLedger extends javax.swing.JPanel {
         style.applyTableStyle(paymentTable, 15, 14);
         style.applyTableStyle(loanTable, 15, 14);
 
+        // Style back button
+        style.applyBackButton(backButton);
+
+        style.applyButton(paymentLoanButton);
+
+
+        // Set initial icon and text for paymentLoanButton
+        updateButtonAndForm();
+
+        // Add arrow icon to back button
+        java.net.URL arrowUrl = getClass().getResource("/images/arrow-left.png");
+        if (arrowUrl != null) {
+            Icon arrowIcon = new ImageIcon(
+                    new ImageIcon(arrowUrl).getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH)
+            );
+            backButton.setIcon(arrowIcon);
+        }
+
         
         // Style search field
         formSearchPanel.removeAll();
@@ -951,6 +969,14 @@ public class manageLedger extends javax.swing.JPanel {
         // Apply custom cell editor to date column (column 2)
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
 
+        // Align form column (column 1) to the left
+        javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
+        leftRenderer.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+        loanTable.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
+
+        // Align No. of Months column (column 7) to the left
+        loanTable.getColumnModel().getColumn(7).setCellRenderer(leftRenderer);
+
         // Apply custom header renderer for sort icon
         loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
 
@@ -1348,6 +1374,14 @@ public class manageLedger extends javax.swing.JPanel {
         // Apply custom cell editor to date column (column 2)
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
 
+        // Align form column (column 1) to the left
+        javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
+        leftRenderer.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+        loanTable.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
+
+        // Align No. of Months column (column 7) to the left
+        loanTable.getColumnModel().getColumn(7).setCellRenderer(leftRenderer);
+
         // Apply custom header renderer for sort icon
         loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
 
@@ -1420,14 +1454,31 @@ public class manageLedger extends javax.swing.JPanel {
     private void updateButtonAndForm() {
         int selectedIndex = paymentTab.getSelectedIndex();
 
+        // Set plus icon for both Payment and Loan
+        java.net.URL plusUrl = getClass().getResource("/images/plus.png");
+        if (plusUrl != null) {
+            Icon plusIcon = new ImageIcon(
+                    new ImageIcon(plusUrl).getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH)
+                );
+            paymentLoanButton.setIcon(plusIcon);
+        }
+
         if (selectedIndex == 0) {
-            paymentLoanButton.setText("Add Payment");
-            deletePaymentButton.setVisible(true);
-            deleteLoanButton.setVisible(false);
+            paymentLoanButton.setText("Payment");
+            if (deletePaymentButton != null) {
+                deletePaymentButton.setVisible(true);
+            }
+            if (deleteLoanButton != null) {
+                deleteLoanButton.setVisible(false);
+            }
         } else {
-            paymentLoanButton.setText("Add Loan");
-            deletePaymentButton.setVisible(false);
-            deleteLoanButton.setVisible(true);
+            paymentLoanButton.setText("Loan");
+            if (deletePaymentButton != null) {
+                deletePaymentButton.setVisible(false);
+            }
+            if (deleteLoanButton != null) {
+                deleteLoanButton.setVisible(true);
+            }
         }
     }
 

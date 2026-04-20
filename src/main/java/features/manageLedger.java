@@ -38,6 +38,8 @@ public class manageLedger extends javax.swing.JPanel {
     private String ledgerType;
     private java.util.List<Integer> memberIds = new java.util.ArrayList<>();
     private Timer searchTimer;
+    private javax.swing.JButton deletePaymentButton;
+    private javax.swing.JButton deleteLoanButton;
 
     /**
      * Custom table model for payment table with inline editing
@@ -91,6 +93,25 @@ public class manageLedger extends javax.swing.JPanel {
     }
 
     /**
+     * Custom table header renderer (no sorting)
+     */
+    class SortIconHeaderRenderer implements javax.swing.table.TableCellRenderer {
+        private javax.swing.table.DefaultTableCellRenderer defaultRenderer;
+
+        public SortIconHeaderRenderer() {
+            defaultRenderer = new javax.swing.table.DefaultTableCellRenderer();
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            Component comp = defaultRenderer.getTableCellRendererComponent(
+                table, value, isSelected, hasFocus, row, column);
+            return comp;
+        }
+    }
+
+    /**
      * Custom table model for loan table with inline editing
      * Editable columns: Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
      * Computed/read-only columns: Service Charge (4), Interest (5), Total (6), Cutoff Amount (8)
@@ -127,6 +148,7 @@ public class manageLedger extends javax.swing.JPanel {
         setBackground(Color.WHITE);
         style.applyTableStyle(paymentTable, 15, 14);
         style.applyTableStyle(loanTable, 15, 14);
+
         
         // Style search field
         formSearchPanel.removeAll();
@@ -200,6 +222,21 @@ public class manageLedger extends javax.swing.JPanel {
         
         // Style tabbed pane with transparent design
         style.applyTransparentTabbedPane(paymentTab);
+
+        // Initialize delete buttons
+        deletePaymentButton = new javax.swing.JButton("Delete");
+        deleteLoanButton = new javax.swing.JButton("Delete");
+        deletePaymentButton.addActionListener(this::deletePaymentButtonActionPerformed);
+        deleteLoanButton.addActionListener(this::deleteLoanButtonActionPerformed);
+
+        // Add delete buttons to the button panel (next to paymentLoanButton)
+        javax.swing.JPanel buttonPanel = (javax.swing.JPanel) paymentLoanButton.getParent();
+        if (buttonPanel != null) {
+            buttonPanel.add(deletePaymentButton);
+            buttonPanel.add(deleteLoanButton);
+            buttonPanel.revalidate();
+            buttonPanel.repaint();
+        }
     }
 
     /**
@@ -475,11 +512,11 @@ public class manageLedger extends javax.swing.JPanel {
                     return;
                 }
             } else if (column == 3) {
-                // Actual Payment column
+                // Actual Payment column - will trigger recalculation of dependent fields
                 dbColumn = "actual_payment";
                 dbValue = parseCurrency(value != null ? value.toString() : "0");
             } else if (column == 8) {
-                // Premium column
+                // Premium column - will trigger recalculation of dependent fields
                 dbColumn = "premium";
                 dbValue = parseCurrency(value != null ? value.toString() : "0");
             } else {
@@ -488,17 +525,160 @@ public class manageLedger extends javax.swing.JPanel {
             
             // Update the database
             Connection con = Database.getConnection();
-            String sql = "UPDATE form_data SET " + dbColumn + " = ? WHERE id = ?";
-            PreparedStatement ps = con.prepareStatement(sql);
+            String sql;
+            PreparedStatement ps;
             
-            if (dbValue instanceof java.sql.Date) {
-                ps.setDate(1, (java.sql.Date) dbValue);
-            } else if (dbValue instanceof java.math.BigDecimal) {
-                ps.setBigDecimal(1, (java.math.BigDecimal) dbValue);
+            // If Actual Payment or Premium is updated, recalculate all dependent fields
+            if (column == 3 || column == 8) {
+                // Fetch current record data to calculate dependent fields
+                String fetchSql = """
+                    SELECT fd.ledger_id, fd.member_id, fd.date, fd.should_be_paid,
+                           fd.actual_payment, fd.balance, fd.under_paid,
+                           fd.scheduled_payment, fd.premium_total, fd.premium, fd.actual_payroll,
+                           l.type as ledger_type
+                    FROM form_data fd
+                    INNER JOIN ledgers l ON fd.ledger_id = l.id
+                    WHERE fd.id = ?
+                """;
+                PreparedStatement fetchPs = con.prepareStatement(fetchSql);
+                fetchPs.setInt(1, recordId);
+                ResultSet rs = fetchPs.executeQuery();
+                
+                if (!rs.next()) {
+                    System.out.println("Record not found for ID " + recordId);
+                    fetchPs.close();
+                    con.close();
+                    return;
+                }
+                
+                int currentLedgerId = rs.getInt("ledger_id");
+                int currentMemberId = rs.getInt("member_id");
+                java.sql.Date currentDate = rs.getDate("date");
+                String currentLedgerType = rs.getString("ledger_type");
+                java.math.BigDecimal shouldBePaid = rs.getBigDecimal("should_be_paid");
+                java.math.BigDecimal currentActualPayment = rs.getBigDecimal("actual_payment");
+                java.math.BigDecimal currentBalance = rs.getBigDecimal("balance");
+                java.math.BigDecimal currentUnderPaid = rs.getBigDecimal("under_paid");
+                java.math.BigDecimal currentPremiumTotal = rs.getBigDecimal("premium_total");
+                java.math.BigDecimal currentPremium = rs.getBigDecimal("premium");
+                java.math.BigDecimal currentActualPayroll = rs.getBigDecimal("actual_payroll");
+                
+                rs.close();
+                fetchPs.close();
+                
+                // Get previous entry for this member across same-type ledgers (excluding current record)
+                String previousSql = """
+                    SELECT fd.id, fd.balance, fd.under_paid, fd.premium_total, fd.date
+                    FROM form_data fd
+                    INNER JOIN ledgers l ON fd.ledger_id = l.id
+                    WHERE l.type = ? AND fd.member_id = ? AND fd.id != ? AND fd.date < ?
+                    ORDER BY fd.date DESC
+                    LIMIT 1
+                """;
+                PreparedStatement previousPs = con.prepareStatement(previousSql);
+                previousPs.setString(1, currentLedgerType);
+                previousPs.setInt(2, currentMemberId);
+                previousPs.setInt(3, recordId);
+                previousPs.setDate(4, currentDate);
+                ResultSet previousRs = previousPs.executeQuery();
+                
+                java.math.BigDecimal previousBalance = java.math.BigDecimal.ZERO;
+                java.math.BigDecimal previousPremiumTotal = java.math.BigDecimal.ZERO;
+                
+                if (previousRs.next()) {
+                    previousBalance = previousRs.getBigDecimal("balance");
+                    if (previousBalance == null) previousBalance = java.math.BigDecimal.ZERO;
+                    previousPremiumTotal = previousRs.getBigDecimal("premium_total");
+                    if (previousPremiumTotal == null) previousPremiumTotal = java.math.BigDecimal.ZERO;
+                }
+                
+                previousRs.close();
+                previousPs.close();
+                
+                // Get loan total for this date
+                java.math.BigDecimal loanTotal = java.math.BigDecimal.ZERO;
+                String loanSql = """
+                    SELECT l.total
+                    FROM loans l
+                    INNER JOIN ledgers led ON l.ledger_id = led.id
+                    WHERE led.type = ? AND l.member_id = ? AND l.date = ?
+                    LIMIT 1
+                """;
+                PreparedStatement loanPs = con.prepareStatement(loanSql);
+                loanPs.setString(1, currentLedgerType);
+                loanPs.setInt(2, currentMemberId);
+                loanPs.setDate(3, currentDate);
+                ResultSet loanRs = loanPs.executeQuery();
+                
+                if (loanRs.next()) {
+                    loanTotal = loanRs.getBigDecimal("total");
+                    if (loanTotal == null) loanTotal = java.math.BigDecimal.ZERO;
+                }
+                
+                loanRs.close();
+                loanPs.close();
+                
+                // Calculate new values based on what changed
+                java.math.BigDecimal newActualPayment = currentActualPayment;
+                java.math.BigDecimal newPremium = currentPremium;
+                java.math.BigDecimal newBalance = currentBalance;
+                java.math.BigDecimal newUnderPaid = currentUnderPaid;
+                java.math.BigDecimal newPremiumTotal = currentPremiumTotal;
+                java.math.BigDecimal newActualPayroll = currentActualPayroll;
+                
+                if (column == 3) {
+                    // Actual Payment changed
+                    newActualPayment = (java.math.BigDecimal) dbValue;
+                    
+                    // Recalculate balance: previous_balance - new_actual_payment + loan_total
+                    newBalance = previousBalance.subtract(newActualPayment).add(loanTotal);
+                    
+                    // Recalculate under_paid: should_be_paid - new_actual_payment (only if actual_payment < should_be_paid)
+                    if (newActualPayment.compareTo(shouldBePaid) < 0) {
+                        newUnderPaid = shouldBePaid.subtract(newActualPayment);
+                    } else {
+                        newUnderPaid = java.math.BigDecimal.ZERO;
+                    }
+                    
+                    // Recalculate actual_payroll: new_actual_payment + premium
+                    newActualPayroll = newActualPayment.add(currentPremium);
+                } else if (column == 8) {
+                    // Premium changed
+                    newPremium = (java.math.BigDecimal) dbValue;
+                    
+                    // Recalculate premium_total: previous_premium_total + new_premium
+                    newPremiumTotal = previousPremiumTotal.add(newPremium);
+                    
+                    // Recalculate actual_payroll: actual_payment + new_premium
+                    newActualPayroll = currentActualPayment.add(newPremium);
+                }
+                
+                // Update all fields including computed ones
+                sql = "UPDATE form_data SET date = ?, actual_payment = ?, premium = ?, balance = ?, under_paid = ?, premium_total = ?, actual_payroll = ? WHERE id = ?";
+                ps = con.prepareStatement(sql);
+                
+                ps.setDate(1, currentDate);
+                ps.setBigDecimal(2, newActualPayment);
+                ps.setBigDecimal(3, newPremium);
+                ps.setBigDecimal(4, newBalance);
+                ps.setBigDecimal(5, newUnderPaid);
+                ps.setBigDecimal(6, newPremiumTotal);
+                ps.setBigDecimal(7, newActualPayroll);
+                ps.setInt(8, recordId);
             } else {
-                ps.setObject(1, dbValue);
+                // For Date column, just update the single column
+                sql = "UPDATE form_data SET " + dbColumn + " = ? WHERE id = ?";
+                ps = con.prepareStatement(sql);
+                
+                if (dbValue instanceof java.sql.Date) {
+                    ps.setDate(1, (java.sql.Date) dbValue);
+                } else if (dbValue instanceof java.math.BigDecimal) {
+                    ps.setBigDecimal(1, (java.math.BigDecimal) dbValue);
+                } else {
+                    ps.setObject(1, dbValue);
+                }
+                ps.setInt(2, recordId);
             }
-            ps.setInt(2, recordId);
             
             int rowsAffected = ps.executeUpdate();
             ps.close();
@@ -654,6 +834,9 @@ public class manageLedger extends javax.swing.JPanel {
         // Apply custom cell editor to date column (column 1)
         paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
 
+        // Apply custom header renderer for sort icon
+        paymentTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
+
         // Add table model listener for inline editing updates
         model.addTableModelListener(new javax.swing.event.TableModelListener() {
             @Override
@@ -681,9 +864,7 @@ public class manageLedger extends javax.swing.JPanel {
                            fd.remarks, m.name as member_name
                     FROM form_data fd
                     LEFT JOIN members m ON fd.member_id = m.id
-                    WHERE fd.ledger_id = ? AND fd.member_id = ?
-                    ORDER BY fd.date DESC
-                """;
+                    WHERE fd.ledger_id = ? AND fd.member_id = ?""";
                 ps = con.prepareStatement(sql);
                 ps.setInt(1, ledgerId);
                 ps.setInt(2, memberId);
@@ -695,9 +876,7 @@ public class manageLedger extends javax.swing.JPanel {
                            fd.remarks, m.name as member_name
                     FROM form_data fd
                     LEFT JOIN members m ON fd.member_id = m.id
-                    WHERE fd.ledger_id = ?
-                    ORDER BY fd.date DESC
-                """;
+                    WHERE fd.ledger_id = ?""";
                 ps = con.prepareStatement(sql);
                 ps.setInt(1, ledgerId);
             }
@@ -756,6 +935,7 @@ public class manageLedger extends javax.swing.JPanel {
         LoanTableModel model = new LoanTableModel();
         model.setRowCount(0); // Clear existing data
 
+        // Update date column header
         model.setColumnIdentifiers(new Object[]{
             "ID", "Form Number", "Date", "Principal", "Service Charge",
             "Interest", "Total", "No. of Months", "Cutoff Amount", "Remarks"
@@ -770,6 +950,9 @@ public class manageLedger extends javax.swing.JPanel {
 
         // Apply custom cell editor to date column (column 2)
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
+
+        // Apply custom header renderer for sort icon
+        loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
 
         // Add table model listener for inline editing updates
         model.addTableModelListener(new javax.swing.event.TableModelListener() {
@@ -796,9 +979,7 @@ public class manageLedger extends javax.swing.JPanel {
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
-                    WHERE l.ledger_id = ? AND l.member_id = ?
-                    ORDER BY l.date DESC
-                """;
+                    WHERE l.ledger_id = ? AND l.member_id = ?""";
                 ps = con.prepareStatement(sql);
                 ps.setInt(1, ledgerId);
                 ps.setInt(2, memberId);
@@ -808,9 +989,7 @@ public class manageLedger extends javax.swing.JPanel {
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
-                    WHERE l.ledger_id = ?
-                    ORDER BY l.date DESC
-                """;
+                    WHERE l.ledger_id = ?""";
                 ps = con.prepareStatement(sql);
                 ps.setInt(1, ledgerId);
             }
@@ -1000,6 +1179,7 @@ public class manageLedger extends javax.swing.JPanel {
         );
 
         backButton.setText("Back");
+        backButton.addActionListener(this::backButtonActionPerformed);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -1108,6 +1288,9 @@ public class manageLedger extends javax.swing.JPanel {
         // Apply custom cell editor to date column (column 1)
         paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
 
+        // Apply custom header renderer for sort icon
+        paymentTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
+
         // Add table model listener for inline editing updates
         filteredModel.addTableModelListener(new javax.swing.event.TableModelListener() {
             @Override
@@ -1164,6 +1347,9 @@ public class manageLedger extends javax.swing.JPanel {
 
         // Apply custom cell editor to date column (column 2)
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
+
+        // Apply custom header renderer for sort icon
+        loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
 
         // Add table model listener for inline editing updates
         filteredModel.addTableModelListener(new javax.swing.event.TableModelListener() {
@@ -1236,8 +1422,164 @@ public class manageLedger extends javax.swing.JPanel {
 
         if (selectedIndex == 0) {
             paymentLoanButton.setText("Add Payment");
+            deletePaymentButton.setVisible(true);
+            deleteLoanButton.setVisible(false);
         } else {
             paymentLoanButton.setText("Add Loan");
+            deletePaymentButton.setVisible(false);
+            deleteLoanButton.setVisible(true);
+        }
+    }
+
+    private void deletePaymentButtonActionPerformed(java.awt.event.ActionEvent evt) {
+        int selectedRow = paymentTable.getSelectedRow();
+        if (selectedRow < 0) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                "Please select a payment record to delete",
+                "Info",
+                javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // Get the record ID from column 0
+        PaymentTableModel model = (PaymentTableModel) paymentTable.getModel();
+        Object idObj = model.getValueAt(selectedRow, 0);
+        if (idObj == null || !(idObj instanceof Integer)) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                "Invalid record selected",
+                "Error",
+                javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        int recordId = (Integer) idObj;
+
+        // Show confirmation dialog
+        int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
+            "Are you sure you want to delete this payment record?",
+            "Confirm Delete",
+            javax.swing.JOptionPane.YES_NO_OPTION,
+            javax.swing.JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == javax.swing.JOptionPane.YES_OPTION) {
+            try {
+                Connection con = Database.getConnection();
+                String sql = "DELETE FROM form_data WHERE id = ?";
+                PreparedStatement ps = con.prepareStatement(sql);
+                ps.setInt(1, recordId);
+                int rowsAffected = ps.executeUpdate();
+                ps.close();
+                con.close();
+
+                if (rowsAffected > 0) {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Payment record deleted successfully",
+                        "Success",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+
+                    // Reload data
+                    String searchText = formSearch.getText().toLowerCase().trim();
+                    int selectedMemberIndex = memberList.getSelectedIndex();
+                    if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                        int memberId = memberIds.get(selectedMemberIndex);
+                        loadFormDataByLedger(ledgerId, memberId);
+                        if (!searchText.isEmpty()) {
+                            filterPaymentTable(searchText);
+                        }
+                    } else {
+                        loadFormDataByLedger(ledgerId, null);
+                        if (!searchText.isEmpty()) {
+                            filterPaymentTable(searchText);
+                        }
+                    }
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Failed to delete payment record",
+                        "Error",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                javax.swing.JOptionPane.showMessageDialog(this,
+                    "Error deleting payment record: " + e.getMessage(),
+                    "Error",
+                    javax.swing.JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void deleteLoanButtonActionPerformed(java.awt.event.ActionEvent evt) {
+        int selectedRow = loanTable.getSelectedRow();
+        if (selectedRow < 0) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                "Please select a loan record to delete",
+                "Info",
+                javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // Get the record ID from column 0
+        LoanTableModel model = (LoanTableModel) loanTable.getModel();
+        Object idObj = model.getValueAt(selectedRow, 0);
+        if (idObj == null || !(idObj instanceof Integer)) {
+            javax.swing.JOptionPane.showMessageDialog(this,
+                "Invalid record selected",
+                "Error",
+                javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        int recordId = (Integer) idObj;
+
+        // Show confirmation dialog
+        int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
+            "Are you sure you want to delete this loan record?",
+            "Confirm Delete",
+            javax.swing.JOptionPane.YES_NO_OPTION,
+            javax.swing.JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == javax.swing.JOptionPane.YES_OPTION) {
+            try {
+                Connection con = Database.getConnection();
+                String sql = "DELETE FROM loans WHERE id = ?";
+                PreparedStatement ps = con.prepareStatement(sql);
+                ps.setInt(1, recordId);
+                int rowsAffected = ps.executeUpdate();
+                ps.close();
+                con.close();
+
+                if (rowsAffected > 0) {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Loan record deleted successfully",
+                        "Success",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+
+                    // Reload data
+                    String searchText = formSearch.getText().toLowerCase().trim();
+                    int selectedMemberIndex = memberList.getSelectedIndex();
+                    if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                        int memberId = memberIds.get(selectedMemberIndex);
+                        loadLoansByLedger(ledgerId, memberId);
+                        if (!searchText.isEmpty()) {
+                            filterLoanTable(searchText);
+                        }
+                    } else {
+                        loadLoansByLedger(ledgerId, null);
+                        if (!searchText.isEmpty()) {
+                            filterLoanTable(searchText);
+                        }
+                    }
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Failed to delete loan record",
+                        "Error",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                javax.swing.JOptionPane.showMessageDialog(this,
+                    "Error deleting loan record: " + e.getMessage(),
+                    "Error",
+                    javax.swing.JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 
@@ -1251,11 +1593,11 @@ public class manageLedger extends javax.swing.JPanel {
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
-    private javax.swing.JTable loanTable;
     private javax.swing.JList<String> memberList;
     private javax.swing.JButton paymentLoanButton;
     private javax.swing.JTabbedPane paymentTab;
     private javax.swing.JTable paymentTable;
+    private javax.swing.JTable loanTable;
     private javax.swing.JPanel rightPanel;
     // End of variables declaration//GEN-END:variables
 }

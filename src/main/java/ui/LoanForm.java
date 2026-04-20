@@ -47,7 +47,7 @@ public class LoanForm extends javax.swing.JDialog {
 
         // Apply button styling
         style.applyButton(saveLoanButton);
-        style.applyButton(loanCloseButton);
+        style.applySecondaryButton(loanCanvelButton);
 
         // Style remarks text area
         remarks.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
@@ -88,7 +88,7 @@ public class LoanForm extends javax.swing.JDialog {
         jScrollPane1 = new javax.swing.JScrollPane();
         remarks = new javax.swing.JTextArea();
         saveLoanButton = new javax.swing.JButton();
-        loanCloseButton = new javax.swing.JButton();
+        loanCanvelButton = new javax.swing.JButton();
         jLabel6 = new javax.swing.JLabel();
         jDateChooser1 = new com.toedter.calendar.JDateChooser();
         jDateChooser2 = new com.toedter.calendar.JDateChooser();
@@ -120,7 +120,8 @@ public class LoanForm extends javax.swing.JDialog {
 
         saveLoanButton.setText("Save");
 
-        loanCloseButton.setText("Close");
+        loanCanvelButton.setText("Cancel");
+        loanCanvelButton.addActionListener(this::loanCanvelButtonActionPerformed);
 
         jLabel6.setText("Deduction date");
 
@@ -154,7 +155,7 @@ public class LoanForm extends javax.swing.JDialog {
                             .addComponent(jLabel7)
                             .addComponent(jDateChooser2, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(loanCloseButton)
+                        .addComponent(loanCanvelButton)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(saveLoanButton)))
                 .addGap(16, 16, 16))
@@ -200,7 +201,7 @@ public class LoanForm extends javax.swing.JDialog {
                 .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(saveLoanButton)
-                    .addComponent(loanCloseButton))
+                    .addComponent(loanCanvelButton))
                 .addGap(16, 16, 16))
         );
     }// </editor-fold>//GEN-END:initComponents
@@ -278,9 +279,9 @@ public class LoanForm extends javax.swing.JDialog {
         }
     }//GEN-LAST:event_saveLoanButtonActionPerformed
 
-    private void loanCloseButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loanCloseButtonActionPerformed
+    private void loanCanvelButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loanCanvelButtonActionPerformed
         dispose();
-    }//GEN-LAST:event_loanCloseButtonActionPerformed
+    }//GEN-LAST:event_loanCanvelButtonActionPerformed
 
     /**
      * Validate form inputs
@@ -349,7 +350,7 @@ public class LoanForm extends javax.swing.JDialog {
     private javax.swing.JLabel jLabel7;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTextField jTextField1;
-    private javax.swing.JButton loanCloseButton;
+    private javax.swing.JButton loanCanvelButton;
     private javax.swing.JTextField no_of_months;
     private javax.swing.JTextArea remarks;
     private javax.swing.JButton saveLoanButton;

@@ -82,7 +82,7 @@ public class PaymentForm extends javax.swing.JDialog {
 
         // Apply button styling
         style.applyButton(saveButton);
-        style.applyButton(Cancel);
+        style.applySecondaryButton(Cancel);
 
         // Style remarks text area
         remarks.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
@@ -323,6 +323,7 @@ public class PaymentForm extends javax.swing.JDialog {
         saveButton.addActionListener(this::saveButtonActionPerformed);
 
         Cancel.setText("Cancel");
+        Cancel.addActionListener(this::CancelActionPerformed);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);

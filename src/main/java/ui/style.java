@@ -25,6 +25,16 @@ public class style {
         btn.setForeground(Color.WHITE);
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
     }
+
+    // 🎯 Secondary Outlined Button Style
+    public static void applySecondaryButton(JButton btn) {
+        btn.setFocusPainted(false);
+        btn.setFont(new Font("Ubuntu", Font.BOLD, 20));
+        btn.setBackground(Color.WHITE);
+        btn.setForeground(PRIMARY);
+        btn.setBorder(BorderFactory.createLineBorder(PRIMARY, 2));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+    }
     
 public static void applyNavButton(JButton btn) {
     btn.setFocusPainted(false);

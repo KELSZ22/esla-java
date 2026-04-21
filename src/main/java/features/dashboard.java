@@ -7,16 +7,21 @@ package features;
 import com.kelsz.esla.Database;
 import java.awt.BorderLayout;
 import java.awt.Image;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.LocalDate;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import ui.style;
 
 /**
@@ -31,7 +36,12 @@ public class dashboard extends javax.swing.JPanel {
     public dashboard() {
     initComponents();   // 👈 KEEP THIS (NetBeans GUI)
     style.applyTableStyle(dashboardTable, 15,18);
-    setupTable();
+
+    // Set default date to latest cutoff date
+    LocalDate latestDate = getLatestCutoffDate();
+    chooseDate.setDate(java.sql.Date.valueOf(latestDate));
+
+    setupTable(latestDate);
 
     searchPanel.removeAll();
     searchPanel.setLayout(new BorderLayout());
@@ -48,12 +58,235 @@ public class dashboard extends javax.swing.JPanel {
     searchPanel.revalidate();
     searchPanel.repaint();
 
+    // Add date change listener to refresh table when date changes
+    chooseDate.addPropertyChangeListener("date", evt -> {
+        if (chooseDate.getDate() != null) {
+            LocalDate selectedDate = new java.sql.Date(chooseDate.getDate().getTime()).toLocalDate();
+            setupTable(selectedDate);
+        }
+    });
+
+    // Add search functionality
+    searchField.getDocument().addDocumentListener(new DocumentListener() {
+        @Override
+        public void insertUpdate(DocumentEvent e) {
+            filterTable();
+        }
+
+        @Override
+        public void removeUpdate(DocumentEvent e) {
+            filterTable();
+        }
+
+        @Override
+        public void changedUpdate(DocumentEvent e) {
+            filterTable();
+        }
+    });
+
+    }
+
+    // =========================
+    // HELPER METHODS
+    // =========================
+    private LocalDate getLatestCutoffDate() {
+        try {
+            Connection con = Database.getConnection();
+            String sql = """
+                SELECT MAX(date) as latest_date
+                FROM loans
+                WHERE deleted_at IS NULL
+            """;
+            PreparedStatement ps = con.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+
+            LocalDate latestDate = null;
+            if (rs.next()) {
+                if (rs.getDate("latest_date") != null) {
+                    latestDate = rs.getDate("latest_date").toLocalDate();
+                }
+            }
+
+            rs.close();
+            ps.close();
+            con.close();
+
+            // If no loans, default to today
+            return latestDate != null ? latestDate : LocalDate.now();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return LocalDate.now();
+        }
+    }
+
+    private java.util.Map<Integer, BigDecimal> getAllMemberPremiums() {
+        java.util.Map<Integer, BigDecimal> premiums = new java.util.HashMap<>();
+        try {
+            Connection con = Database.getConnection();
+            String sql = "SELECT id, premium FROM members WHERE deleted_at IS NULL";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                int memberId = rs.getInt("id");
+                BigDecimal premium = rs.getBigDecimal("premium");
+                if (premium == null) {
+                    premium = BigDecimal.ZERO;
+                }
+                premiums.put(memberId, premium);
+            }
+
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return premiums;
+    }
+
+    private java.util.Map<Integer, BigDecimal> getAllScheduledPayments(LocalDate date) {
+        java.util.Map<Integer, BigDecimal> scheduledPayments = new java.util.HashMap<>();
+        try {
+            Connection con = Database.getConnection();
+            // Get all loans across all ledger types
+            String sql = """
+                SELECT l.member_id, l.date, l.start_deduction_date, l.start_deduction_on_loan_date,
+                       l.total, l.cutoffs, led.type
+                FROM loans l
+                INNER JOIN ledgers led ON l.ledger_id = led.id
+                WHERE l.deleted_at IS NULL
+                ORDER BY l.member_id, l.id ASC
+            """;
+            PreparedStatement ps = con.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                int memberId = rs.getInt("member_id");
+                LocalDate loanDate = rs.getDate("date") != null ? rs.getDate("date").toLocalDate() : null;
+                LocalDate startDeductionDate = rs.getDate("start_deduction_date") != null ? rs.getDate("start_deduction_date").toLocalDate() : null;
+                Boolean startDeductionOnLoanDate = rs.getBoolean("start_deduction_on_loan_date");
+                BigDecimal total = rs.getBigDecimal("total");
+                Integer cutoffs = rs.getInt("cutoffs");
+
+                if (total == null || cutoffs == null || cutoffs == 0) {
+                    continue;
+                }
+
+                // Calculate loan's deduction range
+                int range = cutoffs * 2;
+                BigDecimal amountPerCutoff = total.divide(BigDecimal.valueOf(range), 2, java.math.RoundingMode.HALF_UP);
+
+                // Determine effective start date
+                LocalDate effectiveStartDate = getEffectiveDeductionStartDate(loanDate, startDeductionDate, startDeductionOnLoanDate);
+
+                if (effectiveStartDate == null || date.isBefore(effectiveStartDate)) {
+                    continue;
+                }
+
+                // Check if date is a cutoff date (15th or last day)
+                int dayOfMonth = date.getDayOfMonth();
+                int lastDayOfMonth = date.lengthOfMonth();
+                if (dayOfMonth != 15 && dayOfMonth != lastDayOfMonth) {
+                    continue;
+                }
+
+                // Count payment periods from effective start to date
+                LocalDate currentDate = effectiveStartDate;
+                int paymentPeriod = 0;
+                boolean loanIsActive = false;
+
+                while (!currentDate.isAfter(date)) {
+                    int currentDay = currentDate.getDayOfMonth();
+                    int currentLastDay = currentDate.lengthOfMonth();
+
+                    if (currentDay == 15 || currentDay == currentLastDay) {
+                        paymentPeriod++;
+                        if (paymentPeriod >= 1 && paymentPeriod <= range && currentDate.equals(date)) {
+                            loanIsActive = true;
+                            break;
+                        }
+                    }
+                    currentDate = currentDate.plusDays(1);
+                }
+
+                if (loanIsActive) {
+                    scheduledPayments.merge(memberId, amountPerCutoff, BigDecimal::add);
+                }
+            }
+
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return scheduledPayments;
+    }
+
+    private java.util.Map<Integer, BigDecimal> getPreviousUnderPaid(LocalDate date) {
+        java.util.Map<Integer, BigDecimal> previousUnderPaidMap = new java.util.HashMap<>();
+        try {
+            Connection con = Database.getConnection();
+            // Get previous underpaid amount for each member across all ledger types
+            String sql = """
+                SELECT fd.member_id, fd.under_paid
+                FROM form_data fd
+                WHERE fd.date < ? AND fd.deleted_at IS NULL
+                ORDER BY fd.date DESC
+            """;
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setDate(1, java.sql.Date.valueOf(date));
+            ResultSet rs = ps.executeQuery();
+
+            java.util.Set<Integer> processedMembers = new java.util.HashSet<>();
+
+            while (rs.next()) {
+                int memberId = rs.getInt("member_id");
+                if (processedMembers.contains(memberId)) {
+                    continue; // Only get the most recent underpaid for each member
+                }
+                BigDecimal underPaid = rs.getBigDecimal("under_paid");
+                if (underPaid == null) {
+                    underPaid = BigDecimal.ZERO;
+                }
+                previousUnderPaidMap.put(memberId, underPaid);
+                processedMembers.add(memberId);
+            }
+
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return previousUnderPaidMap;
+    }
+
+    private LocalDate getEffectiveDeductionStartDate(LocalDate loanDate, LocalDate startDeductionDate, Boolean startDeductionOnLoanDate) {
+        if (startDeductionOnLoanDate != null && startDeductionOnLoanDate) {
+            return loanDate;
+        }
+        return startDeductionDate;
+    }
+
+    private void filterTable() {
+        String searchText = searchField.getText().toLowerCase();
+        DefaultTableModel model = (DefaultTableModel) dashboardTable.getModel();
+        TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
+        dashboardTable.setRowSorter(sorter);
+
+        if (searchText.isEmpty()) {
+            sorter.setRowFilter(null);
+        } else {
+            sorter.setRowFilter(javax.swing.RowFilter.regexFilter("(?i)" + searchText));
+        }
     }
 
     // =========================
     // TABLE DATA SETUP
     // =========================
-private void setupTable() {
+    private void setupTable(LocalDate date) {
 
     DefaultTableModel model = new DefaultTableModel();
 
@@ -63,11 +296,17 @@ private void setupTable() {
     model.addColumn("Total");
 
     try {
+        // Fetch all data in bulk queries
+        java.util.Map<Integer, BigDecimal> premiums = getAllMemberPremiums();
+        java.util.Map<Integer, BigDecimal> scheduledPayments = getAllScheduledPayments(date);
+        java.util.Map<Integer, BigDecimal> previousUnderPaid = getPreviousUnderPaid(date);
+
         Connection con = Database.getConnection();
 
         String sql = """
-            SELECT member_type, name
+            SELECT id, member_type, name
             FROM members
+            WHERE deleted_at IS NULL
             ORDER BY member_type ASC, name ASC
         """;
 
@@ -77,6 +316,7 @@ private void setupTable() {
         String currentType = "";
 
         while (rs.next()) {
+            int memberId = rs.getInt("id");
             String type = rs.getString("member_type");
             String name = rs.getString("name");
 
@@ -92,12 +332,27 @@ private void setupTable() {
                 });
             }
 
-            // 👉 Insert actual member row
+            // 👉 Get premium from bulk query result
+            BigDecimal premium = premiums.getOrDefault(memberId, BigDecimal.ZERO);
+
+            // 👉 Get scheduled payment from bulk query result
+            BigDecimal scheduledPayment = scheduledPayments.getOrDefault(memberId, BigDecimal.ZERO);
+
+            // 👉 Get previous underpaid from bulk query result
+            BigDecimal underPaid = previousUnderPaid.getOrDefault(memberId, BigDecimal.ZERO);
+
+            // 👉 Calculate should_be_paid = previous underpaid + scheduled payment (PaymentService logic)
+            BigDecimal loan = underPaid.add(scheduledPayment);
+
+            // 👉 Calculate total
+            BigDecimal total = premium.add(loan);
+
+            // 👉 Insert actual member row with real data
             model.addRow(new Object[]{
                 name,
-                0,
-                0,
-                0
+                premium,
+                loan,
+                total
             });
         }
 

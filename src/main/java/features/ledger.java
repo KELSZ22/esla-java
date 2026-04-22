@@ -5,6 +5,7 @@
 package features;
 
 import com.kelsz.esla.Database;
+import com.toedter.calendar.JDateChooser;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -16,7 +17,9 @@ import java.awt.event.MouseEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
@@ -24,10 +27,13 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTable;
+import javax.swing.AbstractCellEditor;
+import javax.swing.table.TableCellEditor;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import ui.LedgerForm;
 import ui.style;
 
 /**
@@ -42,6 +48,87 @@ public class ledger extends javax.swing.JPanel {
     private List<Object[]> allLedgerData = new ArrayList<>();
     // Reference to manageLedger panel for layout switching
     private manageLedger currentManagePanel;
+    // Reference to LedgerForm panel for adding new ledger entries
+    private LedgerForm currentLedgerForm;
+
+    // Custom cell editor for date column using JDateChooser
+    class DateCellEditor extends AbstractCellEditor implements TableCellEditor {
+        private JDateChooser dateChooser;
+        private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+
+        public DateCellEditor() {
+            dateChooser = new JDateChooser();
+            dateChooser.setDateFormatString("yyyy-MM-dd");
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+            if (value != null && !value.toString().isEmpty()) {
+                try {
+                    Date date = dateFormat.parse(value.toString());
+                    dateChooser.setDate(date);
+                } catch (Exception e) {
+                    dateChooser.setDate(null);
+                }
+            } else {
+                dateChooser.setDate(null);
+            }
+            return dateChooser;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            Date date = dateChooser.getDate();
+            if (date != null) {
+                return dateFormat.format(date);
+            }
+            return "";
+        }
+    }
+
+    // Custom cell renderer to display dates in "MMMM dd, yyyy" format
+    class DateCellRenderer extends DefaultTableCellRenderer {
+        private SimpleDateFormat displayFormat = new SimpleDateFormat("MMMM dd, yyyy");
+        private SimpleDateFormat dbFormat = new SimpleDateFormat("yyyy-MM-dd");
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+            if (value != null && !value.toString().isEmpty()) {
+                try {
+                    Date date = dbFormat.parse(value.toString());
+                    setText(displayFormat.format(date));
+                } catch (Exception e) {
+                    setText(value.toString());
+                }
+            } else {
+                setText("");
+            }
+
+            return this;
+        }
+    }
+
+    // Custom cell renderer to capitalize first letter of Type
+    class TypeCellRenderer extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+            if (value != null && !value.toString().isEmpty()) {
+                String text = value.toString();
+                if (text.length() > 0) {
+                    text = text.substring(0, 1).toUpperCase() + text.substring(1).toLowerCase();
+                }
+                setText(text);
+            } else {
+                setText("");
+            }
+
+            return this;
+        }
+    }
 
     /**
      * Creates new form ledger
@@ -51,9 +138,20 @@ public class ledger extends javax.swing.JPanel {
     setBackground(Color.WHITE);
     style.applyTableStyle(ledgerTable, 15,18);
     style.applyComboBox(selectField);
+    style.applyButton(AddLedger);
     setupTable();
     populateMemberTypes();
     setupFilters();
+
+    // Add plus icon to AddLedger button
+    java.net.URL plusUrl = getClass().getResource("/images/plus.png");
+    if (plusUrl != null) {
+        ImageIcon plusIcon = new ImageIcon(
+                new ImageIcon(plusUrl).getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH)
+        );
+        AddLedger.setIcon(plusIcon);
+        AddLedger.setText(" Ledger");
+    }
 
     ledgerSearchPanel.removeAll();
     ledgerSearchPanel.setLayout(new BorderLayout());
@@ -70,7 +168,12 @@ public class ledger extends javax.swing.JPanel {
 
     JPanel searchBar = style.createSearchBar(ledgerSearchField, searchIcon);
 
-    ledgerSearchPanel.add(searchBar, BorderLayout.CENTER);
+    // Create a panel to hold both search bar and selectField
+    JPanel searchAndFilterPanel = new JPanel(new BorderLayout());
+    searchAndFilterPanel.add(searchBar, BorderLayout.CENTER);
+    searchAndFilterPanel.add(selectField, BorderLayout.EAST);
+
+    ledgerSearchPanel.add(searchAndFilterPanel, BorderLayout.LINE_START);
 
     ledgerSearchPanel.revalidate();
     ledgerSearchPanel.repaint();
@@ -138,6 +241,9 @@ public class ledger extends javax.swing.JPanel {
     private void applyFilters() {
         String searchText = ledgerSearchField.getText();
         String memberType = (String) selectField.getSelectedItem();
+        if (memberType == null) {
+            memberType = "All";
+        }
         setupTable(searchText, memberType);
     }
     
@@ -224,6 +330,15 @@ model.addColumn("Delete");
     model.setColumnIdentifiers(new Object[]{"Description", "Type", "Date", "", ""});
 
     ledgerTable.setModel(model);
+
+    // Set custom date editor for Date column (column 2)
+    ledgerTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
+
+    // Set custom date renderer for Date column (column 2)
+    ledgerTable.getColumnModel().getColumn(2).setCellRenderer(new DateCellRenderer());
+
+    // Set custom type renderer for Type column (column 1)
+    ledgerTable.getColumnModel().getColumn(1).setCellRenderer(new TypeCellRenderer());
 
     // Load manage icon
     java.net.URL settingsUrl = getClass().getResource("/images/file-text.png");
@@ -390,6 +505,7 @@ model.addColumn("Delete");
         ledgerSearchPanel = new javax.swing.JPanel();
         ledgerSearchField = new javax.swing.JTextField();
         selectField = new javax.swing.JComboBox<>();
+        AddLedger = new javax.swing.JButton();
 
         jLabel1.setFont(new java.awt.Font("Dialog", 1, 36)); // NOI18N
         jLabel1.setText("LEDGER");
@@ -414,6 +530,8 @@ model.addColumn("Delete");
 
         ledgerSearchField.addActionListener(this::ledgerSearchFieldActionPerformed);
 
+        selectField.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+
         javax.swing.GroupLayout ledgerSearchPanelLayout = new javax.swing.GroupLayout(ledgerSearchPanel);
         ledgerSearchPanel.setLayout(ledgerSearchPanelLayout);
         ledgerSearchPanelLayout.setHorizontalGroup(
@@ -421,17 +539,21 @@ model.addColumn("Delete");
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, ledgerSearchPanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(ledgerSearchField, javax.swing.GroupLayout.DEFAULT_SIZE, 264, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 159, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
         );
         ledgerSearchPanelLayout.setVerticalGroup(
             ledgerSearchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(ledgerSearchPanelLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(ledgerSearchField, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(ledgerSearchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(ledgerSearchField, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        selectField.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+        AddLedger.setText("Ledger");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -447,7 +569,7 @@ model.addColumn("Delete");
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 159, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(AddLedger, javax.swing.GroupLayout.PREFERRED_SIZE, 176, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(40, 40, 40))
         );
         layout.setVerticalGroup(
@@ -455,11 +577,15 @@ model.addColumn("Delete");
             .addGroup(layout.createSequentialGroup()
                 .addGap(25, 25, 25)
                 .addComponent(jLabel1)
-                .addGap(59, 59, 59)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGap(59, 59, 59)
+                        .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(AddLedger)
+                        .addGap(14, 14, 14)))
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 535, Short.MAX_VALUE)
                 .addGap(31, 31, 31))
         );
@@ -497,6 +623,7 @@ model.addColumn("Delete");
             ledgerSearchPanel.setVisible(true);
             selectField.setVisible(true);
             jScrollPane1.setVisible(true);
+            AddLedger.setVisible(true);
             // Remove manageLedger panel
             this.remove(currentManagePanel);
             // Restore original GroupLayout layout
@@ -506,16 +633,15 @@ model.addColumn("Delete");
                 layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                 .addGroup(layout.createSequentialGroup()
                     .addGap(40, 40, 40)
-                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                         .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.LEADING)
                         .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
                             .addComponent(jLabel1)
                             .addGap(0, 0, Short.MAX_VALUE))
                         .addGroup(layout.createSequentialGroup()
-                            .addGap(0, 0, Short.MAX_VALUE)
-                            .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 276, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGap(612, 612, 612)
-                            .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 159, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(AddLedger, javax.swing.GroupLayout.PREFERRED_SIZE, 176, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addGap(40, 40, 40))
             );
             layout.setVerticalGroup(
@@ -523,11 +649,15 @@ model.addColumn("Delete");
                 .addGroup(layout.createSequentialGroup()
                     .addGap(25, 25, 25)
                     .addComponent(jLabel1)
-                    .addGap(59, 59, 59)
-                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                        .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(layout.createSequentialGroup()
+                            .addGap(59, 59, 59)
+                            .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(AddLedger)
+                            .addGap(14, 14, 14)))
                     .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 535, Short.MAX_VALUE)
                     .addGap(31, 31, 31))
             );
@@ -540,6 +670,7 @@ model.addColumn("Delete");
         ledgerSearchPanel.setVisible(false);
         selectField.setVisible(false);
         jScrollPane1.setVisible(false);
+        AddLedger.setVisible(false);
 
         // Add manageLedger panel to this panel using BorderLayout
         this.setLayout(new BorderLayout());
@@ -592,8 +723,33 @@ model.addColumn("Delete");
         // TODO add your handling code here:
     }//GEN-LAST:event_ledgerSearchFieldActionPerformed
 
+    private void AddLedgerActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_AddLedgerActionPerformed
+        // Create LedgerForm panel
+        currentLedgerForm = new LedgerForm();
+
+        // Create dialog
+        javax.swing.JDialog dialog = new javax.swing.JDialog();
+        dialog.setTitle("Add New Ledger");
+        dialog.setModal(true);
+        dialog.setDefaultCloseOperation(javax.swing.JDialog.DISPOSE_ON_CLOSE);
+        dialog.add(currentLedgerForm);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+
+        // Set callback to refresh table when dialog closes
+        currentLedgerForm.setCallback(() -> {
+            dialog.dispose();
+            // Refresh table and member types
+            setupTable();
+            populateMemberTypes();
+        });
+
+        dialog.setVisible(true);
+    }//GEN-LAST:event_AddLedgerActionPerformed
+
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton AddLedger;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTextField ledgerSearchField;

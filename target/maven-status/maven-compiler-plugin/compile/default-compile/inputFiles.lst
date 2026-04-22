@@ -6,5 +6,13 @@
 /home/kelsz-dev/NetBeansProjects/esla/src/main/java/features/dashboard.java
 /home/kelsz-dev/NetBeansProjects/esla/src/main/java/features/ledger.java
 /home/kelsz-dev/NetBeansProjects/esla/src/main/java/features/manageLedger.java
+/home/kelsz-dev/NetBeansProjects/esla/src/main/java/features/member.java
+/home/kelsz-dev/NetBeansProjects/esla/src/main/java/services/FormDataService.java
+/home/kelsz-dev/NetBeansProjects/esla/src/main/java/services/LoanService.java
+/home/kelsz-dev/NetBeansProjects/esla/src/main/java/services/PaymentService.java
 /home/kelsz-dev/NetBeansProjects/esla/src/main/java/ui/HeaderNav.java
+/home/kelsz-dev/NetBeansProjects/esla/src/main/java/ui/LedgerForm.java
+/home/kelsz-dev/NetBeansProjects/esla/src/main/java/ui/LoanForm.java
+/home/kelsz-dev/NetBeansProjects/esla/src/main/java/ui/MemberForm.java
+/home/kelsz-dev/NetBeansProjects/esla/src/main/java/ui/PaymentForm.java
 /home/kelsz-dev/NetBeansProjects/esla/src/main/java/ui/style.java

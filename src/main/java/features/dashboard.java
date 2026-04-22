@@ -35,7 +35,7 @@ public class dashboard extends javax.swing.JPanel {
      */
     public dashboard() {
     initComponents();   // 👈 KEEP THIS (NetBeans GUI)
-    style.applyTableStyle(dashboardTable, 15,18);
+    style.applyTableStyle(dashboardTable, 18,18);
 
     // Set default date to latest cutoff date
     LocalDate latestDate = getLatestCutoffDate();
@@ -57,6 +57,13 @@ public class dashboard extends javax.swing.JPanel {
 
     searchPanel.revalidate();
     searchPanel.repaint();
+
+    // Initialize member type filter
+    style.applyComboBox(memberTypeField);
+    populateMemberTypes();
+
+    // Add member type filter listener
+    memberTypeField.addActionListener(evt -> filterTable());
 
     // Add date change listener to refresh table when date changes
     chooseDate.addPropertyChangeListener("date", evt -> {
@@ -89,6 +96,28 @@ public class dashboard extends javax.swing.JPanel {
     // =========================
     // HELPER METHODS
     // =========================
+    private void populateMemberTypes() {
+        try {
+            Connection con = Database.getConnection();
+            String sql = "SELECT DISTINCT member_type FROM members WHERE deleted_at IS NULL ORDER BY member_type ASC";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+
+            memberTypeField.removeAllItems();
+            memberTypeField.addItem("All");
+
+            while (rs.next()) {
+                memberTypeField.addItem(rs.getString("member_type"));
+            }
+
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private LocalDate getLatestCutoffDate() {
         try {
             Connection con = Database.getConnection();
@@ -272,14 +301,29 @@ public class dashboard extends javax.swing.JPanel {
 
     private void filterTable() {
         String searchText = searchField.getText().toLowerCase();
+        String selectedMemberType = (String) memberTypeField.getSelectedItem();
         DefaultTableModel model = (DefaultTableModel) dashboardTable.getModel();
         TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
         dashboardTable.setRowSorter(sorter);
 
-        if (searchText.isEmpty()) {
+        if (searchText.isEmpty() && (selectedMemberType == null || selectedMemberType.equals("All"))) {
             sorter.setRowFilter(null);
         } else {
-            sorter.setRowFilter(javax.swing.RowFilter.regexFilter("(?i)" + searchText));
+            // Create filter that checks both search text and member type
+            sorter.setRowFilter(new javax.swing.RowFilter<DefaultTableModel, Integer>() {
+                @Override
+                public boolean include(javax.swing.RowFilter.Entry<? extends DefaultTableModel, ? extends Integer> entry) {
+                    String name = entry.getStringValue(0).toLowerCase();
+                    boolean matchesSearch = searchText.isEmpty() || name.contains(searchText);
+
+                    // Get member type from hidden column (index 4)
+                    String memberType = entry.getStringValue(4);
+                    boolean matchesMemberType = selectedMemberType == null || selectedMemberType.equals("All") ||
+                            memberType.equalsIgnoreCase(selectedMemberType);
+
+                    return matchesSearch && matchesMemberType;
+                }
+            });
         }
     }
 
@@ -288,12 +332,18 @@ public class dashboard extends javax.swing.JPanel {
     // =========================
     private void setupTable(LocalDate date) {
 
-    DefaultTableModel model = new DefaultTableModel();
+    DefaultTableModel model = new DefaultTableModel() {
+        @Override
+        public boolean isCellEditable(int row, int column) {
+            return false;
+        }
+    };
 
     model.addColumn("Name");
     model.addColumn("Premium");
     model.addColumn("Loan");
     model.addColumn("Total");
+    model.addColumn("MemberType"); // Hidden column for filtering
 
     try {
         // Fetch all data in bulk queries
@@ -328,7 +378,8 @@ public class dashboard extends javax.swing.JPanel {
                     "" + type.toUpperCase() + "",
                     "",
                     "",
-                    ""
+                    "",
+                    type
                 });
             }
 
@@ -350,9 +401,10 @@ public class dashboard extends javax.swing.JPanel {
             // 👉 Insert actual member row with real data
             model.addRow(new Object[]{
                 name,
-                premium,
-                loan,
-                total
+                premium.compareTo(BigDecimal.ZERO) == 0 ? "-" : premium,
+                loan.compareTo(BigDecimal.ZERO) == 0 ? "-" : loan,
+                total.compareTo(BigDecimal.ZERO) == 0 ? "-" : total,
+                type
             });
         }
 
@@ -367,9 +419,31 @@ public class dashboard extends javax.swing.JPanel {
 
     dashboardTable.setModel(model);
 
-    // UI tweaks ✨
+    // Hide the MemberType column (column index 4) from view
+    dashboardTable.getColumnModel().removeColumn(dashboardTable.getColumnModel().getColumn(4));
+
+    // UI tweaks 
     dashboardTable.setRowHeight(25);
     dashboardTable.getTableHeader().setReorderingAllowed(false);
+
+    // Custom renderer for bold member type headers
+    dashboardTable.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
+        @Override
+        public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+            // Check if this is a group header row (empty columns 1, 2, 3)
+            if (column == 0 && table.getValueAt(row, 1) == "" && table.getValueAt(row, 2) == "" && table.getValueAt(row, 3) == "") {
+                setFont(getFont().deriveFont(java.awt.Font.BOLD));
+                setForeground(new java.awt.Color(21, 55, 143));
+            } else {
+                setFont(getFont().deriveFont(java.awt.Font.PLAIN));
+                setForeground(new java.awt.Color(40, 40, 40));
+            }
+
+            return c;
+        }
+    });
 }
     /**
      * This method is called from within the constructor to initialize the form.
@@ -386,6 +460,7 @@ public class dashboard extends javax.swing.JPanel {
         searchPanel = new javax.swing.JPanel();
         searchField = new javax.swing.JTextField();
         chooseDate = new com.toedter.calendar.JDateChooser();
+        memberTypeField = new javax.swing.JComboBox<>();
 
         setBackground(new java.awt.Color(255, 255, 255));
 
@@ -422,6 +497,8 @@ public class dashboard extends javax.swing.JPanel {
                 .addContainerGap())
         );
 
+        memberTypeField.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -437,6 +514,8 @@ public class dashboard extends javax.swing.JPanel {
                             .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 1255, Short.MAX_VALUE)
                             .addGroup(layout.createSequentialGroup()
                                 .addComponent(searchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(memberTypeField, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                                 .addComponent(chooseDate, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE)))
                         .addGap(36, 36, 36))))
@@ -448,8 +527,10 @@ public class dashboard extends javax.swing.JPanel {
                 .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(59, 59, 59)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(chooseDate, javax.swing.GroupLayout.PREFERRED_SIZE, 34, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(searchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(searchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addComponent(memberTypeField, javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addComponent(chooseDate, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 34, Short.MAX_VALUE)))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 520, Short.MAX_VALUE)
                 .addGap(31, 31, 31))
@@ -462,6 +543,7 @@ public class dashboard extends javax.swing.JPanel {
     private javax.swing.JTable dashboardTable;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JComboBox<String> memberTypeField;
     private javax.swing.JTextField searchField;
     private javax.swing.JPanel searchPanel;
     // End of variables declaration//GEN-END:variables

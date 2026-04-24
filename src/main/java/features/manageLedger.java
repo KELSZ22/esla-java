@@ -255,6 +255,36 @@ public class manageLedger extends javax.swing.JPanel {
             buttonPanel.revalidate();
             buttonPanel.repaint();
         }
+
+        // Add mouse listener to paymentTable for double-click editing
+        paymentTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                int row = paymentTable.rowAtPoint(evt.getPoint());
+                int col = paymentTable.columnAtPoint(evt.getPoint());
+                if (row >= 0 && col >= 0 && evt.getClickCount() == 2) {
+                    paymentTable.editCellAt(row, col);
+                    if (paymentTable.getEditorComponent() != null) {
+                        paymentTable.getEditorComponent().requestFocus();
+                    }
+                }
+            }
+        });
+
+        // Add mouse listener to loanTable for double-click editing
+        loanTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                int row = loanTable.rowAtPoint(evt.getPoint());
+                int col = loanTable.columnAtPoint(evt.getPoint());
+                if (row >= 0 && col >= 0 && evt.getClickCount() == 2) {
+                    loanTable.editCellAt(row, col);
+                    if (loanTable.getEditorComponent() != null) {
+                        loanTable.getEditorComponent().requestFocus();
+                    }
+                }
+            }
+        });
     }
 
     /**
@@ -848,6 +878,9 @@ public class manageLedger extends javax.swing.JPanel {
         paymentTable.getColumnModel().getColumn(0).setMaxWidth(0);
         paymentTable.getColumnModel().getColumn(0).setPreferredWidth(0);
 
+        // Prevent single-click editing - only allow double-click
+        paymentTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
+
         // Apply custom cell editor to date column (column 1)
         paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
 
@@ -964,6 +997,9 @@ public class manageLedger extends javax.swing.JPanel {
         loanTable.getColumnModel().getColumn(0).setMinWidth(0);
         loanTable.getColumnModel().getColumn(0).setMaxWidth(0);
         loanTable.getColumnModel().getColumn(0).setPreferredWidth(0);
+
+        // Prevent single-click editing - only allow double-click
+        loanTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
         // Apply custom cell editor to date column (column 2)
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
@@ -1310,6 +1346,9 @@ public class manageLedger extends javax.swing.JPanel {
         paymentTable.getColumnModel().getColumn(0).setMaxWidth(0);
         paymentTable.getColumnModel().getColumn(0).setPreferredWidth(0);
 
+        // Prevent single-click editing - only allow double-click
+        paymentTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
+
         // Apply custom cell editor to date column (column 1)
         paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
 
@@ -1369,6 +1408,9 @@ public class manageLedger extends javax.swing.JPanel {
         loanTable.getColumnModel().getColumn(0).setMinWidth(0);
         loanTable.getColumnModel().getColumn(0).setMaxWidth(0);
         loanTable.getColumnModel().getColumn(0).setPreferredWidth(0);
+
+        // Prevent single-click editing - only allow double-click
+        loanTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
         // Apply custom cell editor to date column (column 2)
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());

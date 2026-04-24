@@ -441,6 +441,10 @@ public class member extends javax.swing.JPanel {
         });
 
         memberTable.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
+        
+        // Prevent single-click editing - only allow double-click
+        memberTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
+        
         model.addTableModelListener(e -> {
 
             if (e.getType() != javax.swing.event.TableModelEvent.UPDATE) return;
@@ -659,8 +663,11 @@ public class member extends javax.swing.JPanel {
         // Prevent editing Delete column
         if (col == 7) return;
 
-        memberTable.editCellAt(row, col);
-        memberTable.getEditorComponent().requestFocus();
+        // Only trigger edit on double-click
+        if (evt.getClickCount() == 2) {
+            memberTable.editCellAt(row, col);
+            memberTable.getEditorComponent().requestFocus();
+        }
 
     }//GEN-LAST:event_memberTableMouseClicked
 

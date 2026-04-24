@@ -456,6 +456,10 @@ model.addColumn("Delete");
     });
 
     ledgerTable.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
+    
+    // Prevent single-click editing - only allow double-click
+    ledgerTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
+    
     model.addTableModelListener(e -> {
 
     if (e.getType() != javax.swing.event.TableModelEvent.UPDATE) return;
@@ -743,8 +747,11 @@ model.addColumn("Delete");
     // 🚫 prevent editing Delete and Manage columns
     if (col == 3 || col == 4) return;
 
-    ledgerTable.editCellAt(row, col);
-    ledgerTable.getEditorComponent().requestFocus();
+    // Only trigger edit on double-click
+    if (evt.getClickCount() == 2) {
+        ledgerTable.editCellAt(row, col);
+        ledgerTable.getEditorComponent().requestFocus();
+    }
 
         }//GEN-LAST:event_ledgerTableMouseClicked
 

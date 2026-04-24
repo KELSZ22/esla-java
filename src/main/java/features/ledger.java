@@ -110,6 +110,30 @@ public class ledger extends javax.swing.JPanel {
         }
     }
 
+    // Custom cell editor for type column using JComboBox
+    class TypeCellEditor extends AbstractCellEditor implements TableCellEditor {
+        private javax.swing.JComboBox<String> comboBox;
+
+        public TypeCellEditor() {
+            comboBox = new javax.swing.JComboBox<>();
+            comboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "income", "expense", "loan", "payment" }));
+            style.applyComboBox(comboBox);
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+            if (value != null) {
+                comboBox.setSelectedItem(value.toString());
+            }
+            return comboBox;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            return comboBox.getSelectedItem();
+        }
+    }
+
     // Custom cell renderer to capitalize first letter of Type
     class TypeCellRenderer extends DefaultTableCellRenderer {
         @Override
@@ -142,6 +166,8 @@ public class ledger extends javax.swing.JPanel {
     setupTable();
     populateMemberTypes();
     setupFilters();
+    
+    AddLedger.addActionListener(this::AddLedgerActionPerformed);
 
     // Add plus icon to AddLedger button
     java.net.URL plusUrl = getClass().getResource("/images/plus.png");
@@ -336,6 +362,9 @@ model.addColumn("Delete");
 
     // Set custom date renderer for Date column (column 2)
     ledgerTable.getColumnModel().getColumn(2).setCellRenderer(new DateCellRenderer());
+
+    // Set custom type editor for Type column (column 1)
+    ledgerTable.getColumnModel().getColumn(1).setCellEditor(new TypeCellEditor());
 
     // Set custom type renderer for Type column (column 1)
     ledgerTable.getColumnModel().getColumn(1).setCellRenderer(new TypeCellRenderer());

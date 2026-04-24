@@ -584,17 +584,17 @@ public class manageLedger extends javax.swing.JPanel {
                 rs.close();
                 fetchPs.close();
                 
-                // Get previous entry for this member across same-type ledgers (excluding current record)
+                // Get previous entry for this member in the current ledger (excluding current record)
                 String previousSql = """
                     SELECT fd.id, fd.balance, fd.under_paid, fd.premium_total, fd.date
                     FROM form_data fd
                     INNER JOIN ledgers l ON fd.ledger_id = l.id
-                    WHERE l.type = ? AND fd.member_id = ? AND fd.id != ? AND fd.date < ?
+                    WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.id != ? AND fd.date < ?
                     ORDER BY fd.date DESC
                     LIMIT 1
                 """;
                 PreparedStatement previousPs = con.prepareStatement(previousSql);
-                previousPs.setString(1, currentLedgerType);
+                previousPs.setInt(1, currentLedgerId);
                 previousPs.setInt(2, currentMemberId);
                 previousPs.setInt(3, recordId);
                 previousPs.setDate(4, currentDate);

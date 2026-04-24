@@ -124,6 +124,7 @@ public class LoanForm extends javax.swing.JDialog {
         jScrollPane1.setViewportView(remarks);
 
         saveLoanButton.setText("Save");
+        saveLoanButton.addActionListener(this::saveLoanButtonActionPerformed);
 
         loanCanvelButton.setText("Cancel");
         loanCanvelButton.addActionListener(this::loanCanvelButtonActionPerformed);

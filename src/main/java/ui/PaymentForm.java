@@ -183,7 +183,7 @@ public class PaymentForm extends javax.swing.JDialog {
 
             services.FormDataService formDataService = new services.FormDataService();
             services.FormDataService.ProspectivePayment prospective =
-                formDataService.getProspectivePaymentsForDate(memberId, ledgerType, paymentDate);
+                formDataService.getProspectivePaymentsForDate(ledgerId, memberId, ledgerType, paymentDate);
 
             System.out.println("DEBUG: memberId=" + memberId + ", ledgerType=" + ledgerType + ", paymentDate=" + paymentDate);
             System.out.println("DEBUG: scheduledPayment=" + prospective.scheduledPayment);

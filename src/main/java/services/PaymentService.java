@@ -94,12 +94,12 @@ public class PaymentService {
                        fd.scheduled_payment, fd.premium_total, fd.premium, fd.actual_payroll, fd.remarks
                 FROM form_data fd
                 INNER JOIN ledgers l ON fd.ledger_id = l.id
-                WHERE l.type = ? AND fd.member_id = ?
+                WHERE fd.ledger_id = ? AND fd.member_id = ?
                 ORDER BY fd.date DESC
                 LIMIT 1
             """;
             PreparedStatement ps = con.prepareStatement(sql);
-            ps.setString(1, ledgerType);
+            ps.setInt(1, ledgerId);
             ps.setInt(2, memberId);
             ResultSet rs = ps.executeQuery();
 
@@ -234,7 +234,7 @@ public class PaymentService {
         }
 
         // Scheduled Payment: Calculate based on active loans at this date
-        computed.scheduledPayment = loanService.getScheduledPaymentWithDate(memberId, ledgerType, date);
+        computed.scheduledPayment = loanService.getScheduledPaymentWithDate(ledgerId, memberId, ledgerType, date);
 
         // Should Be Paid: Previous under_paid + scheduled_payment
         BigDecimal previousUnderPaid = (previousEntry != null && previousEntry.underPaid != null) 
@@ -422,10 +422,10 @@ public class PaymentService {
                 SELECT COUNT(*) + 1 as position
                 FROM form_data fd
                 INNER JOIN ledgers l ON fd.ledger_id = l.id
-                WHERE l.type = ? AND fd.member_id = ? AND fd.date < ?
+                WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.date < ?
             """;
             PreparedStatement ps = con.prepareStatement(sql);
-            ps.setString(1, ledgerType);
+            ps.setInt(1, ledgerId);
             ps.setInt(2, memberId);
             ps.setDate(3, date != null ? java.sql.Date.valueOf(date) : null);
             ResultSet rs = ps.executeQuery();

@@ -266,7 +266,7 @@ public class LoanService {
      * @param position Payment position (1-based)
      * @return Total scheduled payment amount for the position
      */
-    public BigDecimal getScheduledPaymentForPosition(int memberId, String ledgerType, int position) {
+    public BigDecimal getScheduledPaymentForPosition(int ledgerId, int memberId, String ledgerType, int position) {
         Connection con = null;
         PreparedStatement loanPs = null;
         ResultSet loanRs = null;
@@ -321,10 +321,10 @@ public class LoanService {
                         SELECT COUNT(*) as payment_count
                         FROM form_data fd
                         JOIN ledgers led ON fd.ledger_id = led.id
-                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
+                        WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
                     """;
                     paymentPs = con.prepareStatement(paymentSql);
-                    paymentPs.setString(1, ledgerType);
+                    paymentPs.setInt(1, ledgerId);
                     paymentPs.setInt(2, memberId);
                     paymentPs.setDate(3, java.sql.Date.valueOf(startDeductionDate));
                     paymentRs = paymentPs.executeQuery();
@@ -345,10 +345,10 @@ public class LoanService {
                         SELECT COUNT(*) as payment_count
                         FROM form_data fd
                         JOIN ledgers led ON fd.ledger_id = led.id
-                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
+                        WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
                     """;
                     paymentPs = con.prepareStatement(paymentSql);
-                    paymentPs.setString(1, ledgerType);
+                    paymentPs.setInt(1, ledgerId);
                     paymentPs.setInt(2, memberId);
                     paymentPs.setDate(3, loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
                     paymentRs = paymentPs.executeQuery();
@@ -393,14 +393,15 @@ public class LoanService {
 
     /**
      * Get active loans at a specific position with detailed information
-     * Queries loans for a member across all same-type ledgers
+     * Queries loans for a member in the current ledger
      *
+     * @param ledgerId Ledger ID
      * @param memberId Member ID (to filter loans by member)
-     * @param ledgerType Ledger type (to query across all same-type ledgers)
+     * @param ledgerType Ledger type
      * @param position Payment position (1-based)
      * @return List of active loan details for the position
      */
-    public java.util.List<java.util.Map<String, Object>> getActiveLoansAtPosition(int memberId, String ledgerType, int position) {
+    public java.util.List<java.util.Map<String, Object>> getActiveLoansAtPosition(int ledgerId, int memberId, String ledgerType, int position) {
         java.util.List<java.util.Map<String, Object>> activeLoans = new java.util.ArrayList<>();
         Connection con = null;
         PreparedStatement loanPs = null;
@@ -455,10 +456,10 @@ public class LoanService {
                         SELECT COUNT(*) as payment_count
                         FROM form_data fd
                         JOIN ledgers led ON fd.ledger_id = led.id
-                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
+                        WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
                     """;
                     paymentPs = con.prepareStatement(paymentSql);
-                    paymentPs.setString(1, ledgerType);
+                    paymentPs.setInt(1, ledgerId);
                     paymentPs.setInt(2, memberId);
                     paymentPs.setDate(3, java.sql.Date.valueOf(startDeductionDate));
                     paymentRs = paymentPs.executeQuery();
@@ -479,10 +480,10 @@ public class LoanService {
                         SELECT COUNT(*) as payment_count
                         FROM form_data fd
                         JOIN ledgers led ON fd.ledger_id = led.id
-                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
+                        WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
                     """;
                     paymentPs = con.prepareStatement(paymentSql);
-                    paymentPs.setString(1, ledgerType);
+                    paymentPs.setInt(1, ledgerId);
                     paymentPs.setInt(2, memberId);
                     paymentPs.setDate(3, loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
                     paymentRs = paymentPs.executeQuery();
@@ -590,23 +591,24 @@ public class LoanService {
 
     /**
      * Get scheduled payment for the next position
-     * Counts existing payment entries across all same-type ledgers and calls getScheduledPaymentForPosition
+     * Counts existing payment entries in the current ledger and calls getScheduledPaymentForPosition
      *
+     * @param ledgerId Ledger ID
      * @param memberId Member ID (to filter loans by member)
      * @param ledgerType Ledger type
      * @return Scheduled payment for the next position
      */
-    public BigDecimal getScheduledPaymentForNextPosition(int memberId, String ledgerType) {
+    public BigDecimal getScheduledPaymentForNextPosition(int ledgerId, int memberId, String ledgerType) {
         try {
             Connection con = Database.getConnection();
             String sql = """
                 SELECT COUNT(*) as payment_count
                 FROM form_data fd
                 JOIN ledgers led ON fd.ledger_id = led.id
-                WHERE led.type = ? AND fd.deleted_at IS NULL
+                WHERE fd.ledger_id = ? AND fd.deleted_at IS NULL
             """;
             PreparedStatement ps = con.prepareStatement(sql);
-            ps.setString(1, ledgerType);
+            ps.setInt(1, ledgerId);
             ResultSet rs = ps.executeQuery();
 
             int paymentCount = 0;
@@ -618,7 +620,7 @@ public class LoanService {
             ps.close();
             con.close();
 
-            return getScheduledPaymentForPosition(memberId, ledgerType, paymentCount + 1);
+            return getScheduledPaymentForPosition(ledgerId, memberId, ledgerType, paymentCount + 1);
         } catch (SQLException e) {
             e.printStackTrace();
             return BigDecimal.ZERO;
@@ -628,14 +630,15 @@ public class LoanService {
     /**
      * Get scheduled payment considering prospective date
      * Calculates scheduled payment for the prospective date based on actual loan deduction date ranges
-     * Queries loans for a member across all same-type ledgers
+     * Queries loans for a member in the current ledger
      *
+     * @param ledgerId Ledger ID
      * @param memberId Member ID (to filter loans by member)
      * @param ledgerType Ledger type
      * @param prospectiveDate Prospective payment date
      * @return Scheduled payment amount
      */
-    public BigDecimal getScheduledPaymentWithDate(int memberId, String ledgerType, LocalDate prospectiveDate) {
+    public BigDecimal getScheduledPaymentWithDate(int ledgerId, int memberId, String ledgerType, LocalDate prospectiveDate) {
         Connection con = null;
         PreparedStatement loanPs = null;
         ResultSet loanRs = null;
@@ -663,6 +666,7 @@ public class LoanService {
             BigDecimal totalPayment = BigDecimal.ZERO;
 
             while (loanRs.next()) {
+                int loanId = loanRs.getInt("id");
                 LocalDate loanDate = loanRs.getDate("date") != null ? loanRs.getDate("date").toLocalDate() : null;
                 LocalDate startDeductionDate = loanRs.getDate("start_deduction_date") != null ? loanRs.getDate("start_deduction_date").toLocalDate() : null;
                 Boolean startDeductionOnLoanDate = loanRs.getBoolean("start_deduction_on_loan_date");
@@ -670,6 +674,11 @@ public class LoanService {
                 Integer cutoffs = loanRs.getInt("cutoffs");
 
                 if (total == null || cutoffs == null || cutoffs == 0) {
+                    continue;
+                }
+
+                // Check if this loan is fully paid across all ledgers
+                if (isLoanFullyPaid(loanId, total)) {
                     continue;
                 }
 
@@ -737,6 +746,50 @@ public class LoanService {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    /**
+     * Check if a loan is fully paid across all ledgers
+     * @param loanId The loan ID to check
+     * @param total The total loan amount
+     * @return true if the loan is fully paid, false otherwise
+     */
+    private boolean isLoanFullyPaid(int loanId, BigDecimal total) {
+        try {
+            Connection con = Database.getConnection();
+            String sql = """
+                SELECT SUM(fd.scheduled_payment) as total_paid
+                FROM form_data fd
+                WHERE fd.scheduled_payment IS NOT NULL
+                AND fd.scheduled_payment > 0
+                AND fd.date IN (
+                    SELECT l.date
+                    FROM loans l
+                    WHERE l.id = ?
+                )
+            """;
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, loanId);
+            ResultSet rs = ps.executeQuery();
+
+            BigDecimal totalPaid = BigDecimal.ZERO;
+            if (rs.next()) {
+                totalPaid = rs.getBigDecimal("total_paid");
+                if (totalPaid == null) {
+                    totalPaid = BigDecimal.ZERO;
+                }
+            }
+
+            rs.close();
+            ps.close();
+            con.close();
+
+            // Consider loan fully paid if total paid >= total loan amount
+            return totalPaid.compareTo(total) >= 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 }

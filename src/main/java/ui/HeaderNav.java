@@ -54,7 +54,7 @@ public class HeaderNav extends javax.swing.JPanel {
 
     private void setupNavButton(JButton button, String text) {
         button.setText(text);
-        button.setFont(new Font("Ubuntu", Font.PLAIN, 14));
+        button.setFont(new Font("Ubuntu", Font.PLAIN, 16));
         button.setForeground(TEXT_COLOR);
         button.setBackground(BACKGROUND_COLOR);
         button.setBorderPainted(false);
@@ -62,7 +62,7 @@ public class HeaderNav extends javax.swing.JPanel {
         button.setContentAreaFilled(false);
         button.setOpaque(true);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        button.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+        button.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
 
         button.addMouseListener(new MouseAdapter() {
             @Override
@@ -115,13 +115,13 @@ public class HeaderNav extends javax.swing.JPanel {
             btn.setBackground(BACKGROUND_COLOR);
             btn.setForeground(TEXT_COLOR);
             btn.setFont(btn.getFont().deriveFont(Font.PLAIN));
-            btn.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
+            btn.setBorder(BorderFactory.createEmptyBorder(12, 20, 12, 20));
         }
 
         active.setForeground(ACTIVE_TEXT_COLOR);
         active.setFont(active.getFont().deriveFont(Font.BOLD));
         active.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createEmptyBorder(10, 16, 10, 16),
+            BorderFactory.createEmptyBorder(12, 20, 12, 20),
             BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY_COLOR)
         ));
     }

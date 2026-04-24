@@ -321,10 +321,10 @@ public class LoanService {
                         SELECT COUNT(*) as payment_count
                         FROM form_data fd
                         JOIN ledgers led ON fd.ledger_id = led.id
-                        WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
+                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
                     """;
                     paymentPs = con.prepareStatement(paymentSql);
-                    paymentPs.setInt(1, ledgerId);
+                    paymentPs.setString(1, ledgerType);
                     paymentPs.setInt(2, memberId);
                     paymentPs.setDate(3, java.sql.Date.valueOf(startDeductionDate));
                     paymentRs = paymentPs.executeQuery();
@@ -345,10 +345,10 @@ public class LoanService {
                         SELECT COUNT(*) as payment_count
                         FROM form_data fd
                         JOIN ledgers led ON fd.ledger_id = led.id
-                        WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
+                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
                     """;
                     paymentPs = con.prepareStatement(paymentSql);
-                    paymentPs.setInt(1, ledgerId);
+                    paymentPs.setString(1, ledgerType);
                     paymentPs.setInt(2, memberId);
                     paymentPs.setDate(3, loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
                     paymentRs = paymentPs.executeQuery();
@@ -456,10 +456,10 @@ public class LoanService {
                         SELECT COUNT(*) as payment_count
                         FROM form_data fd
                         JOIN ledgers led ON fd.ledger_id = led.id
-                        WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
+                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date <= ?
                     """;
                     paymentPs = con.prepareStatement(paymentSql);
-                    paymentPs.setInt(1, ledgerId);
+                    paymentPs.setString(1, ledgerType);
                     paymentPs.setInt(2, memberId);
                     paymentPs.setDate(3, java.sql.Date.valueOf(startDeductionDate));
                     paymentRs = paymentPs.executeQuery();
@@ -480,10 +480,10 @@ public class LoanService {
                         SELECT COUNT(*) as payment_count
                         FROM form_data fd
                         JOIN ledgers led ON fd.ledger_id = led.id
-                        WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
+                        WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL AND fd.date < ?
                     """;
                     paymentPs = con.prepareStatement(paymentSql);
-                    paymentPs.setInt(1, ledgerId);
+                    paymentPs.setString(1, ledgerType);
                     paymentPs.setInt(2, memberId);
                     paymentPs.setDate(3, loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
                     paymentRs = paymentPs.executeQuery();
@@ -605,10 +605,11 @@ public class LoanService {
                 SELECT COUNT(*) as payment_count
                 FROM form_data fd
                 JOIN ledgers led ON fd.ledger_id = led.id
-                WHERE fd.ledger_id = ? AND fd.deleted_at IS NULL
+                WHERE led.type = ? AND fd.member_id = ? AND fd.deleted_at IS NULL
             """;
             PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, ledgerId);
+            ps.setString(1, ledgerType);
+            ps.setInt(2, memberId);
             ResultSet rs = ps.executeQuery();
 
             int paymentCount = 0;

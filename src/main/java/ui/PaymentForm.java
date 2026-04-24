@@ -35,21 +35,14 @@ public class PaymentForm extends javax.swing.JDialog {
         applyStyling();
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         
-        // Auto-fill date with next cutoff date
+        // Add date change listener for real-time computation
+        addDateChangeListener();
+        
+        // Auto-fill date with next cutoff date (this also triggers fetchProspectivePayments)
         autoFillCutoffDate();
         
         // Auto-fill premium from member data
         autoFillPremium();
-        
-        // Add date change listener for real-time computation
-        addDateChangeListener();
-        
-        // Initial computation for prospective date
-        fetchProspectivePayments();
-
-        // Make scheduled payment and should be paid fields read-only
-        scheduledPayment.setEditable(false);
-        shouldBePaid.setEditable(false);
 
         pack();
         setLocationRelativeTo(parent);
@@ -80,6 +73,12 @@ public class PaymentForm extends javax.swing.JDialog {
         style.applyTextField(actualPayment);
         style.applyTextField(premium);
 
+        // Make read-only fields visually distinct with light gray background
+        scheduledPayment.setBackground(new java.awt.Color(240, 240, 240));
+        scheduledPayment.setEditable(false);
+        shouldBePaid.setBackground(new java.awt.Color(240, 240, 240));
+        shouldBePaid.setEditable(false);
+
         // Apply button styling
         style.applyButton(saveButton);
         style.applySecondaryButton(Cancel);
@@ -107,6 +106,8 @@ public class PaymentForm extends javax.swing.JDialog {
         LocalDate today = LocalDate.now();
         LocalDate nextCutoff = calculateNextCutoffDate(today);
         date.setDate(java.sql.Date.valueOf(nextCutoff));
+        // Also store the date for immediate use
+        fetchProspectivePayments(nextCutoff);
     }
 
     /**
@@ -156,11 +157,41 @@ public class PaymentForm extends javax.swing.JDialog {
      * Add PropertyChangeListener to date chooser for real-time computation
      */
     private void addDateChangeListener() {
+        // Add listener to detect date changes
         date.addPropertyChangeListener("date", evt -> {
             if (!isEditMode) {
+                // Fetch prospective payments immediately when date changes
                 fetchProspectivePayments();
             }
         });
+
+        // Add listener to the calendar component to detect date selection immediately
+        try {
+            java.lang.reflect.Field jcalendarField = date.getClass().getDeclaredField("jcalendar");
+            jcalendarField.setAccessible(true);
+            com.toedter.calendar.JCalendar jcalendar = (com.toedter.calendar.JCalendar) jcalendarField.get(date);
+            if (jcalendar != null) {
+                jcalendar.addPropertyChangeListener("date", evt -> {
+                    if (!isEditMode) {
+                        fetchProspectivePayments();
+                    }
+                });
+            }
+        } catch (Exception e) {
+            System.out.println("Could not add listener to JCalendar: " + e.getMessage());
+        }
+
+        // Also add listener to the editor component for direct date entry
+        if (date.getDateEditor() != null && date.getDateEditor().getUiComponent() != null) {
+            date.getDateEditor().getUiComponent().addFocusListener(new java.awt.event.FocusAdapter() {
+                @Override
+                public void focusLost(java.awt.event.FocusEvent e) {
+                    if (!isEditMode) {
+                        fetchProspectivePayments();
+                    }
+                }
+            });
+        }
     }
 
     /**
@@ -181,6 +212,22 @@ public class PaymentForm extends javax.swing.JDialog {
                 .atZone(java.time.ZoneId.systemDefault())
                 .toLocalDate();
 
+            fetchProspectivePayments(paymentDate);
+        } catch (Exception e) {
+            e.printStackTrace();
+            scheduledPaymentForDate = null;
+            shouldBePaidForDate = null;
+            updatePaymentFieldsDisplay();
+        }
+    }
+
+    /**
+     * Fetch prospective payments from server for a specific date
+     * Updates scheduledPaymentForDate and shouldBePaidForDate state variables
+     * @param paymentDate The date to fetch prospective payments for
+     */
+    private void fetchProspectivePayments(LocalDate paymentDate) {
+        try {
             services.FormDataService formDataService = new services.FormDataService();
             services.FormDataService.ProspectivePayment prospective =
                 formDataService.getProspectivePaymentsForDate(ledgerId, memberId, ledgerType, paymentDate);
@@ -192,30 +239,34 @@ public class PaymentForm extends javax.swing.JDialog {
             scheduledPaymentForDate = prospective.scheduledPayment;
             shouldBePaidForDate = prospective.shouldBePaid;
 
-            updatePaymentFieldsDisplay();
+            // Update UI on Event Dispatch Thread
+            javax.swing.SwingUtilities.invokeLater(() -> updatePaymentFieldsDisplay());
         } catch (Exception e) {
             e.printStackTrace();
             scheduledPaymentForDate = null;
             shouldBePaidForDate = null;
-            updatePaymentFieldsDisplay();
+            // Update UI on Event Dispatch Thread
+            javax.swing.SwingUtilities.invokeLater(() -> updatePaymentFieldsDisplay());
         }
     }
 
     /**
      * Update payment fields display with priority order
-     * 
+     *
      * Scheduled Payment Priority:
      * 1. If editing: uses formData.scheduled_payment
      * 2. If creating with date: uses scheduledPaymentForDate (live server value)
      * 3. Fallback: uses nextScheduledPayment prop (from parent component)
      * 4. Default: '0.00'
-     * 
+     *
      * Should Be Paid Priority:
      * 1. If editing: uses formData.should_be_paid
      * 2. If creating with date: uses shouldBePaidForDate (live server value)
      * 3. Default: '—'
      */
     private void updatePaymentFieldsDisplay() {
+        System.out.println("DEBUG updatePaymentFieldsDisplay: isEditMode=" + isEditMode + ", scheduledPaymentForDate=" + scheduledPaymentForDate + ", shouldBePaidForDate=" + shouldBePaidForDate);
+
         // Scheduled Payment display logic
         if (isEditMode) {
             // In edit mode, keep existing value (would be set from formData)
@@ -223,9 +274,12 @@ public class PaymentForm extends javax.swing.JDialog {
         } else {
             // In create mode, use prospective value
             if (scheduledPaymentForDate != null) {
-                scheduledPayment.setText(formatCurrency(scheduledPaymentForDate));
+                String formatted = formatCurrency(scheduledPaymentForDate);
+                scheduledPayment.setText(formatted);
+                System.out.println("DEBUG updatePaymentFieldsDisplay: Set scheduledPayment to " + formatted);
             } else {
                 scheduledPayment.setText("0.00");
+                System.out.println("DEBUG updatePaymentFieldsDisplay: Set scheduledPayment to 0.00 (null value)");
             }
         }
 
@@ -236,9 +290,12 @@ public class PaymentForm extends javax.swing.JDialog {
         } else {
             // In create mode, use prospective value
             if (shouldBePaidForDate != null) {
-                shouldBePaid.setText(formatCurrency(shouldBePaidForDate));
+                String formatted = formatCurrency(shouldBePaidForDate);
+                shouldBePaid.setText(formatted);
+                System.out.println("DEBUG updatePaymentFieldsDisplay: Set shouldBePaid to " + formatted);
             } else {
                 shouldBePaid.setText("—");
+                System.out.println("DEBUG updatePaymentFieldsDisplay: Set shouldBePaid to — (null value)");
             }
         }
     }

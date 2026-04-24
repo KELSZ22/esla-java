@@ -94,12 +94,12 @@ public class PaymentService {
                        fd.scheduled_payment, fd.premium_total, fd.premium, fd.actual_payroll, fd.remarks
                 FROM form_data fd
                 INNER JOIN ledgers l ON fd.ledger_id = l.id
-                WHERE fd.ledger_id = ? AND fd.member_id = ?
+                WHERE l.type = ? AND fd.member_id = ?
                 ORDER BY fd.date DESC
                 LIMIT 1
             """;
             PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, ledgerId);
+            ps.setString(1, ledgerType);
             ps.setInt(2, memberId);
             ResultSet rs = ps.executeQuery();
 
@@ -422,10 +422,10 @@ public class PaymentService {
                 SELECT COUNT(*) + 1 as position
                 FROM form_data fd
                 INNER JOIN ledgers l ON fd.ledger_id = l.id
-                WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.date < ?
+                WHERE l.type = ? AND fd.member_id = ? AND fd.date < ?
             """;
             PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, ledgerId);
+            ps.setString(1, ledgerType);
             ps.setInt(2, memberId);
             ps.setDate(3, date != null ? java.sql.Date.valueOf(date) : null);
             ResultSet rs = ps.executeQuery();

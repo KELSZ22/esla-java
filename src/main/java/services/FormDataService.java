@@ -52,19 +52,19 @@ public class FormDataService {
             System.out.println("DEBUG FormDataService: scheduledPayment from LoanService=" + scheduledPayment);
             result.scheduledPayment = scheduledPayment.setScale(2, java.math.RoundingMode.HALF_UP);
 
-            // 2. Find previous underpaid amount for the member in the current ledger (before the prospective date)
-            // This is member-specific
+            // 2. Find previous underpaid amount for the member across all same-type ledgers (before the prospective date)
+            // This is member-specific and ledger-type-specific for continuous payment tracking
             con = Database.getConnection();
             String previousSql = """
                 SELECT fd.under_paid
                 FROM form_data fd
                 INNER JOIN ledgers l ON fd.ledger_id = l.id
-                WHERE fd.ledger_id = ? AND fd.member_id = ? AND fd.date < ? AND fd.deleted_at IS NULL
+                WHERE l.type = ? AND fd.member_id = ? AND fd.date < ? AND fd.deleted_at IS NULL
                 ORDER BY fd.date DESC
                 LIMIT 1
             """;
             previousPs = con.prepareStatement(previousSql);
-            previousPs.setInt(1, ledgerId);
+            previousPs.setString(1, ledgerType);
             previousPs.setInt(2, memberId);
             previousPs.setDate(3, date != null ? java.sql.Date.valueOf(date) : null);
             previousRs = previousPs.executeQuery();

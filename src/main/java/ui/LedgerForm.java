@@ -75,7 +75,6 @@ public class LedgerForm extends javax.swing.JPanel {
         ledgerCancelButton.addActionListener(this::ledgerCancelButtonActionPerformed);
 
         saveLedgerButton.setText("Save");
-        saveLedgerButton.addActionListener(this::saveLedgerButtonActionPerformed);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);

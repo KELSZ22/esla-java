@@ -7,6 +7,7 @@ package com.kelsz.esla;
 import features.dashboard;
 import features.ledger;
 import features.member;
+import features.serviceCharge;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import javax.swing.JPanel;
@@ -41,6 +42,7 @@ public class MainFrame extends javax.swing.JFrame {
     contentPanel.add(new dashboard(), "dashboard");
     contentPanel.add(new ledger(), "ledger");
     contentPanel.add(new member(), "member");
+    contentPanel.add(new serviceCharge(), "service");
 
     getContentPane().add(contentPanel, BorderLayout.CENTER);
 

@@ -54,9 +54,19 @@ public class MainFrame extends javax.swing.JFrame {
 }
 
     public void showPage(String name) {
-    System.out.println("Switching to: " + name);
-    cardLayout.show(contentPanel, name);
-}
+        System.out.println("Switching to: " + name);
+        cardLayout.show(contentPanel, name);
+    }
+
+    public void refreshActivePage() {
+        System.out.println("Refreshing active page...");
+        for (java.awt.Component comp : contentPanel.getComponents()) {
+            if (comp.isVisible() && comp instanceof ui.Refreshable) {
+                ((ui.Refreshable) comp).refresh();
+                break;
+            }
+        }
+    }
 
 
     /**

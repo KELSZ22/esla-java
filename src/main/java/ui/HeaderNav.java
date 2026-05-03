@@ -22,6 +22,10 @@ public class HeaderNav extends javax.swing.JPanel {
     private static final Color TEXT_COLOR = new Color(100, 100, 110);
     private static final Color ACTIVE_TEXT_COLOR = style.PRIMARY;
     private static final Color BACKGROUND_COLOR = Color.WHITE;
+    
+    private JButton reloadButton;
+    private JButton userDropdown;
+    private JPopupMenu logoutMenu;
 
     /**
      * Creates new form HeaderNav
@@ -30,6 +34,7 @@ public class HeaderNav extends javax.swing.JPanel {
         this.frame = frame;
 
         initComponents();
+        setupUserArea();
         setupModernStyle();
         initEvents();
         setActive(dashboardNav);
@@ -50,6 +55,117 @@ public class HeaderNav extends javax.swing.JPanel {
 
         jLabel1.setFont(new Font("Ubuntu", Font.BOLD, 24));
         jLabel1.setForeground(PRIMARY_COLOR);
+    }
+
+    private void setupUserArea() {
+        // Reload Button
+        reloadButton = new JButton();
+        reloadButton.setToolTipText("Reload Current Page");
+        reloadButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        reloadButton.setBorderPainted(false);
+        reloadButton.setFocusPainted(false);
+        reloadButton.setContentAreaFilled(false);
+        reloadButton.setOpaque(true);
+        reloadButton.setBackground(BACKGROUND_COLOR);
+        reloadButton.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        
+        java.net.URL reloadIconUrl = getClass().getResource("/images/rotate-ccw.png");
+        if (reloadIconUrl != null) {
+            reloadButton.setIcon(new ImageIcon(new ImageIcon(reloadIconUrl).getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH)));
+        }
+        
+        reloadButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) { reloadButton.setBackground(HOVER_COLOR); }
+            @Override
+            public void mouseExited(MouseEvent e) { reloadButton.setBackground(BACKGROUND_COLOR); }
+        });
+        
+        reloadButton.addActionListener(e -> frame.refreshActivePage());
+
+        // User Dropdown
+        String userName = com.kelsz.esla.UserSession.getInstance().getName();
+        userDropdown = new JButton(userName);
+        userDropdown.setFont(new Font("Ubuntu", Font.BOLD, 14));
+        userDropdown.setForeground(TEXT_COLOR);
+        userDropdown.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        userDropdown.setBorderPainted(false);
+        userDropdown.setFocusPainted(false);
+        userDropdown.setContentAreaFilled(false);
+        userDropdown.setOpaque(true);
+        userDropdown.setBackground(BACKGROUND_COLOR);
+        userDropdown.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        
+        java.net.URL userIconUrl = getClass().getResource("/images/circle-user-round.png");
+        if (userIconUrl != null) {
+            userDropdown.setIcon(new ImageIcon(new ImageIcon(userIconUrl).getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH)));
+            userDropdown.setIconTextGap(10);
+        }
+        
+        userDropdown.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) { userDropdown.setBackground(HOVER_COLOR); }
+            @Override
+            public void mouseExited(MouseEvent e) { userDropdown.setBackground(BACKGROUND_COLOR); }
+        });
+
+        // Logout Menu
+        logoutMenu = new JPopupMenu();
+        JMenuItem logoutItem = new JMenuItem("Logout");
+        logoutItem.setFont(new Font("Ubuntu", Font.PLAIN, 14));
+        java.net.URL logoutIconUrl = getClass().getResource("/images/log-out.png");
+        if (logoutIconUrl != null) {
+            logoutItem.setIcon(new ImageIcon(new ImageIcon(logoutIconUrl).getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH)));
+        }
+        logoutItem.addActionListener(e -> {
+            com.kelsz.esla.UserSession.getInstance().logout();
+            frame.dispose();
+            new com.kelsz.esla.features.auth.Login().setVisible(true);
+        });
+        logoutMenu.add(logoutItem);
+        
+        userDropdown.addActionListener(e -> logoutMenu.show(userDropdown, 0, userDropdown.getHeight()));
+
+        // Add to current layout manually since we're in setupUserArea which runs after initComponents
+        javax.swing.GroupLayout layout = (javax.swing.GroupLayout) getLayout();
+        
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(24, 24, 24)
+                .addComponent(jLabel1)
+                .addGap(40, 40, 40)
+                .addComponent(dashboardNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(8, 8, 8)
+                .addComponent(ledgerNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(8, 8, 8)
+                .addComponent(memberNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(8, 8, 8)
+                .addComponent(serviceNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(8, 8, 8)
+                .addComponent(dividendNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 200, Short.MAX_VALUE)
+                .addComponent(reloadButton, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(12, 12, 12)
+                .addComponent(userDropdown, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(24, 24, 24))
+        );
+        
+        layout.setVerticalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap(12, 12)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
+                    .addComponent(jLabel1)
+                    .addComponent(dashboardNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(ledgerNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(memberNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(serviceNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(dividendNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(reloadButton, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(userDropdown, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(12, Short.MAX_VALUE))
+        );
     }
 
     private void setupNavButton(JButton button, String text) {

@@ -36,7 +36,14 @@ import javax.swing.table.TableRowSorter;
  *
  * @author kelsz-dev
  */
-public class serviceCharge extends javax.swing.JPanel {
+public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable {
+    
+    @Override
+    public void refresh() {
+        loadMembers();
+        loadServiceCharges();
+        onServiceChargeOrMemberContextChanged();
+    }
 
     // Store member IDs for database operations
     private List<Integer> memberIds = new ArrayList<>();

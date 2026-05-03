@@ -148,6 +148,11 @@ public class manageLedger extends javax.swing.JPanel {
     public manageLedger() {
         initComponents();
         setBackground(Color.WHITE);
+        
+        // Fix title
+        jLabel1.setText("Form Data");
+        style.applyModernLabel(jLabel1, true);
+        
         style.applyTableStyle(paymentTable, 14, 14);
         style.applyTableStyle(loanTable, 14, 14);
 
@@ -868,7 +873,7 @@ public class manageLedger extends javax.swing.JPanel {
         model.setRowCount(0); // Clear existing data
 
         model.setColumnIdentifiers(new Object[]{
-            "ID", "Date", "Should Be Paid", "Actual Payment",
+            "ID", "Form Number", "Date", "Should Be Paid", "Actual Payment",
             "Balance", "Under Paid", "Scheduled Payment", "Premium Total",
             "Premium", "Actual Payroll", "Remarks"
         });
@@ -883,8 +888,8 @@ public class manageLedger extends javax.swing.JPanel {
         // Prevent single-click editing - only allow double-click
         paymentTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
-        // Apply custom cell editor to date column (column 1)
-        paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
+        // Apply custom cell editor to date column (column 2)
+        paymentTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
 
         // Apply custom header renderer for sort icon
         paymentTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
@@ -939,6 +944,7 @@ public class manageLedger extends javax.swing.JPanel {
             while (rs.next()) {
                 model.addRow(new Object[]{
                     rs.getInt("id"),
+                    rs.getInt("form_number"),
                     rs.getDate("date"),
                     formatCurrency(rs.getBigDecimal("should_be_paid")),
                     formatCurrency(rs.getBigDecimal("actual_payment")),
@@ -1126,8 +1132,8 @@ public class manageLedger extends javax.swing.JPanel {
 
         setBackground(new java.awt.Color(255, 255, 255));
 
-        jLabel1.setFont(new java.awt.Font("Dialog", 1, 36)); // NOI18N
-        jLabel1.setText(" FORM DATA");
+        jLabel1.setFont(new java.awt.Font("Ubuntu", 1, 24)); // NOI18N
+        jLabel1.setText("Form Data");
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -1201,7 +1207,7 @@ public class manageLedger extends javax.swing.JPanel {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 918, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(formSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(formSearch, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(paymentLoanButton)))
                 .addContainerGap())
@@ -1211,7 +1217,7 @@ public class manageLedger extends javax.swing.JPanel {
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(formSearchPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(formSearch, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
                     .addComponent(paymentLoanButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)

@@ -56,25 +56,26 @@ public class DividendService {
     }
 
     /**
-     * Returns distinct service charge descriptions for the filter combo box.
+     * Returns service charge details (description and date_to) for the filter combo box.
      */
-    public List<String> getServiceChargeDescriptions() {
-        List<String> descriptions = new ArrayList<>();
+    public List<Map<String, Object>> getServiceChargeDetails() {
+        List<Map<String, Object>> details = new ArrayList<>();
         try {
             Connection con = Database.getConnection();
             String sql = """
-                SELECT DISTINCT description
+                SELECT description, MAX(date_to) as date_to
                 FROM member_service_charge_refunds
                 WHERE deleted_at IS NULL
+                GROUP BY description
                 ORDER BY description
                 """;
             PreparedStatement ps = con.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
-                String desc = rs.getString("description");
-                if (desc != null && !desc.isEmpty()) {
-                    descriptions.add(desc);
-                }
+                Map<String, Object> item = new HashMap<>();
+                item.put("description", rs.getString("description"));
+                item.put("date_to", rs.getString("date_to"));
+                details.add(item);
             }
             rs.close();
             ps.close();
@@ -82,7 +83,7 @@ public class DividendService {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return descriptions;
+        return details;
     }
 
     /**
@@ -104,7 +105,7 @@ public class DividendService {
             List<Object> params = new ArrayList<>();
 
             if (formDate != null && !formDate.isEmpty()) {
-                sql.append(" AND DATE(fd.date) = ? ");
+                sql.append(" AND DATE(fd.date) <= ? ");
                 params.add(formDate);
             }
 

@@ -174,7 +174,10 @@ try (Connection conn = Database.getConnection();
         System.out.println("HASH FROM DB: " + hashedPassword);
 
         if (hashedPassword != null && BCrypt.checkpw(password, hashedPassword)) {
-    JOptionPane.showMessageDialog(this, "Login Successful 🎉");
+            String name = rs.getString("name");
+            com.kelsz.esla.UserSession.getInstance().setUser(name, email);
+            
+            JOptionPane.showMessageDialog(this, "Login Successful 🎉");
 
     this.dispose(); // close login
 

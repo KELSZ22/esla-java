@@ -39,7 +39,13 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class member extends javax.swing.JPanel {
+public class member extends javax.swing.JPanel implements ui.Refreshable {
+    
+    @Override
+    public void refresh() {
+        setupTable();
+        populateMemberTypes();
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton addMemberButton;

@@ -19,10 +19,17 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class dividend extends javax.swing.JPanel {
+public class dividend extends javax.swing.JPanel implements ui.Refreshable {
+    
+    @Override
+    public void refresh() {
+        loadServiceChargeDescriptions();
+        loadDividendData();
+    }
 
     private final DividendService dividendService;
     private final Timer searchTimer;
+    private final List<String> serviceChargeDates = new java.util.ArrayList<>();
     private final DecimalFormat currencyFormat = new DecimalFormat("#,##0.00");
     private final DecimalFormat percentageFormat = new DecimalFormat("0.000000000");
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
@@ -34,9 +41,6 @@ public class dividend extends javax.swing.JPanel {
         dividendService = new DividendService();
         initComponents();
         setupStyles();
-
-        // Default date to today
-        dateField.setText(dateFormat.format(new Date()));
 
         // Setup debounced search
         searchTimer = new Timer(300, (ActionEvent e) -> {
@@ -53,7 +57,7 @@ public class dividend extends javax.swing.JPanel {
         style.applyModernLabel(jLabel1, true);
         style.applySearchField(dividendSearchField);
         style.applyComboBox(selectServiceCharge);
-        style.applyTextField(dateField);
+        style.applyModernLabel(dateLabel, false);
         
         style.applyCardPanel(cardTotalPremium);
         style.applyCardPanel(cardPremiumPct);
@@ -89,18 +93,31 @@ public class dividend extends javax.swing.JPanel {
             @Override public void changedUpdate(DocumentEvent e) { searchTimer.restart(); }
         });
 
-        selectServiceCharge.addActionListener(e -> loadDividendData());
-        
-        dateField.addActionListener(e -> loadDividendData());
+        selectServiceCharge.addActionListener(e -> {
+            int idx = selectServiceCharge.getSelectedIndex();
+            if (idx >= 0 && idx < serviceChargeDates.size()) {
+                String date = serviceChargeDates.get(idx);
+                dateLabel.setText("Date: " + (date != null ? date : "—"));
+            }
+            loadDividendData();
+        });
     }
 
     private void loadServiceChargeDescriptions() {
         selectServiceCharge.removeAllItems();
+        serviceChargeDates.clear();
+        
         selectServiceCharge.addItem("All Service Charges");
-        List<String> descriptions = dividendService.getServiceChargeDescriptions();
-        for (String desc : descriptions) {
-            selectServiceCharge.addItem(desc);
+        serviceChargeDates.add(null); // No specific date for "All"
+        
+        List<Map<String, Object>> details = dividendService.getServiceChargeDetails();
+        for (Map<String, Object> detail : details) {
+            selectServiceCharge.addItem((String) detail.get("description"));
+            serviceChargeDates.add((String) detail.get("date_to"));
         }
+        
+        // Initial label update
+        dateLabel.setText("Date: —");
     }
 
     private void loadDividendData() {
@@ -109,7 +126,12 @@ public class dividend extends javax.swing.JPanel {
         if (serviceCharge.equals("All Service Charges")) {
             serviceCharge = null;
         }
-        String date = dateField.getText().trim();
+        
+        String date = null;
+        int idx = selectServiceCharge.getSelectedIndex();
+        if (idx >= 0 && idx < serviceChargeDates.size()) {
+            date = serviceChargeDates.get(idx);
+        }
 
         Map<String, Object> data = dividendService.getDividendData(date, name, serviceCharge);
         List<Map<String, Object>> rows = (List<Map<String, Object>>) data.get("rows");
@@ -171,7 +193,6 @@ public class dividend extends javax.swing.JPanel {
         dividendSearchField = new javax.swing.JTextField();
         selectServiceCharge = new javax.swing.JComboBox<>();
         dateLabel = new javax.swing.JLabel();
-        dateField = new javax.swing.JTextField();
         cardTotalPremium = new javax.swing.JPanel();
         lblTotalPremium = new javax.swing.JLabel();
         valTotalPremium = new javax.swing.JLabel();
@@ -214,8 +235,6 @@ public class dividend extends javax.swing.JPanel {
                 .addComponent(selectServiceCharge, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(dateLabel)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(dateField, javax.swing.GroupLayout.PREFERRED_SIZE, 150, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(0, 0, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
@@ -225,8 +244,7 @@ public class dividend extends javax.swing.JPanel {
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(dividendSearchField, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(selectServiceCharge, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(dateLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(dateField, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(dateLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap())
         );
 
@@ -481,7 +499,6 @@ public class dividend extends javax.swing.JPanel {
     private javax.swing.JPanel cardTotalDividend;
     private javax.swing.JPanel cardTotalInterest;
     private javax.swing.JPanel cardTotalPremium;
-    private javax.swing.JTextField dateField;
     private javax.swing.JLabel dateLabel;
     private javax.swing.JTextField dividendSearchField;
     private javax.swing.JTable dividendTable;

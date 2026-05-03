@@ -28,7 +28,16 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class dashboard extends javax.swing.JPanel {
+public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
+    
+    @Override
+    public void refresh() {
+        if (chooseDate.getDate() != null) {
+            LocalDate selectedDate = new java.sql.Date(chooseDate.getDate().getTime()).toLocalDate();
+            setupTable(selectedDate);
+            populateMemberTypes();
+        }
+    }
 
     /**
      * Creates new form dashboard

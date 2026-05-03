@@ -225,8 +225,6 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
         loadMembers();
         loadServiceCharges();
         loadAllMembersServiceChargeRefunds();
-        addServiceCharge.addActionListener(this::addServiceChargeActionPerformed);
-        editServiceCharge.addActionListener(this::editServiceChargeActionPerformed);
         
         // Add member selection listener
         memberList.addListSelectionListener(e -> {
@@ -265,11 +263,9 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
 
         javax.swing.SwingUtilities.invokeLater(this::onServiceChargeOrMemberContextChanged);
 
-        // Standardize search and filter sizes non-destructively
         style.applySearchField(formSearch);
         style.applyComboBox(selectServiceCharge);
         style.applyStandardSizes(formSearch, selectServiceCharge);
-        style.applyButton(editServiceCharge);
     }
 
     /**

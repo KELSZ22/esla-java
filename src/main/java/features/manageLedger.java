@@ -92,24 +92,7 @@ public class manageLedger extends javax.swing.JPanel {
         }
     }
 
-    /**
-     * Custom table header renderer (no sorting)
-     */
-    class SortIconHeaderRenderer implements javax.swing.table.TableCellRenderer {
-        private javax.swing.table.DefaultTableCellRenderer defaultRenderer;
 
-        public SortIconHeaderRenderer() {
-            defaultRenderer = new javax.swing.table.DefaultTableCellRenderer();
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                boolean isSelected, boolean hasFocus, int row, int column) {
-            Component comp = defaultRenderer.getTableCellRendererComponent(
-                table, value, isSelected, hasFocus, row, column);
-            return comp;
-        }
-    }
 
     /**
      * Custom table model for loan table with inline editing
@@ -120,9 +103,8 @@ public class manageLedger extends javax.swing.JPanel {
     class LoanTableModel extends DefaultTableModel {
         @Override
         public boolean isCellEditable(int row, int column) {
-            // Only allow editing for Form Number (1), Date (2), Deduction Date (3), Principal (4), No. of Months (8), Remarks (10)
-            // ID column (0), Service Charge (5), Interest (6), Total (7), and Cutoff Amount (9) are not editable (computed fields)
-            return column == 1 || column == 2 || column == 3 || column == 4 || column == 8 || column == 10;
+            // Only allow editing for Date (1), Deduction Date (2), Principal (3), No. of Months (7), Remarks (9)
+            return column == 1 || column == 2 || column == 3 || column == 7 || column == 9;
         }
 
         @Override
@@ -130,12 +112,10 @@ public class manageLedger extends javax.swing.JPanel {
             if (columnIndex == 0) {
                 return Integer.class; // ID
             } else if (columnIndex == 1) {
-                return Integer.class; // Form Number
-            } else if (columnIndex == 2) {
                 return Date.class; // Date
-            } else if (columnIndex == 3) {
+            } else if (columnIndex == 2) {
                 return Date.class; // Deduction Date
-            } else if (columnIndex == 8) {
+            } else if (columnIndex == 7) {
                 return Integer.class; // No. of Months
             }
             return String.class;
@@ -150,7 +130,7 @@ public class manageLedger extends javax.swing.JPanel {
         setBackground(Color.WHITE);
         
         // Fix title
-        jLabel1.setText("Form Data");
+        jLabel1.setText("FORM DATA");
         style.applyModernLabel(jLabel1, true);
         
         style.applyTableStyle(paymentTable, 14, 14);
@@ -301,8 +281,8 @@ public class manageLedger extends javax.swing.JPanel {
         try {
             LoanTableModel model = (LoanTableModel) loanTable.getModel();
             
-            // Only update editable columns: Form Number (1), Date (2), Deduction Date (3), Principal (4), No. of Months (8), Remarks (10)
-            if (column != 1 && column != 2 && column != 3 && column != 4 && column != 8 && column != 10) {
+            // Only update editable columns: Date (1), Deduction Date (2), Principal (3), No. of Months (7), Remarks (9)
+            if (column != 1 && column != 2 && column != 3 && column != 7 && column != 9) {
                 return;
             }
             
@@ -346,14 +326,6 @@ public class manageLedger extends javax.swing.JPanel {
             Object dbValue;
             
             if (column == 1) {
-                // Form Number column
-                dbColumn = "form_number";
-                try {
-                    dbValue = Integer.parseInt(value != null ? value.toString() : "0");
-                } catch (NumberFormatException e) {
-                    dbValue = 0;
-                }
-            } else if (column == 2) {
                 // Date column
                 dbColumn = "date";
                 if (value instanceof Date) {
@@ -362,7 +334,7 @@ public class manageLedger extends javax.swing.JPanel {
                     System.out.println("Invalid date value");
                     return;
                 }
-            } else if (column == 3) {
+            } else if (column == 2) {
                 // Deduction Date column
                 dbColumn = "start_deduction_date";
                 if (value instanceof Date) {
@@ -373,11 +345,11 @@ public class manageLedger extends javax.swing.JPanel {
                     System.out.println("Invalid deduction date value");
                     return;
                 }
-            } else if (column == 4) {
+            } else if (column == 3) {
                 // Principal column - will trigger recalculation of computed fields
                 dbColumn = "principal";
                 dbValue = parseCurrency(value != null ? value.toString() : "0");
-            } else if (column == 8) {
+            } else if (column == 7) {
                 // No. of Months column - will trigger recalculation of computed fields
                 dbColumn = "cutoffs";
                 try {
@@ -385,7 +357,7 @@ public class manageLedger extends javax.swing.JPanel {
                 } catch (NumberFormatException e) {
                     dbValue = 0;
                 }
-            } else if (column == 10) {
+            } else if (column == 9) {
                 // Remarks column
                 dbColumn = "remarks";
                 dbValue = value != null ? value.toString() : "";
@@ -399,12 +371,12 @@ public class manageLedger extends javax.swing.JPanel {
             PreparedStatement ps;
             
             // If Principal or No. of Months is updated, recalculate all computed fields
-            if (column == 4 || column == 8) {
+            if (column == 3 || column == 7) {
                 // Get current values from the table
-                java.math.BigDecimal principal = parseCurrency(model.getValueAt(row, 4) != null ? model.getValueAt(row, 4).toString() : "0");
+                java.math.BigDecimal principal = parseCurrency(model.getValueAt(row, 3) != null ? model.getValueAt(row, 3).toString() : "0");
                 Integer cutoffs = 0;
                 try {
-                    cutoffs = Integer.parseInt(model.getValueAt(row, 8) != null ? model.getValueAt(row, 8).toString() : "0");
+                    cutoffs = Integer.parseInt(model.getValueAt(row, 7) != null ? model.getValueAt(row, 7).toString() : "0");
                 } catch (NumberFormatException e) {
                     cutoffs = 0;
                 }
@@ -426,28 +398,29 @@ public class manageLedger extends javax.swing.JPanel {
                 }
                 
                 // Update all fields including computed ones
-                sql = "UPDATE loans SET form_number = ?, date = ?, start_deduction_date = ?, principal = ?, service_charge = ?, interest = ?, total = ?, cutoffs = ?, cutoffs_amount = ?, remarks = ? WHERE id = ?";
+                sql = "UPDATE loans SET date = ?, start_deduction_date = ?, principal = ?, service_charge = ?, interest = ?, total = ?, cutoffs = ?, cutoffs_amount = ?, remarks = ? WHERE id = ?";
                 ps = con.prepareStatement(sql);
                 
                 // Get other column values
-                Object formNumberObj = model.getValueAt(row, 1);
-                Integer formNumber = formNumberObj instanceof Integer ? (Integer) formNumberObj : Integer.parseInt(formNumberObj != null ? formNumberObj.toString() : "0");
-                
-                Object dateObj = model.getValueAt(row, 2);
+                Object dateObj = model.getValueAt(row, 1);
                 java.sql.Date date = (dateObj instanceof Date) ? new java.sql.Date(((Date) dateObj).getTime()) : null;
                 
-                Object deductionDateObj = model.getValueAt(row, 3);
+                Object deductionDateObj = model.getValueAt(row, 2);
                 java.sql.Date deductionDate = (deductionDateObj instanceof Date) ? new java.sql.Date(((Date) deductionDateObj).getTime()) : null;
                 
-                Object remarksObj = model.getValueAt(row, 10);
+                Object remarksObj = model.getValueAt(row, 9);
                 String remarks = remarksObj != null ? remarksObj.toString() : "";
                 
-                ps.setInt(1, formNumber);
-                ps.setDate(2, date);
-                ps.setDate(3, deductionDate);
-                ps.setBigDecimal(4, principal);
-                ps.setBigDecimal(5, serviceCharge);
-                ps.setBigDecimal(6, interest);
+                ps.setDate(1, date);
+                ps.setDate(2, deductionDate);
+                ps.setBigDecimal(3, principal);
+                ps.setBigDecimal(4, serviceCharge);
+                ps.setBigDecimal(5, interest);
+                ps.setBigDecimal(6, total);
+                ps.setInt(7, cutoffs);
+                ps.setBigDecimal(8, cutoffsAmount);
+                ps.setString(9, remarks);
+                ps.setInt(10, recordId);
                 ps.setBigDecimal(7, total);
                 ps.setInt(8, cutoffs);
                 ps.setBigDecimal(9, cutoffsAmount);
@@ -873,7 +846,7 @@ public class manageLedger extends javax.swing.JPanel {
         model.setRowCount(0); // Clear existing data
 
         model.setColumnIdentifiers(new Object[]{
-            "ID", "Form Number", "Date", "Should Be Paid", "Actual Payment",
+            "ID", "Date", "Should Be Paid", "Actual Payment",
             "Balance", "Under Paid", "Scheduled Payment", "Premium Total",
             "Premium", "Actual Payroll", "Remarks"
         });
@@ -888,11 +861,8 @@ public class manageLedger extends javax.swing.JPanel {
         // Prevent single-click editing - only allow double-click
         paymentTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
-        // Apply custom cell editor to date column (column 2)
-        paymentTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
-
-        // Apply custom header renderer for sort icon
-        paymentTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
+        // Apply custom cell editor to date column (column 1)
+        paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
 
         // Add table model listener for inline editing updates
         model.addTableModelListener(new javax.swing.event.TableModelListener() {
@@ -944,7 +914,6 @@ public class manageLedger extends javax.swing.JPanel {
             while (rs.next()) {
                 model.addRow(new Object[]{
                     rs.getInt("id"),
-                    rs.getInt("form_number"),
                     rs.getDate("date"),
                     formatCurrency(rs.getBigDecimal("should_be_paid")),
                     formatCurrency(rs.getBigDecimal("actual_payment")),
@@ -995,7 +964,7 @@ public class manageLedger extends javax.swing.JPanel {
 
         // Update date column header
         model.setColumnIdentifiers(new Object[]{
-            "ID", "Form Number", "Date", "Deduction Date", "Principal", "Service Charge",
+            "ID", "Date", "Deduction Date", "Principal", "Service Charge",
             "Interest", "Total", "No. of Months", "Cutoff Amount", "Remarks"
         });
 
@@ -1009,20 +978,14 @@ public class manageLedger extends javax.swing.JPanel {
         // Prevent single-click editing - only allow double-click
         loanTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
-        // Apply custom cell editor to date columns (column 2 for Date, column 3 for Deduction Date)
+        // Apply custom cell editor to date columns (column 1 for Date, column 2 for Deduction Date)
+        loanTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
-        loanTable.getColumnModel().getColumn(3).setCellEditor(new DateCellEditor());
 
-        // Align form column (column 1) to the left
+        // Align No. of Months column (column 7) to the left
         javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
         leftRenderer.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
-        loanTable.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
-
-        // Align No. of Months column (column 8) to the left
-        loanTable.getColumnModel().getColumn(8).setCellRenderer(leftRenderer);
-
-        // Apply custom header renderer for sort icon
-        loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
+        loanTable.getColumnModel().getColumn(7).setCellRenderer(leftRenderer);
 
         // Add table model listener for inline editing updates
         model.addTableModelListener(new javax.swing.event.TableModelListener() {
@@ -1070,7 +1033,6 @@ public class manageLedger extends javax.swing.JPanel {
             while (rs.next()) {
                 model.addRow(new Object[]{
                     rs.getInt("id"),
-                    rs.getInt("form_number"),
                     rs.getDate("date"),
                     rs.getDate("start_deduction_date"),
                     formatCurrency(rs.getBigDecimal("principal")),
@@ -1340,7 +1302,7 @@ public class manageLedger extends javax.swing.JPanel {
         paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
 
         // Apply custom header renderer for sort icon
-        paymentTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
+        // Removed custom header renderer to match service charge style
 
         // Add table model listener for inline editing updates
         filteredModel.addTableModelListener(new javax.swing.event.TableModelListener() {
@@ -1399,20 +1361,17 @@ public class manageLedger extends javax.swing.JPanel {
         // Prevent single-click editing - only allow double-click
         loanTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
-        // Apply custom cell editor to date columns (column 2 for Date, column 3 for Deduction Date)
+        // Apply custom cell editor to date columns (column 1 for Date, column 2 for Deduction Date)
+        loanTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
-        loanTable.getColumnModel().getColumn(3).setCellEditor(new DateCellEditor());
 
-        // Align form column (column 1) to the left
+        // Align No. of Months column (column 7) to the left
         javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
         leftRenderer.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
-        loanTable.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
-
-        // Align No. of Months column (column 8) to the left
-        loanTable.getColumnModel().getColumn(8).setCellRenderer(leftRenderer);
+        loanTable.getColumnModel().getColumn(7).setCellRenderer(leftRenderer);
 
         // Apply custom header renderer for sort icon
-        loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
+        // Removed custom header renderer to match service charge style
 
         // Add table model listener for inline editing updates
         filteredModel.addTableModelListener(new javax.swing.event.TableModelListener() {

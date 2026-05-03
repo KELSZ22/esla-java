@@ -17,6 +17,7 @@ features/dashboard$4.class
 services/PaymentService$PreviousEntry.class
 features/member$1.class
 features/ledger$DateCellEditor.class
+services/MemberServiceChargeRefundFormService.class
 features/manageLedger$LoanTableModel.class
 features/ledger$DateCellRenderer.class
 features/ledger$1.class
@@ -42,6 +43,7 @@ features/manageLedger.class
 features/manageLedger$3.class
 features/ledger$2.class
 ui/MemberForm.class
+features/serviceCharge$3.class
 features/member$6.class
 features/dashboard.class
 com/kelsz/esla/Database.class

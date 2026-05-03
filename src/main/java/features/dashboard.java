@@ -36,6 +36,9 @@ public class dashboard extends javax.swing.JPanel {
     public dashboard() {
     initComponents();   // 👈 KEEP THIS (NetBeans GUI)
     style.applyTableStyle(dashboardTable, 18,18);
+    style.applyScrollStyle(jScrollPane1);
+    style.applyModernLabel(jLabel1, true);
+    style.applyDateChooserStyle(chooseDate);
 
     // Set default date to latest cutoff date
     LocalDate latestDate = getLatestCutoffDate();
@@ -43,23 +46,12 @@ public class dashboard extends javax.swing.JPanel {
 
     setupTable(latestDate);
 
-    searchPanel.removeAll();
-    searchPanel.setLayout(new BorderLayout());
-
-    Icon searchIcon = new ImageIcon(
-            new ImageIcon(getClass().getResource("/images/search.png"))
-                    .getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH)
-    );
-
-    JPanel searchBar = style.createSearchBar(searchField, searchIcon);
-
-    searchPanel.add(searchBar, BorderLayout.CENTER);
-
-    searchPanel.revalidate();
-    searchPanel.repaint();
-
-    // Initialize member type filter
+    // Apply standard styling and sizes
+    style.applySearchField(searchField);
     style.applyComboBox(memberTypeField);
+    style.applyStandardSizes(searchField, memberTypeField);
+
+    // Initialize member type filter data
     populateMemberTypes();
 
     // Add member type filter listener

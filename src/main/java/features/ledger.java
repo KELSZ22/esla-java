@@ -160,7 +160,9 @@ public class ledger extends javax.swing.JPanel {
     public ledger() {
     initComponents();
     setBackground(Color.WHITE);
-    style.applyTableStyle(ledgerTable, 15,18);
+    style.applyTableStyle(ledgerTable, 18, 18);
+    style.applyScrollStyle(jScrollPane1);
+    style.applyModernLabel(jLabel1, true);
     style.applyComboBox(selectField);
     style.applyButton(AddLedger);
     setupTable();
@@ -179,31 +181,11 @@ public class ledger extends javax.swing.JPanel {
         AddLedger.setText(" Ledger");
     }
 
-    ledgerSearchPanel.removeAll();
-    ledgerSearchPanel.setLayout(new BorderLayout());
-
-    java.net.URL searchUrl = getClass().getResource("/images/search.png");
-    Icon searchIcon;
-    if (searchUrl != null) {
-        searchIcon = new ImageIcon(
-                new ImageIcon(searchUrl).getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH)
-        );
-    } else {
-        searchIcon = null;
-    }
-
-    JPanel searchBar = style.createSearchBar(ledgerSearchField, searchIcon);
-
-    // Create a panel to hold both search bar and selectField
-    JPanel searchAndFilterPanel = new JPanel(new BorderLayout());
-    searchAndFilterPanel.add(searchBar, BorderLayout.CENTER);
-    searchAndFilterPanel.add(selectField, BorderLayout.EAST);
-
-    ledgerSearchPanel.add(searchAndFilterPanel, BorderLayout.LINE_START);
-
-    ledgerSearchPanel.revalidate();
-    ledgerSearchPanel.repaint();
-    }
+    // Apply standard styling and sizes
+    style.applySearchField(ledgerSearchField);
+    style.applyComboBox(selectField);
+    style.applyStandardSizes(ledgerSearchField, selectField);
+}
 
     // =========================
     // POPULATE MEMBER TYPES
@@ -520,7 +502,7 @@ model.addColumn("Delete");
 });
 
     // UI tweaks ✨
-    ledgerTable.setRowHeight(30);
+    ledgerTable.setRowHeight(35);
     ledgerTable.getTableHeader().setReorderingAllowed(false);
 }
     /**
@@ -539,6 +521,8 @@ model.addColumn("Delete");
         ledgerSearchField = new javax.swing.JTextField();
         selectField = new javax.swing.JComboBox<>();
         AddLedger = new javax.swing.JButton();
+
+        setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel1.setFont(new java.awt.Font("Dialog", 1, 36)); // NOI18N
         jLabel1.setText("LEDGER");
@@ -565,6 +549,8 @@ model.addColumn("Delete");
 
         selectField.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
 
+        ledgerSearchPanel.setBackground(new java.awt.Color(255, 255, 255));
+
         javax.swing.GroupLayout ledgerSearchPanelLayout = new javax.swing.GroupLayout(ledgerSearchPanel);
         ledgerSearchPanel.setLayout(ledgerSearchPanelLayout);
         ledgerSearchPanelLayout.setHorizontalGroup(
@@ -572,8 +558,8 @@ model.addColumn("Delete");
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, ledgerSearchPanelLayout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(ledgerSearchField, javax.swing.GroupLayout.DEFAULT_SIZE, 264, Short.MAX_VALUE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 159, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 230, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap())
         );
         ledgerSearchPanelLayout.setVerticalGroup(
@@ -595,14 +581,14 @@ model.addColumn("Delete");
             .addGroup(layout.createSequentialGroup()
                 .addGap(40, 40, 40)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
+                    .addGroup(layout.createSequentialGroup()
                         .addComponent(jLabel1)
                         .addGap(0, 0, Short.MAX_VALUE))
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(AddLedger, javax.swing.GroupLayout.PREFERRED_SIZE, 176, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addComponent(AddLedger, javax.swing.GroupLayout.PREFERRED_SIZE, 176, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 1252, Short.MAX_VALUE))
                 .addGap(40, 40, 40))
         );
         layout.setVerticalGroup(
@@ -610,19 +596,15 @@ model.addColumn("Delete");
             .addGroup(layout.createSequentialGroup()
                 .addGap(25, 25, 25)
                 .addComponent(jLabel1)
+                .addGap(59, 59, 59)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(59, 59, 59)
-                        .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(AddLedger)
-                        .addGap(14, 14, 14)))
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 535, Short.MAX_VALUE)
+                    .addComponent(ledgerSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(AddLedger, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 532, Short.MAX_VALUE)
                 .addGap(31, 31, 31))
         );
-    }// </editor-fold>//GEN-END:initComponents
+    } // </editor-fold>//GEN-END:initComponents
 
     private void ledgerTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_ledgerTableMouseClicked
 
@@ -763,14 +745,13 @@ model.addColumn("Delete");
         // Create LedgerForm panel
         currentLedgerForm = new LedgerForm();
 
-        // Create dialog
-        javax.swing.JDialog dialog = new javax.swing.JDialog();
-        dialog.setTitle("Add New Ledger");
-        dialog.setModal(true);
+        // Create modern dialog
+        java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
+        javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Add New Ledger", true);
+        style.applyModernDialog(dialog, currentLedgerForm, "Add New Ledger");
         dialog.setDefaultCloseOperation(javax.swing.JDialog.DISPOSE_ON_CLOSE);
-        dialog.add(currentLedgerForm);
         dialog.pack();
-        dialog.setLocationRelativeTo(this);
+        dialog.setLocationRelativeTo(parentFrame);
 
         // Set callback to refresh table when dialog closes
         currentLedgerForm.setCallback(() -> {

@@ -148,8 +148,8 @@ public class manageLedger extends javax.swing.JPanel {
     public manageLedger() {
         initComponents();
         setBackground(Color.WHITE);
-        style.applyTableStyle(paymentTable, 15, 14);
-        style.applyTableStyle(loanTable, 15, 14);
+        style.applyTableStyle(paymentTable, 18, 18);
+        style.applyTableStyle(loanTable, 18, 18);
 
         // Style back button
         style.applyBackButton(backButton);
@@ -175,37 +175,14 @@ public class manageLedger extends javax.swing.JPanel {
         formSearchPanel.removeAll();
         formSearchPanel.setLayout(new java.awt.BorderLayout());
         
-        java.net.URL searchUrl = getClass().getResource("/images/search.png");
-        Icon searchIcon;
-        if (searchUrl != null) {
-            searchIcon = new ImageIcon(
-                    new ImageIcon(searchUrl).getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH)
-            );
-        } else {
-            searchIcon = null;
-        }
-        
-        javax.swing.JPanel searchBar = style.createSearchBar(formSearch, searchIcon);
+        javax.swing.JPanel searchBar = style.createSearchBar(formSearch);
         formSearchPanel.add(searchBar, java.awt.BorderLayout.CENTER);
         formSearchPanel.revalidate();
         formSearchPanel.repaint();
         
         // Style member list
-        memberList.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
-        memberList.setBackground(Color.WHITE);
-        memberList.setForeground(new java.awt.Color(40, 40, 40));
-        memberList.setSelectionBackground(new java.awt.Color(220, 235, 255));
-        memberList.setSelectionForeground(new java.awt.Color(21, 55, 143));
-        memberList.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        // Style scroll pane for member list
-        jScrollPane3.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-            javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200), 1),
-            javax.swing.BorderFactory.createEmptyBorder(5, 5, 5, 5)
-        ));
-        jScrollPane3.setBackground(Color.WHITE);
-        jScrollPane3.getVerticalScrollBar().setUnitIncrement(16);
-        jScrollPane3.getVerticalScrollBar().setPreferredSize(new java.awt.Dimension(8, 8));
+        style.applyListStyle(memberList);
+        style.applyScrollStyle(jScrollPane3);
 
         // Add mouse listener to memberList
         memberList.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -249,9 +226,16 @@ public class manageLedger extends javax.swing.JPanel {
             updateButtonAndForm();
         });
 
+        // Apply additional styles
+        style.applyScrollStyle(jScrollPane1);
+        style.applyScrollStyle(jScrollPane2);
+        style.applyModernLabel(jLabel1, true);
+
         // Initialize delete buttons
         deletePaymentButton = new javax.swing.JButton("Delete");
         deleteLoanButton = new javax.swing.JButton("Delete");
+        style.applySecondaryButton(deletePaymentButton);
+        style.applySecondaryButton(deleteLoanButton);
         deletePaymentButton.addActionListener(this::deletePaymentButtonActionPerformed);
         deleteLoanButton.addActionListener(this::deleteLoanButtonActionPerformed);
 
@@ -1250,18 +1234,20 @@ public class manageLedger extends javax.swing.JPanel {
             .addGroup(layout.createSequentialGroup()
                 .addGap(40, 40, 40)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 350, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, Short.MAX_VALUE))
                     .addComponent(backButton, javax.swing.GroupLayout.PREFERRED_SIZE, 124, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 245, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(40, 40, 40))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(20, 20, 20)
+                .addGap(25, 25, 25)
                 .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(17, 17, 17)
-                .addComponent(backButton)
+                .addGap(59, 59, 59)
+                .addComponent(backButton, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addGap(31, 31, 31))
@@ -1449,50 +1435,44 @@ public class manageLedger extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_backButtonActionPerformed
 
-    private void paymentLoanButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_paymentLoanButtonActionPerformed
+    private void paymentLoanButtonActionPerformed(java.awt.event.ActionEvent evt) {
         int selectedIndex = paymentTab.getSelectedIndex();
+        int selectedMemberIndex = memberList.getSelectedIndex();
+        
+        if (selectedMemberIndex < 0) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Please select a member first", "Info", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        
+        int memberId = memberIds.get(selectedMemberIndex);
+        java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
+
         if (selectedIndex == 0) {
-            // Check if a member is selected
-            int selectedMemberIndex = memberList.getSelectedIndex();
-            if (selectedMemberIndex < 0 || selectedMemberIndex >= memberIds.size()) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Please select a member first",
-                    "Info",
-                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-
-            int memberId = memberIds.get(selectedMemberIndex);
-
-            // Show PaymentForm as modal dialog with required parameters
-            java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
-            ui.PaymentForm paymentForm = new ui.PaymentForm(parentFrame, ledgerId, memberId, ledgerType);
-            paymentForm.setVisible(true);
-
-            // Reload data after payment form closes
+            // Payment tab
+            ui.PaymentForm paymentForm = new ui.PaymentForm(ledgerId, memberId, ledgerType);
+            javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Add Payment", true);
+            style.applyModernDialog(dialog, paymentForm, "Add Payment");
+            dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+            dialog.pack();
+            dialog.setLocationRelativeTo(this);
+            dialog.setVisible(true);
+            
+            // Refresh data
             loadFormDataByLedger(ledgerId, memberId);
         } else {
-            // Check if a member is selected
-            int selectedMemberIndex = memberList.getSelectedIndex();
-            if (selectedMemberIndex < 0 || selectedMemberIndex >= memberIds.size()) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Please select a member first",
-                    "Info",
-                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-
-            int memberId = memberIds.get(selectedMemberIndex);
-
-            // Show LoanForm as modal dialog with required parameters
-            java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
-            ui.LoanForm loanForm = new ui.LoanForm(parentFrame, ledgerId, memberId, ledgerType);
-            loanForm.setVisible(true);
-
-            // Reload data after loan form closes
+            // Loan tab
+            ui.LoanForm loanForm = new ui.LoanForm(ledgerId, memberId, ledgerType);
+            javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Add Loan", true);
+            style.applyModernDialog(dialog, loanForm, "Add Loan");
+            dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+            dialog.pack();
+            dialog.setLocationRelativeTo(this);
+            dialog.setVisible(true);
+            
+            // Refresh data
             loadLoansByLedger(ledgerId, memberId);
         }
-    }//GEN-LAST:event_paymentLoanButtonActionPerformed
+    }
 
     private void updateButtonAndForm() {
         int selectedIndex = paymentTab.getSelectedIndex();

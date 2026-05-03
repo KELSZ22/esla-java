@@ -17,11 +17,11 @@ import javax.swing.*;
 public class HeaderNav extends javax.swing.JPanel {
 
     private MainFrame frame;
-    private static final Color PRIMARY_COLOR = new Color(59, 130, 246);
-    private static final Color HOVER_COLOR = new Color(239, 246, 255);
-    private static final Color TEXT_COLOR = new Color(75, 85, 99);
-    private static final Color ACTIVE_TEXT_COLOR = new Color(59, 130, 246);
-    private static final Color BACKGROUND_COLOR = new Color(255, 255, 255);
+    private static final Color PRIMARY_COLOR = style.PRIMARY;
+    private static final Color HOVER_COLOR = new Color(245, 245, 250);
+    private static final Color TEXT_COLOR = new Color(100, 100, 110);
+    private static final Color ACTIVE_TEXT_COLOR = style.PRIMARY;
+    private static final Color BACKGROUND_COLOR = Color.WHITE;
 
     /**
      * Creates new form HeaderNav

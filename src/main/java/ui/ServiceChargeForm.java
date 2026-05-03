@@ -35,6 +35,19 @@ public class ServiceChargeForm extends javax.swing.JPanel {
         refundFormService = new MemberServiceChargeRefundFormService();
         originalDescriptionForEdit = null;
         saveServiceChargeButton.addActionListener(this::saveServiceChargeButtonActionPerformed);
+        
+        // Apply modern styles
+        style.applyButton(saveServiceChargeButton);
+        style.applySecondaryButton(serviceChargeCancelButton);
+        style.applyTextField(description);
+        style.applyDateChooserStyle(fromDate);
+        style.applyDateChooserStyle(toDate);
+        style.applyModernLabel(jLabel2, false);
+        style.applyModernLabel(jLabel3, false);
+        style.applyModernLabel(jLabel4, false);
+        
+        // Hide the old internal title since the modern dialog provides a title bar
+        jLabel1.setVisible(false);
     }
 
     /**

@@ -17,6 +17,20 @@ import javax.swing.DefaultListModel;
 import javax.swing.table.DefaultTableModel;
 import services.MemberServiceChargeRefundFormService;
 import ui.style;
+import javax.swing.Timer;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+import java.awt.Insets;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.BorderLayout;
+import javax.swing.JPanel;
+import javax.swing.RowFilter;
+import javax.swing.table.TableRowSorter;
 
 /**
  *
@@ -35,6 +49,7 @@ public class serviceCharge extends javax.swing.JPanel {
     private final SimpleDateFormat displayDateFormat = new SimpleDateFormat("yyyy-MM-dd");
     /** Skips combo item handler while rebuilding items so we can refresh once explicitly. */
     private boolean suppressServiceChargeItemRefresh;
+    private Timer searchTimer;
 
     /**
      * Creates new form serviceCharge
@@ -69,11 +84,51 @@ public class serviceCharge extends javax.swing.JPanel {
         editServiceCharge.setBorderPainted(false);
         editServiceCharge.setFocusPainted(false);
         editServiceCharge.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
-        style.applyTextField(formSearch);
+        editServiceCharge.setPreferredSize(new java.awt.Dimension(40, 40));
+        editServiceCharge.setMinimumSize(new java.awt.Dimension(40, 40));
+        editServiceCharge.setMaximumSize(new java.awt.Dimension(40, 40));
+        style.applySearchField(formSearch);
         style.applyComboBox(selectServiceCharge);
-        style.applyTableStyle(paymentTable, 14, 14);
-        style.applyTableStyle(summaryTable, 14, 14);
+        style.applyTableStyle(paymentTable, 18, 18);
+        style.applyTableStyle(summaryTable, 18, 18);
         style.applyTransparentTabbedPane(memberServiceCharge);
+        
+        style.applyListStyle(memberList);
+        style.applyScrollStyle(jScrollPane1);
+        style.applyScrollStyle(jScrollPane2);
+        style.applyScrollStyle(jScrollPane3);
+        
+        // Setup debounced search
+        searchTimer = new Timer(300, e -> performSearch());
+        searchTimer.setRepeats(false);
+
+        formSearch.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { searchTimer.restart(); }
+            public void removeUpdate(DocumentEvent e) { searchTimer.restart(); }
+            public void changedUpdate(DocumentEvent e) { searchTimer.restart(); }
+        });
+
+        // Apply CardPanel styles
+        style.applyCardPanel(jPanel2);
+        style.applyCardPanel(jPanel3);
+        style.applyCardPanel(jPanel4);
+        style.applyCardPanel(jPanel5);
+
+        // Apply Label styles
+        style.applyModernLabel(jLabel1, true); // Main Title
+        style.applyModernLabel(jLabel2, false);
+        style.applyModernLabel(jLabel3, false);
+        style.applyModernLabel(jLabel4, false);
+        style.applyModernLabel(jLabel5, false);
+        style.applyModernLabel(jLabel6, false);
+        
+        style.applyModernLabel(sumOfServiceCharge, true);
+        style.applyModernLabel(sumOfTotalInterest, true);
+        style.applyModernLabel(sumOfRefund60, true);
+        style.applyModernLabel(sumOfRefund40, true);
+        
+        style.applyModernLabel(displayDateFrom, false);
+        style.applyModernLabel(displayDateTo, false);
         
         // Set correct column model for payment table
         DefaultTableModel paymentModel = new DefaultTableModel(
@@ -200,6 +255,12 @@ public class serviceCharge extends javax.swing.JPanel {
         });
 
         javax.swing.SwingUtilities.invokeLater(this::onServiceChargeOrMemberContextChanged);
+
+        // Standardize search and filter sizes non-destructively
+        style.applySearchField(formSearch);
+        style.applyComboBox(selectServiceCharge);
+        style.applyStandardSizes(formSearch, selectServiceCharge);
+        style.applyButton(editServiceCharge);
     }
 
     /**
@@ -994,11 +1055,11 @@ public class serviceCharge extends javax.swing.JPanel {
         jLabel6 = new javax.swing.JLabel();
         sumOfServiceCharge = new javax.swing.JLabel();
         jPanel1 = new javax.swing.JPanel();
+        formSearch = new javax.swing.JTextField();
         selectServiceCharge = new javax.swing.JComboBox<>();
         displayDateFrom = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
         displayDateTo = new javax.swing.JLabel();
-        formSearch = new javax.swing.JTextField();
         editServiceCharge = new javax.swing.JButton();
         addServiceCharge = new javax.swing.JButton();
 
@@ -1165,7 +1226,8 @@ public class serviceCharge extends javax.swing.JPanel {
         );
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
-        jPanel1.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
+
+        formSearch.addActionListener(this::formSearchActionPerformed);
 
         selectServiceCharge.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
 
@@ -1177,8 +1239,6 @@ public class serviceCharge extends javax.swing.JPanel {
 
         displayDateTo.setFont(new java.awt.Font("Dialog", 1, 15)); // NOI18N
         displayDateTo.setText("mm/dd/yy");
-
-        formSearch.addActionListener(this::formSearchActionPerformed);
 
         editServiceCharge.setText("Edit");
         editServiceCharge.addActionListener(this::editServiceChargeActionPerformed);
@@ -1208,23 +1268,21 @@ public class serviceCharge extends javax.swing.JPanel {
                 .addContainerGap())
         );
         jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addGap(0, 0, Short.MAX_VALUE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE, false)
+                    .addComponent(displayDateFrom, javax.swing.GroupLayout.PREFERRED_SIZE, 24, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 24, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(displayDateTo, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(editServiceCharge, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(addServiceCharge, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(displayDateTo, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel2, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(displayDateFrom, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
-                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(addServiceCharge, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(editServiceCharge, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addGroup(jPanel1Layout.createSequentialGroup()
-                                .addGap(0, 0, Short.MAX_VALUE)
-                                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                    .addComponent(selectServiceCharge, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
-                                    .addComponent(formSearch))))
-                        .addContainerGap())))
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(formSearch, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(selectServiceCharge, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap())
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
@@ -1235,7 +1293,7 @@ public class serviceCharge extends javax.swing.JPanel {
                 .addGap(40, 40, 40)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 308, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 350, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
@@ -1259,11 +1317,11 @@ public class serviceCharge extends javax.swing.JPanel {
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                .addGap(20, 20, 20)
+                .addGap(25, 25, 25)
                 .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(56, 56, 56)
+                .addGap(59, 59, 59)
                 .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(7, 7, 7)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(memberServiceCharge, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
@@ -1273,8 +1331,8 @@ public class serviceCharge extends javax.swing.JPanel {
                             .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(jPanel3, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                    .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 504, Short.MAX_VALUE))
-                .addGap(20, 20, 20))
+                    .addComponent(jScrollPane3, javax.swing.GroupLayout.DEFAULT_SIZE, 500, Short.MAX_VALUE))
+                .addGap(31, 31, 31))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -1287,7 +1345,7 @@ public class serviceCharge extends javax.swing.JPanel {
 
         // Wrap it in a JDialog
         javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Create Service Charge", true);
-        dialog.setContentPane(serviceChargeFormPanel);
+        style.applyModernDialog(dialog, serviceChargeFormPanel, "Create Service Charge");
         dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         dialog.pack();
         dialog.setLocationRelativeTo(parentFrame);
@@ -1314,7 +1372,7 @@ public class serviceCharge extends javax.swing.JPanel {
         java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
         ui.ServiceChargeForm panel = new ui.ServiceChargeForm(descBefore, from, to);
         javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Edit Service Charge", true);
-        dialog.setContentPane(panel);
+        style.applyModernDialog(dialog, panel, "Edit Service Charge");
         dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         dialog.pack();
         dialog.setLocationRelativeTo(parentFrame);
@@ -1327,9 +1385,35 @@ public class serviceCharge extends javax.swing.JPanel {
         loadAllMembersServiceChargeRefunds();
     }//GEN-LAST:event_editServiceChargeActionPerformed
 
-    private void formSearchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_formSearchActionPerformed
-        //        performSearch();
-    }//GEN-LAST:event_formSearchActionPerformed
+    private void formSearchActionPerformed(java.awt.event.ActionEvent evt) {
+        performSearch();
+    }
+
+    private void performSearch() {
+        String text = formSearch.getText().trim();
+        int selectedIndex = memberServiceCharge.getSelectedIndex();
+        
+        if (selectedIndex == 0) {
+            // Filter Member Service Charge table
+            filterTable(paymentTable, text);
+        } else {
+            // Filter Summary table
+            filterTable(summaryTable, text);
+        }
+    }
+
+    private void filterTable(javax.swing.JTable table, String text) {
+        DefaultTableModel model = (DefaultTableModel) table.getModel();
+        TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
+        table.setRowSorter(sorter);
+        
+        if (text.isEmpty()) {
+            sorter.setRowFilter(null);
+        } else {
+            // Search in all columns (case-insensitive)
+            sorter.setRowFilter(RowFilter.regexFilter("(?i)" + java.util.regex.Pattern.quote(text)));
+        }
+    }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

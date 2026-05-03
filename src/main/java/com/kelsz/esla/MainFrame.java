@@ -12,6 +12,7 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import javax.swing.JPanel;
 import ui.HeaderNav;
+import ui.style;
 
 /**
  *
@@ -38,11 +39,12 @@ public class MainFrame extends javax.swing.JFrame {
 
     cardLayout = new CardLayout();
     contentPanel = new JPanel(cardLayout);
+    style.applyPanel(contentPanel);
 
     contentPanel.add(new dashboard(), "dashboard");
     contentPanel.add(new ledger(), "ledger");
     contentPanel.add(new member(), "member");
-   contentPanel.add(new serviceCharge(), "service");
+    contentPanel.add(new serviceCharge(), "service");
 
     getContentPane().add(contentPanel, BorderLayout.CENTER);
 

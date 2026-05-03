@@ -10,7 +10,7 @@ import java.time.LocalDate;
  *
  * @author kelsz-dev
  */
-public class LoanForm extends javax.swing.JDialog {
+public class LoanForm extends javax.swing.JPanel {
 
     private int ledgerId;
     private int memberId;
@@ -23,25 +23,17 @@ public class LoanForm extends javax.swing.JDialog {
      * @param memberId The member ID
      * @param ledgerType The ledger type
      */
-    public LoanForm(java.awt.Frame parent, int ledgerId, int memberId, String ledgerType) {
-        super(parent, "Create Loan", true);
+    public LoanForm(int ledgerId, int memberId, String ledgerType) {
         this.ledgerId = ledgerId;
         this.memberId = memberId;
         this.ledgerType = ledgerType;
         initComponents();
         applyStyling();
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-
-        // Set default service charge to 0.03
-        serviceCharge.setText("0.03");
-
-        pack();
-        setLocationRelativeTo(parent);
     }
 
     private void applyStyling() {
-        // Apply dialog content pane styling
-        getContentPane().setBackground(java.awt.Color.WHITE);
+        // Apply panel styling
+        setBackground(java.awt.Color.WHITE);
 
         // Apply text field styling
         style.applyTextField(formNo);
@@ -135,8 +127,8 @@ public class LoanForm extends javax.swing.JDialog {
         jLabel7.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
         jLabel7.setText("Principal");
 
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-        getContentPane().setLayout(layout);
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
+        this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
@@ -264,7 +256,7 @@ public class LoanForm extends javax.swing.JDialog {
                     "Loan created successfully!",
                     "Success",
                     javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                dispose();
+                javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
             } else {
                 javax.swing.JOptionPane.showMessageDialog(this,
                     "Failed to create loan. Please try again.",
@@ -287,7 +279,7 @@ public class LoanForm extends javax.swing.JDialog {
     }//GEN-LAST:event_saveLoanButtonActionPerformed
 
     private void loanCanvelButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loanCanvelButtonActionPerformed
-        dispose();
+        javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
     }//GEN-LAST:event_loanCanvelButtonActionPerformed
 
     /**

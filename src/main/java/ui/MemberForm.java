@@ -5,6 +5,7 @@
 package ui;
 
 import com.kelsz.esla.Database;
+import java.awt.Color;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.time.LocalDate;
@@ -246,7 +247,19 @@ public class MemberForm extends javax.swing.JPanel {
         style.applyTextField(formNo3);
         style.applyTextField(formNo5);
         style.applyComboBox(jComboBox1);
-        setBackground(style.BACKGROUND);
+        style.applyDateChooserStyle(memberSince);
+        
+        style.applyModernLabel(jLabel2, false);
+        style.applyModernLabel(jLabel3, false);
+        style.applyModernLabel(jLabel4, false);
+        style.applyModernLabel(jLabel5, false);
+        style.applyModernLabel(jLabel6, false);
+        style.applyModernLabel(jLabel7, false);
+        style.applyModernLabel(dateLabel, false);
+        
+        // Hide internal title as it's provided by the dialog wrapper
+        jLabel1.setVisible(false);
+        setBackground(Color.WHITE);
     }
 
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveButtonActionPerformed

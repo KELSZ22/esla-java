@@ -4,13 +4,14 @@
  */
 package ui;
 
+import java.awt.Color;
 import java.time.LocalDate;
 
 /**
  *
  * @author kelsz-dev
  */
-public class PaymentForm extends javax.swing.JDialog {
+public class PaymentForm extends javax.swing.JPanel {
 
     private int ledgerId;
     private int memberId;
@@ -26,14 +27,12 @@ public class PaymentForm extends javax.swing.JDialog {
      * @param memberId The member ID
      * @param ledgerType The ledger type
      */
-    public PaymentForm(java.awt.Frame parent, int ledgerId, int memberId, String ledgerType) {
-        super(parent, "Create Payment", true);
+    public PaymentForm(int ledgerId, int memberId, String ledgerType) {
         this.ledgerId = ledgerId;
         this.memberId = memberId;
         this.ledgerType = ledgerType;
         initComponents();
         applyStyling();
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         
         // Add date change listener for real-time computation
         addDateChangeListener();
@@ -43,9 +42,6 @@ public class PaymentForm extends javax.swing.JDialog {
         
         // Auto-fill premium from member data
         autoFillPremium();
-
-        pack();
-        setLocationRelativeTo(parent);
     }
 
     /**
@@ -54,18 +50,14 @@ public class PaymentForm extends javax.swing.JDialog {
      * @deprecated Use the constructor with ledgerId, memberId, and ledgerType parameters
      */
     @Deprecated
-    public PaymentForm(java.awt.Frame parent) {
-        super(parent, "Create Payment", true);
+    public PaymentForm() {
         initComponents();
         applyStyling();
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        pack();
-        setLocationRelativeTo(parent);
     }
 
     private void applyStyling() {
-        // Apply dialog content pane styling
-        getContentPane().setBackground(java.awt.Color.WHITE);
+        // Apply panel styling
+        setBackground(java.awt.Color.WHITE);
 
         // Apply text field styling
         style.applyTextField(scheduledPayment);
@@ -73,10 +65,10 @@ public class PaymentForm extends javax.swing.JDialog {
         style.applyTextField(actualPayment);
         style.applyTextField(premium);
 
-        // Make read-only fields visually distinct with light gray background
-        scheduledPayment.setBackground(new java.awt.Color(240, 240, 240));
+        // Make read-only fields visually distinct
+        scheduledPayment.setBackground(new java.awt.Color(245, 245, 250));
         scheduledPayment.setEditable(false);
-        shouldBePaid.setBackground(new java.awt.Color(240, 240, 240));
+        shouldBePaid.setBackground(new java.awt.Color(245, 245, 250));
         shouldBePaid.setEditable(false);
 
         // Apply button styling
@@ -84,19 +76,30 @@ public class PaymentForm extends javax.swing.JDialog {
         style.applySecondaryButton(Cancel);
 
         // Style remarks text area
-        remarks.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
+        remarks.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 15));
         remarks.setBackground(java.awt.Color.WHITE);
         remarks.setForeground(new java.awt.Color(40, 40, 40));
         remarks.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-            new javax.swing.border.LineBorder(style.PRIMARY, 1, true),
-            javax.swing.BorderFactory.createEmptyBorder(8, 12, 8, 12)
+            new javax.swing.border.LineBorder(new java.awt.Color(200, 200, 210), 1, true),
+            javax.swing.BorderFactory.createEmptyBorder(10, 14, 10, 14)
         ));
         remarks.setLineWrap(true);
         remarks.setWrapStyleWord(true);
 
+        // Modernize labels
+        style.applyModernLabel(jLabel1, true);
+        style.applyModernLabel(jLabel3, false);
+        style.applyModernLabel(jLabel4, false);
+        style.applyModernLabel(jLabel5, false);
+        style.applyModernLabel(jLabel6, false);
+        style.applyModernLabel(jLabel7, false);
+        style.applyModernLabel(jLabel8, false);
+
         // Style date chooser
-        date.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
-        date.setBackground(java.awt.Color.WHITE);
+        style.applyDateChooserStyle(date);
+
+        // Hide internal title
+        jLabel1.setVisible(false);
     }
 
     /**
@@ -382,8 +385,8 @@ public class PaymentForm extends javax.swing.JDialog {
         Cancel.setText("Cancel");
         Cancel.addActionListener(this::CancelActionPerformed);
 
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-        getContentPane().setLayout(layout);
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
+        this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
@@ -511,7 +514,7 @@ public class PaymentForm extends javax.swing.JDialog {
                     "Payment created successfully!",
                     "Success",
                     javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                dispose();
+                javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
             } else {
                 javax.swing.JOptionPane.showMessageDialog(this,
                     "Failed to create payment. Please try again.",
@@ -581,7 +584,7 @@ public class PaymentForm extends javax.swing.JDialog {
     }//GEN-LAST:event_premiumActionPerformed
 
     private void CancelActionPerformed(java.awt.event.ActionEvent evt) {
-        dispose();
+        javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
     }
 
 

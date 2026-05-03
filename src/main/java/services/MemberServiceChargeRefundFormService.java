@@ -19,52 +19,7 @@ import java.util.Map;
  */
 public class MemberServiceChargeRefundFormService {
 
-    /**
-     * Calculate the next cutoff date from a given date
-     * If day ≤ 15, go to end of that month; else go to 15th of next month
-     *
-     * @param date Current date
-     * @return Next cutoff date
-     */
-    private LocalDate nextCutoffDate(LocalDate date) {
-        int day = date.getDayOfMonth();
-        if (day <= 15) {
-            return date.with(TemporalAdjusters.lastDayOfMonth());
-        } else {
-            return date.plusMonths(1).withDayOfMonth(15);
-        }
-    }
 
-    /**
-     * Calculate collected interest months based on cutoff dates in a date range
-     * Each counted cutoff is worth 0.5 in collected_interest
-     *
-     * @param loanDate Loan start date
-     * @param noOfMonths Number of months (from cutoffs field)
-     * @param dateFrom Refund period start date
-     * @param dateTo Refund period end date
-     * @return Collected interest (in 0.5-month units)
-     */
-    private double calculateCollectedInterestMonths(LocalDate loanDate, double noOfMonths, LocalDate dateFrom, LocalDate dateTo) {
-        if (loanDate == null || dateFrom == null || dateTo == null) {
-            return 0.0;
-        }
-
-        int totalCutoffs = (int) Math.max(0, noOfMonths * 2);
-        // Start from the first cutoff date after the loan date
-        LocalDate current = nextCutoffDate(loanDate);
-        int collectedCutoffs = 0;
-
-        for (int i = 0; i < totalCutoffs; i++) {
-            if ((current.isEqual(dateFrom) || current.isAfter(dateFrom)) && 
-                (current.isEqual(dateTo) || current.isBefore(dateTo))) {
-                collectedCutoffs++;
-            }
-            current = nextCutoffDate(current);
-        }
-
-        return collectedCutoffs * 0.5;
-    }
 
     /**
      * Create refund form entries from loans for a member in a date range
@@ -80,12 +35,37 @@ public class MemberServiceChargeRefundFormService {
         try {
             Connection con = Database.getConnection();
 
+            // Pre-fetch all form_data dates for this member to calculate positions
+            java.util.Map<String, java.util.List<LocalDate>> ledgerTypeFormDates = new java.util.HashMap<>();
+            String allPaymentsSql = """
+                SELECT led.type as ledger_type, fd.date
+                FROM form_data fd
+                JOIN ledgers led ON fd.ledger_id = led.id
+                WHERE fd.member_id = ? AND fd.deleted_at IS NULL
+                ORDER BY fd.date ASC
+            """;
+            PreparedStatement allPs = con.prepareStatement(allPaymentsSql);
+            allPs.setInt(1, memberId);
+            ResultSet allRs = allPs.executeQuery();
+            while (allRs.next()) {
+                String type = allRs.getString("ledger_type");
+                java.sql.Date fdDate = allRs.getDate("date");
+                if (fdDate != null) {
+                    ledgerTypeFormDates.computeIfAbsent(type, k -> new ArrayList<>()).add(fdDate.toLocalDate());
+                }
+            }
+            allRs.close();
+            allPs.close();
+
             // Get all loans for the member
             String loanSql = """
-                SELECT id, form_number, date, principal, interest, service_charge, total, cutoffs, remarks
-                FROM loans
-                WHERE member_id = ? AND deleted_at IS NULL
-                ORDER BY id ASC
+                SELECT l.id, l.ledger_id, led.type as ledger_type, l.form_number, l.date, 
+                       l.start_deduction_date, l.start_deduction_on_loan_date,
+                       l.principal, l.interest, l.service_charge, l.total, l.cutoffs, l.remarks
+                FROM loans l
+                JOIN ledgers led ON l.ledger_id = led.id
+                WHERE l.member_id = ? AND l.deleted_at IS NULL
+                ORDER BY l.id ASC
             """;
             PreparedStatement loanPs = con.prepareStatement(loanSql);
             loanPs.setInt(1, memberId);
@@ -103,8 +83,11 @@ public class MemberServiceChargeRefundFormService {
 
             int count = 0;
             while (loanRs.next()) {
+                String ledgerType = loanRs.getString("ledger_type");
                 int formNumber = loanRs.getInt("form_number");
                 LocalDate loanDate = loanRs.getDate("date") != null ? loanRs.getDate("date").toLocalDate() : null;
+                LocalDate startDeductionDate = loanRs.getDate("start_deduction_date") != null ? loanRs.getDate("start_deduction_date").toLocalDate() : null;
+                Boolean startDeductionOnLoanDate = loanRs.getBoolean("start_deduction_on_loan_date");
                 BigDecimal principal = loanRs.getBigDecimal("principal");
                 BigDecimal interest = loanRs.getBigDecimal("interest");
                 BigDecimal serviceCharge = loanRs.getBigDecimal("service_charge");
@@ -123,8 +106,44 @@ public class MemberServiceChargeRefundFormService {
                     if (serviceCharge != null) total = total.add(serviceCharge);
                 }
 
-                // Calculate collected interest
-                double collectedInterest = calculateCollectedInterestMonths(loanDate, noOfMonths, dateFrom, dateTo);
+                // Calculate collected interest based on actual ledger form_data entries
+                double collectedInterest = 0.0;
+                if (cutoffs != null && cutoffs > 0 && dateFrom != null && dateTo != null) {
+                    java.util.List<LocalDate> dates = ledgerTypeFormDates.getOrDefault(ledgerType, new ArrayList<>());
+                    
+                    int rangeStart = -1;
+                    if (startDeductionOnLoanDate != null && startDeductionOnLoanDate) {
+                        rangeStart = 1;
+                    } else if (startDeductionDate != null) {
+                        int countBeforeOrOn = 0;
+                        for (LocalDate d : dates) {
+                            if (!d.isAfter(startDeductionDate)) countBeforeOrOn++;
+                        }
+                        rangeStart = countBeforeOrOn + 1;
+                    } else {
+                        int countBefore = 0;
+                        if (loanDate != null) {
+                            for (LocalDate d : dates) {
+                                if (d.isBefore(loanDate)) countBefore++;
+                            }
+                        }
+                        rangeStart = countBefore + 2;
+                    }
+                    
+                    int rangeEnd = rangeStart + (cutoffs * 2) - 1;
+                    int collectedCutoffs = 0;
+                    
+                    for (int i = 0; i < dates.size(); i++) {
+                        int pos = i + 1;
+                        if (pos >= rangeStart && pos <= rangeEnd) {
+                            LocalDate d = dates.get(i);
+                            if (!d.isBefore(dateFrom) && !d.isAfter(dateTo)) {
+                                collectedCutoffs++;
+                            }
+                        }
+                    }
+                    collectedInterest = collectedCutoffs * 0.5;
+                }
 
                 // Calculate total interest (pro-rata based on collected interest)
                 BigDecimal totalInterest = BigDecimal.ZERO;

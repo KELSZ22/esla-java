@@ -42,7 +42,7 @@ public class MainFrame extends javax.swing.JFrame {
     contentPanel.add(new dashboard(), "dashboard");
     contentPanel.add(new ledger(), "ledger");
     contentPanel.add(new member(), "member");
-    contentPanel.add(new serviceCharge(), "service");
+   contentPanel.add(new serviceCharge(), "service");
 
     getContentPane().add(contentPanel, BorderLayout.CENTER);
 

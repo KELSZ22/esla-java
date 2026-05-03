@@ -113,16 +113,16 @@ public class manageLedger extends javax.swing.JPanel {
 
     /**
      * Custom table model for loan table with inline editing
-     * Editable columns: Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
-     * Computed/read-only columns: Service Charge (4), Interest (5), Total (6), Cutoff Amount (8)
+     * Editable columns: Form Number (1), Date (2), Deduction Date (3), Principal (4), No. of Months (8), Remarks (10)
+     * Computed/read-only columns: Service Charge (5), Interest (6), Total (7), Cutoff Amount (9)
      * ID column (0) is hidden from view
      */
     class LoanTableModel extends DefaultTableModel {
         @Override
         public boolean isCellEditable(int row, int column) {
-            // Only allow editing for Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
-            // ID column (0), Service Charge (4), Interest (5), Total (6), and Cutoff Amount (8) are not editable (computed fields)
-            return column == 1 || column == 2 || column == 3 || column == 7 || column == 9;
+            // Only allow editing for Form Number (1), Date (2), Deduction Date (3), Principal (4), No. of Months (8), Remarks (10)
+            // ID column (0), Service Charge (5), Interest (6), Total (7), and Cutoff Amount (9) are not editable (computed fields)
+            return column == 1 || column == 2 || column == 3 || column == 4 || column == 8 || column == 10;
         }
 
         @Override
@@ -133,7 +133,9 @@ public class manageLedger extends javax.swing.JPanel {
                 return Integer.class; // Form Number
             } else if (columnIndex == 2) {
                 return Date.class; // Date
-            } else if (columnIndex == 7) {
+            } else if (columnIndex == 3) {
+                return Date.class; // Deduction Date
+            } else if (columnIndex == 8) {
                 return Integer.class; // No. of Months
             }
             return String.class;
@@ -151,9 +153,10 @@ public class manageLedger extends javax.swing.JPanel {
 
         // Style back button
         style.applyBackButton(backButton);
+        backButton.addActionListener(this::backButtonActionPerformed);
 
         style.applyButton(paymentLoanButton);
-
+        paymentLoanButton.addActionListener(this::paymentLoanButtonActionPerformed);
 
         // Set initial icon and text for paymentLoanButton
         updateButtonAndForm();
@@ -241,6 +244,11 @@ public class manageLedger extends javax.swing.JPanel {
         // Style tabbed pane with transparent design
         style.applyTransparentTabbedPane(paymentTab);
 
+        // Add tab change listener to update button when switching tabs
+        paymentTab.addChangeListener(e -> {
+            updateButtonAndForm();
+        });
+
         // Initialize delete buttons
         deletePaymentButton = new javax.swing.JButton("Delete");
         deleteLoanButton = new javax.swing.JButton("Delete");
@@ -309,8 +317,8 @@ public class manageLedger extends javax.swing.JPanel {
         try {
             LoanTableModel model = (LoanTableModel) loanTable.getModel();
             
-            // Only update editable columns: Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
-            if (column != 1 && column != 2 && column != 3 && column != 7 && column != 9) {
+            // Only update editable columns: Form Number (1), Date (2), Deduction Date (3), Principal (4), No. of Months (8), Remarks (10)
+            if (column != 1 && column != 2 && column != 3 && column != 4 && column != 8 && column != 10) {
                 return;
             }
             
@@ -371,10 +379,21 @@ public class manageLedger extends javax.swing.JPanel {
                     return;
                 }
             } else if (column == 3) {
+                // Deduction Date column
+                dbColumn = "start_deduction_date";
+                if (value instanceof Date) {
+                    dbValue = new java.sql.Date(((Date) value).getTime());
+                } else if (value == null) {
+                    dbValue = null;
+                } else {
+                    System.out.println("Invalid deduction date value");
+                    return;
+                }
+            } else if (column == 4) {
                 // Principal column - will trigger recalculation of computed fields
                 dbColumn = "principal";
                 dbValue = parseCurrency(value != null ? value.toString() : "0");
-            } else if (column == 7) {
+            } else if (column == 8) {
                 // No. of Months column - will trigger recalculation of computed fields
                 dbColumn = "cutoffs";
                 try {
@@ -382,7 +401,7 @@ public class manageLedger extends javax.swing.JPanel {
                 } catch (NumberFormatException e) {
                     dbValue = 0;
                 }
-            } else if (column == 9) {
+            } else if (column == 10) {
                 // Remarks column
                 dbColumn = "remarks";
                 dbValue = value != null ? value.toString() : "";
@@ -396,12 +415,12 @@ public class manageLedger extends javax.swing.JPanel {
             PreparedStatement ps;
             
             // If Principal or No. of Months is updated, recalculate all computed fields
-            if (column == 3 || column == 7) {
+            if (column == 4 || column == 8) {
                 // Get current values from the table
-                java.math.BigDecimal principal = parseCurrency(model.getValueAt(row, 3) != null ? model.getValueAt(row, 3).toString() : "0");
+                java.math.BigDecimal principal = parseCurrency(model.getValueAt(row, 4) != null ? model.getValueAt(row, 4).toString() : "0");
                 Integer cutoffs = 0;
                 try {
-                    cutoffs = Integer.parseInt(model.getValueAt(row, 7) != null ? model.getValueAt(row, 7).toString() : "0");
+                    cutoffs = Integer.parseInt(model.getValueAt(row, 8) != null ? model.getValueAt(row, 8).toString() : "0");
                 } catch (NumberFormatException e) {
                     cutoffs = 0;
                 }
@@ -423,7 +442,7 @@ public class manageLedger extends javax.swing.JPanel {
                 }
                 
                 // Update all fields including computed ones
-                sql = "UPDATE loans SET form_number = ?, date = ?, principal = ?, service_charge = ?, interest = ?, total = ?, cutoffs = ?, cutoffs_amount = ?, remarks = ? WHERE id = ?";
+                sql = "UPDATE loans SET form_number = ?, date = ?, start_deduction_date = ?, principal = ?, service_charge = ?, interest = ?, total = ?, cutoffs = ?, cutoffs_amount = ?, remarks = ? WHERE id = ?";
                 ps = con.prepareStatement(sql);
                 
                 // Get other column values
@@ -433,19 +452,23 @@ public class manageLedger extends javax.swing.JPanel {
                 Object dateObj = model.getValueAt(row, 2);
                 java.sql.Date date = (dateObj instanceof Date) ? new java.sql.Date(((Date) dateObj).getTime()) : null;
                 
-                Object remarksObj = model.getValueAt(row, 9);
+                Object deductionDateObj = model.getValueAt(row, 3);
+                java.sql.Date deductionDate = (deductionDateObj instanceof Date) ? new java.sql.Date(((Date) deductionDateObj).getTime()) : null;
+                
+                Object remarksObj = model.getValueAt(row, 10);
                 String remarks = remarksObj != null ? remarksObj.toString() : "";
                 
                 ps.setInt(1, formNumber);
                 ps.setDate(2, date);
-                ps.setBigDecimal(3, principal);
-                ps.setBigDecimal(4, serviceCharge);
-                ps.setBigDecimal(5, interest);
-                ps.setBigDecimal(6, total);
-                ps.setInt(7, cutoffs);
-                ps.setBigDecimal(8, cutoffsAmount);
-                ps.setString(9, remarks);
-                ps.setInt(10, recordId);
+                ps.setDate(3, deductionDate);
+                ps.setBigDecimal(4, principal);
+                ps.setBigDecimal(5, serviceCharge);
+                ps.setBigDecimal(6, interest);
+                ps.setBigDecimal(7, total);
+                ps.setInt(8, cutoffs);
+                ps.setBigDecimal(9, cutoffsAmount);
+                ps.setString(10, remarks);
+                ps.setInt(11, recordId);
             } else {
                 // For other columns, just update the single column
                 sql = "UPDATE loans SET " + dbColumn + " = ? WHERE id = ?";
@@ -987,7 +1010,7 @@ public class manageLedger extends javax.swing.JPanel {
 
         // Update date column header
         model.setColumnIdentifiers(new Object[]{
-            "ID", "Form Number", "Date", "Principal", "Service Charge",
+            "ID", "Form Number", "Date", "Deduction Date", "Principal", "Service Charge",
             "Interest", "Total", "No. of Months", "Cutoff Amount", "Remarks"
         });
 
@@ -1001,16 +1024,17 @@ public class manageLedger extends javax.swing.JPanel {
         // Prevent single-click editing - only allow double-click
         loanTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
-        // Apply custom cell editor to date column (column 2)
+        // Apply custom cell editor to date columns (column 2 for Date, column 3 for Deduction Date)
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
+        loanTable.getColumnModel().getColumn(3).setCellEditor(new DateCellEditor());
 
         // Align form column (column 1) to the left
         javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
         leftRenderer.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
         loanTable.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
 
-        // Align No. of Months column (column 7) to the left
-        loanTable.getColumnModel().getColumn(7).setCellRenderer(leftRenderer);
+        // Align No. of Months column (column 8) to the left
+        loanTable.getColumnModel().getColumn(8).setCellRenderer(leftRenderer);
 
         // Apply custom header renderer for sort icon
         loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
@@ -1036,7 +1060,7 @@ public class manageLedger extends javax.swing.JPanel {
 
             if (memberId != null) {
                 sql = """
-                    SELECT l.id, l.form_number, l.date, l.principal, l.service_charge,
+                    SELECT l.id, l.form_number, l.date, l.start_deduction_date, l.principal, l.service_charge,
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
@@ -1046,7 +1070,7 @@ public class manageLedger extends javax.swing.JPanel {
                 ps.setInt(2, memberId);
             } else {
                 sql = """
-                    SELECT l.id, l.form_number, l.date, l.principal, l.service_charge,
+                    SELECT l.id, l.form_number, l.date, l.start_deduction_date, l.principal, l.service_charge,
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
@@ -1063,6 +1087,7 @@ public class manageLedger extends javax.swing.JPanel {
                     rs.getInt("id"),
                     rs.getInt("form_number"),
                     rs.getDate("date"),
+                    rs.getDate("start_deduction_date"),
                     formatCurrency(rs.getBigDecimal("principal")),
                     formatCurrency(rs.getBigDecimal("service_charge")),
                     formatCurrency(rs.getBigDecimal("interest")),
@@ -1118,7 +1143,6 @@ public class manageLedger extends javax.swing.JPanel {
         formSearchPanel = new javax.swing.JPanel();
         formSearch = new javax.swing.JTextField();
         paymentLoanButton = new javax.swing.JButton();
-        rightPanel = new javax.swing.JPanel();
         backButton = new javax.swing.JButton();
 
         setBackground(new java.awt.Color(255, 255, 255));
@@ -1186,24 +1210,6 @@ public class manageLedger extends javax.swing.JPanel {
         );
 
         paymentLoanButton.setText("Add Payment");
-        paymentLoanButton.addActionListener(this::paymentLoanButtonActionPerformed);
-
-        rightPanel.setBackground(new java.awt.Color(240, 240, 240));
-        rightPanel.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200), 1));
-        rightPanel.setVisible(false);
-
-        rightPanel.setLayout(new java.awt.GridBagLayout());
-        java.awt.GridBagConstraints gbc = new java.awt.GridBagConstraints();
-        gbc.insets = new java.awt.Insets(5, 5, 5, 5);
-        gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
-        gbc.anchor = java.awt.GridBagConstraints.WEST;
-
-        paymentTab.addChangeListener(new javax.swing.event.ChangeListener() {
-            @Override
-            public void stateChanged(javax.swing.event.ChangeEvent e) {
-                updateButtonAndForm();
-            }
-        });
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -1215,9 +1221,7 @@ public class manageLedger extends javax.swing.JPanel {
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 214, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 568, Short.MAX_VALUE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(rightPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 350, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 918, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(formSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
@@ -1234,13 +1238,10 @@ public class manageLedger extends javax.swing.JPanel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane3)
-                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(rightPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                    .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 454, Short.MAX_VALUE)))
         );
 
         backButton.setText("Back");
-        backButton.addActionListener(this::backButtonActionPerformed);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -1412,16 +1413,17 @@ public class manageLedger extends javax.swing.JPanel {
         // Prevent single-click editing - only allow double-click
         loanTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
-        // Apply custom cell editor to date column (column 2)
+        // Apply custom cell editor to date columns (column 2 for Date, column 3 for Deduction Date)
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
+        loanTable.getColumnModel().getColumn(3).setCellEditor(new DateCellEditor());
 
         // Align form column (column 1) to the left
         javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
         leftRenderer.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
         loanTable.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
 
-        // Align No. of Months column (column 7) to the left
-        loanTable.getColumnModel().getColumn(7).setCellRenderer(leftRenderer);
+        // Align No. of Months column (column 8) to the left
+        loanTable.getColumnModel().getColumn(8).setCellRenderer(leftRenderer);
 
         // Apply custom header renderer for sort icon
         loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
@@ -1685,11 +1687,10 @@ public class manageLedger extends javax.swing.JPanel {
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JTable loanTable;
     private javax.swing.JList<String> memberList;
     private javax.swing.JButton paymentLoanButton;
     private javax.swing.JTabbedPane paymentTab;
     private javax.swing.JTable paymentTable;
-    private javax.swing.JTable loanTable;
-    private javax.swing.JPanel rightPanel;
     // End of variables declaration//GEN-END:variables
 }

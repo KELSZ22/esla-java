@@ -148,8 +148,8 @@ public class manageLedger extends javax.swing.JPanel {
     public manageLedger() {
         initComponents();
         setBackground(Color.WHITE);
-        style.applyTableStyle(paymentTable, 18, 18);
-        style.applyTableStyle(loanTable, 18, 18);
+        style.applyTableStyle(paymentTable, 14, 14);
+        style.applyTableStyle(loanTable, 14, 14);
 
         // Style back button
         style.applyBackButton(backButton);
@@ -172,13 +172,8 @@ public class manageLedger extends javax.swing.JPanel {
 
         
         // Style search field
-        formSearchPanel.removeAll();
-        formSearchPanel.setLayout(new java.awt.BorderLayout());
-        
-        javax.swing.JPanel searchBar = style.createSearchBar(formSearch);
-        formSearchPanel.add(searchBar, java.awt.BorderLayout.CENTER);
-        formSearchPanel.revalidate();
-        formSearchPanel.repaint();
+        style.applySearchField(formSearch);
+        style.applyStandardSizes(formSearch, null);
         
         // Style member list
         style.applyListStyle(memberList);
@@ -1188,8 +1183,7 @@ public class manageLedger extends javax.swing.JPanel {
         formSearchPanelLayout.setVerticalGroup(
             formSearchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, formSearchPanelLayout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(formSearch, javax.swing.GroupLayout.DEFAULT_SIZE, 29, Short.MAX_VALUE)
+                .addComponent(formSearch, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
@@ -1244,13 +1238,13 @@ public class manageLedger extends javax.swing.JPanel {
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(25, 25, 25)
+                .addGap(20, 20, 20)
                 .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(59, 59, 59)
+                .addGap(20, 20, 20)
                 .addComponent(backButton, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
+                .addGap(15, 15, 15)
                 .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGap(31, 31, 31))
+                .addGap(20, 20, 20))
         );
     }// </editor-fold>//GEN-END:initComponents
 

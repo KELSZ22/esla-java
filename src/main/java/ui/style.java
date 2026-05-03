@@ -20,6 +20,15 @@ public class style {
     public static final int SEARCH_WIDTH = 300;
     public static final int FILTER_WIDTH = 200;
 
+    // 📐 Standard Layout Spacing
+    public static final int PANEL_MARGIN = 40;
+    public static final int TOP_GAP = 20;
+    public static final int BOTTOM_GAP = 20;
+    public static final int TITLE_HEIGHT = 51;
+    public static final int TITLE_WIDTH = 308;
+    public static final int TITLE_TO_TOOLBAR_GAP = 20;
+    public static final int TOOLBAR_TO_CONTENT_GAP = 15;
+
     // 🎯 Button Style
     public static void applyButton(JButton btn) {
         btn.setFocusPainted(false);

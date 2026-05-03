@@ -165,6 +165,7 @@ public class dividend extends javax.swing.JPanel {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jSeparator1 = new javax.swing.JSeparator();
         jLabel1 = new javax.swing.JLabel();
         jPanel1 = new javax.swing.JPanel();
         dividendSearchField = new javax.swing.JTextField();
@@ -199,8 +200,6 @@ public class dividend extends javax.swing.JPanel {
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
-        selectServiceCharge.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { }));
-
         dateLabel.setFont(new java.awt.Font("Dialog", 1, 14)); // NOI18N
         dateLabel.setText("Form Date:");
 
@@ -234,6 +233,7 @@ public class dividend extends javax.swing.JPanel {
         cardTotalPremium.setBackground(new java.awt.Color(255, 255, 255));
         cardTotalPremium.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
 
+        lblTotalPremium.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
         lblTotalPremium.setText("Total Premium");
 
         valTotalPremium.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
@@ -248,7 +248,7 @@ public class dividend extends javax.swing.JPanel {
                 .addGroup(cardTotalPremiumLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(lblTotalPremium)
                     .addComponent(valTotalPremium))
-                .addContainerGap(20, Short.MAX_VALUE))
+                .addContainerGap(88, Short.MAX_VALUE))
         );
         cardTotalPremiumLayout.setVerticalGroup(
             cardTotalPremiumLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -263,6 +263,7 @@ public class dividend extends javax.swing.JPanel {
         cardPremiumPct.setBackground(new java.awt.Color(255, 255, 255));
         cardPremiumPct.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
 
+        lblPremiumPct.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
         lblPremiumPct.setText("Premium %");
 
         valPremiumPct.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
@@ -277,7 +278,7 @@ public class dividend extends javax.swing.JPanel {
                 .addGroup(cardPremiumPctLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(lblPremiumPct)
                     .addComponent(valPremiumPct))
-                .addContainerGap(20, Short.MAX_VALUE))
+                .addContainerGap(76, Short.MAX_VALUE))
         );
         cardPremiumPctLayout.setVerticalGroup(
             cardPremiumPctLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -292,6 +293,7 @@ public class dividend extends javax.swing.JPanel {
         cardTotalInterest.setBackground(new java.awt.Color(255, 255, 255));
         cardTotalInterest.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
 
+        lblTotalInterest.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
         lblTotalInterest.setText("Total Interest");
 
         valTotalInterest.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
@@ -306,7 +308,7 @@ public class dividend extends javax.swing.JPanel {
                 .addGroup(cardTotalInterestLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(lblTotalInterest)
                     .addComponent(valTotalInterest))
-                .addContainerGap(20, Short.MAX_VALUE))
+                .addContainerGap(95, Short.MAX_VALUE))
         );
         cardTotalInterestLayout.setVerticalGroup(
             cardTotalInterestLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -321,6 +323,7 @@ public class dividend extends javax.swing.JPanel {
         cardRefund60.setBackground(new java.awt.Color(255, 255, 255));
         cardRefund60.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
 
+        lblRefund60.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
         lblRefund60.setText("Refund 60%");
 
         valRefund60.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
@@ -335,7 +338,7 @@ public class dividend extends javax.swing.JPanel {
                 .addGroup(cardRefund60Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(lblRefund60)
                     .addComponent(valRefund60))
-                .addContainerGap(20, Short.MAX_VALUE))
+                .addContainerGap(104, Short.MAX_VALUE))
         );
         cardRefund60Layout.setVerticalGroup(
             cardRefund60Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -350,6 +353,7 @@ public class dividend extends javax.swing.JPanel {
         cardRefund40.setBackground(new java.awt.Color(255, 255, 255));
         cardRefund40.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
 
+        lblRefund40.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
         lblRefund40.setText("Refund 40%");
 
         valRefund40.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
@@ -364,7 +368,7 @@ public class dividend extends javax.swing.JPanel {
                 .addGroup(cardRefund40Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(lblRefund40)
                     .addComponent(valRefund40))
-                .addContainerGap(20, Short.MAX_VALUE))
+                .addContainerGap(104, Short.MAX_VALUE))
         );
         cardRefund40Layout.setVerticalGroup(
             cardRefund40Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -379,6 +383,7 @@ public class dividend extends javax.swing.JPanel {
         cardTotalDividend.setBackground(new java.awt.Color(255, 255, 255));
         cardTotalDividend.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
 
+        lblTotalDividend.setFont(new java.awt.Font("Dialog", 0, 12)); // NOI18N
         lblTotalDividend.setText("Total Dividend");
 
         valTotalDividend.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
@@ -393,7 +398,7 @@ public class dividend extends javax.swing.JPanel {
                 .addGroup(cardTotalDividendLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(lblTotalDividend)
                     .addComponent(valTotalDividend))
-                .addContainerGap(20, Short.MAX_VALUE))
+                .addContainerGap(90, Short.MAX_VALUE))
         );
         cardTotalDividendLayout.setVerticalGroup(
             cardTotalDividendLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -430,22 +435,21 @@ public class dividend extends javax.swing.JPanel {
             .addGroup(layout.createSequentialGroup()
                 .addGap(40, 40, 40)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 308, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jScrollPane1)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 308, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(cardTotalPremium, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(cardTotalPremium, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(cardPremiumPct, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(cardPremiumPct, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(cardTotalInterest, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(cardTotalInterest, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(cardRefund60, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(cardRefund60, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(cardRefund40, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(cardRefund40, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(cardTotalDividend, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addComponent(jScrollPane1))
+                        .addComponent(cardTotalDividend, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                 .addGap(40, 40, 40))
         );
         layout.setVerticalGroup(
@@ -484,6 +488,7 @@ public class dividend extends javax.swing.JPanel {
     private javax.swing.JLabel jLabel1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JSeparator jSeparator1;
     private javax.swing.JLabel lblPremiumPct;
     private javax.swing.JLabel lblRefund40;
     private javax.swing.JLabel lblRefund60;

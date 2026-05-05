@@ -7,6 +7,8 @@ package features;
 import com.kelsz.esla.Database;
 import java.awt.BorderLayout;
 import java.awt.Image;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,6 +16,8 @@ import java.sql.ResultSet;
 import java.time.LocalDate;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -22,6 +26,12 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import ui.style;
 
 /**
@@ -91,6 +101,22 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
             filterTable();
         }
     });
+
+    // Initialize export buttons
+    exportPdfButton = new JButton("Export PDF");
+    exportExcelButton = new JButton("Export Excel");
+    style.applySecondaryButton(exportPdfButton);
+    style.applySecondaryButton(exportExcelButton);
+
+    // Add export button listeners
+    exportPdfButton.addActionListener(evt -> exportToPDF());
+    exportExcelButton.addActionListener(evt -> exportToExcel());
+
+    // Add export buttons to the panel (manually since using GroupLayout)
+    javax.swing.GroupLayout layout = (javax.swing.GroupLayout) this.getLayout();
+    // We'll need to modify the layout to include the buttons
+    // For now, let's add them to the existing button row
+    addExportButtonsToLayout();
 
     }
 
@@ -544,5 +570,189 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
     private javax.swing.JComboBox<String> memberTypeField;
     private javax.swing.JTextField searchField;
     private javax.swing.JPanel searchPanel;
+    private javax.swing.JButton exportPdfButton;
+    private javax.swing.JButton exportExcelButton;
     // End of variables declaration//GEN-END:variables
+
+    // =========================
+    // EXPORT METHODS
+    // =========================
+    private void addExportButtonsToLayout() {
+        // Remove existing layout and recreate with export buttons
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
+        this.setLayout(layout);
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(40, 40, 40)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 308, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(layout.createSequentialGroup()
+                            .addComponent(searchField, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(memberTypeField, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(exportPdfButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(exportExcelButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(chooseDate, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addGap(40, 40, 40))
+        );
+        layout.setVerticalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(20, 20, 20)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(searchField, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addComponent(memberTypeField, javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addComponent(exportPdfButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                        .addComponent(exportExcelButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                        .addComponent(chooseDate, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)))
+                .addGap(15, 15, 15)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 520, Short.MAX_VALUE)
+                .addGap(20, 20, 20))
+        );
+    }
+
+    private void exportToExcel() {
+        try {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Save Excel File");
+            fileChooser.setSelectedFile(new File("dashboard_export.xlsx"));
+            
+            int userSelection = fileChooser.showSaveDialog(this);
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File fileToSave = fileChooser.getSelectedFile();
+                
+                Workbook workbook = new XSSFWorkbook();
+                Sheet sheet = workbook.createSheet("Dashboard");
+                
+                // Create header row
+                Row headerRow = sheet.createRow(0);
+                String[] headers = {"Name", "Premium", "Loan", "Total"};
+                for (int i = 0; i < headers.length; i++) {
+                    Cell cell = headerRow.createCell(i);
+                    cell.setCellValue(headers[i]);
+                }
+                
+                // Get table data
+                DefaultTableModel model = (DefaultTableModel) dashboardTable.getModel();
+                for (int row = 0; row < model.getRowCount(); row++) {
+                    Row excelRow = sheet.createRow(row + 1);
+                    for (int col = 0; col < model.getColumnCount(); col++) {
+                        Object value = model.getValueAt(row, col);
+                        Cell cell = excelRow.createCell(col);
+                        if (value instanceof BigDecimal) {
+                            cell.setCellValue(((BigDecimal) value).doubleValue());
+                        } else if (value instanceof String) {
+                            cell.setCellValue((String) value);
+                        } else {
+                            cell.setCellValue(value != null ? value.toString() : "");
+                        }
+                    }
+                }
+                
+                // Auto-size columns
+                for (int i = 0; i < headers.length; i++) {
+                    sheet.autoSizeColumn(i);
+                }
+                
+                // Write to file
+                try (FileOutputStream outputStream = new FileOutputStream(fileToSave)) {
+                    workbook.write(outputStream);
+                }
+                workbook.close();
+                
+                JOptionPane.showMessageDialog(this, "Excel file exported successfully!");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error exporting to Excel: " + e.getMessage());
+        }
+    }
+
+    private void exportToPDF() {
+        try {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("Save PDF File");
+            fileChooser.setSelectedFile(new File("dashboard_export.pdf"));
+            
+            int userSelection = fileChooser.showSaveDialog(this);
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File fileToSave = fileChooser.getSelectedFile();
+                
+                PDDocument document = new PDDocument();
+                PDPage page = new PDPage();
+                document.addPage(page);
+                
+                try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                    contentStream.beginText();
+                    contentStream.setFont(PDType1Font.HELVETICA_BOLD, 16);
+                    contentStream.newLineAtOffset(50, 750);
+                    contentStream.showText("Dashboard Report");
+                    contentStream.endText();
+                    
+                    // Get table data
+                    DefaultTableModel model = (DefaultTableModel) dashboardTable.getModel();
+                    
+                    contentStream.beginText();
+                    contentStream.setFont(PDType1Font.HELVETICA, 12);
+                    contentStream.newLineAtOffset(50, 700);
+                    
+                    // Write headers
+                    String[] headers = {"Name", "Premium", "Loan", "Total"};
+                    StringBuilder headerLine = new StringBuilder();
+                    for (String header : headers) {
+                        headerLine.append(String.format("%-20s", header));
+                    }
+                    contentStream.showText(headerLine.toString());
+                    contentStream.endText();
+                    
+                    // Write data rows
+                    float yPosition = 680;
+                    for (int row = 0; row < model.getRowCount(); row++) {
+                        if (yPosition < 50) {
+                            // Add new page if needed
+                            contentStream.close();
+                            page = new PDPage();
+                            document.addPage(page);
+                            contentStream.beginText();
+                            contentStream.setFont(PDType1Font.HELVETICA, 12);
+                            contentStream.newLineAtOffset(50, 750);
+                            yPosition = 750;
+                        }
+                        
+                        contentStream.beginText();
+                        contentStream.setFont(PDType1Font.HELVETICA, 10);
+                        contentStream.newLineAtOffset(50, yPosition);
+                        
+                        StringBuilder line = new StringBuilder();
+                        for (int col = 0; col < model.getColumnCount(); col++) {
+                            Object value = model.getValueAt(row, col);
+                            String stringValue = value != null ? value.toString() : "";
+                            line.append(String.format("%-20s", stringValue.length() > 20 ? stringValue.substring(0, 20) : stringValue));
+                        }
+                        contentStream.showText(line.toString());
+                        contentStream.endText();
+                        
+                        yPosition -= 15;
+                    }
+                }
+                
+                document.save(fileToSave);
+                document.close();
+                
+                JOptionPane.showMessageDialog(this, "PDF file exported successfully!");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Error exporting to PDF: " + e.getMessage());
+        }
+    }
 }

@@ -691,59 +691,141 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
                 PDPage page = new PDPage();
                 document.addPage(page);
                 
-                try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                PDPageContentStream contentStream = new PDPageContentStream(document, page);
+                
+                // Get table data
+                DefaultTableModel model = (DefaultTableModel) dashboardTable.getModel();
+                
+                // Table configuration
+                float margin = 50;
+                float tableWidth = 500;
+                float yPosition = 700;
+                float rowHeight = 20;
+                float[] colWidths = {200, 100, 100, 100, 100}; // Name, Premium, Loan, Total, MemberType
+                
+                // Draw title
+                contentStream.beginText();
+                contentStream.setFont(PDType1Font.HELVETICA_BOLD, 16);
+                contentStream.newLineAtOffset(margin, 750);
+                contentStream.showText("Dashboard Report");
+                contentStream.endText();
+                
+                // Draw table headers
+                contentStream.setLineWidth(1f);
+                contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
+                
+                float xPosition = margin;
+                String[] headers = {"Name", "Premium", "Loan", "Total"};
+                
+                // Draw header background
+                contentStream.setNonStrokingColor(21, 55, 143); // Blue background
+                contentStream.addRect(margin, yPosition - rowHeight, tableWidth, rowHeight);
+                contentStream.fill();
+                contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+                
+                // Draw header text
+                contentStream.setNonStrokingColor(255, 255, 255); // White text
+                for (int i = 0; i < headers.length; i++) {
                     contentStream.beginText();
-                    contentStream.setFont(PDType1Font.HELVETICA_BOLD, 16);
-                    contentStream.newLineAtOffset(50, 750);
-                    contentStream.showText("Dashboard Report");
+                    contentStream.newLineAtOffset(xPosition + 5, yPosition - 7);
+                    contentStream.showText(headers[i]);
                     contentStream.endText();
-                    
-                    // Get table data
-                    DefaultTableModel model = (DefaultTableModel) dashboardTable.getModel();
-                    
-                    contentStream.beginText();
-                    contentStream.setFont(PDType1Font.HELVETICA, 12);
-                    contentStream.newLineAtOffset(50, 700);
-                    
-                    // Write headers
-                    String[] headers = {"Name", "Premium", "Loan", "Total"};
-                    StringBuilder headerLine = new StringBuilder();
-                    for (String header : headers) {
-                        headerLine.append(String.format("%-20s", header));
-                    }
-                    contentStream.showText(headerLine.toString());
-                    contentStream.endText();
-                    
-                    // Write data rows
-                    float yPosition = 680;
-                    for (int row = 0; row < model.getRowCount(); row++) {
-                        if (yPosition < 50) {
-                            // Add new page if needed
-                            contentStream.close();
-                            page = new PDPage();
-                            document.addPage(page);
+                    xPosition += colWidths[i];
+                }
+                contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
+                
+                yPosition -= rowHeight;
+                
+                // Draw data rows
+                for (int row = 0; row < model.getRowCount(); row++) {
+                    if (yPosition < 50) {
+                        // Add new page if needed
+                        contentStream.close();
+                        page = new PDPage();
+                        document.addPage(page);
+                        contentStream = new PDPageContentStream(document, page);
+                        yPosition = 750;
+                        
+                        // Redraw headers on new page
+                        contentStream.setLineWidth(1f);
+                        contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
+                        xPosition = margin;
+                        contentStream.setNonStrokingColor(21, 55, 143);
+                        contentStream.addRect(margin, yPosition - rowHeight, tableWidth, rowHeight);
+                        contentStream.fill();
+                        contentStream.setNonStrokingColor(255, 255, 255);
+                        for (int i = 0; i < headers.length; i++) {
                             contentStream.beginText();
-                            contentStream.setFont(PDType1Font.HELVETICA, 12);
-                            contentStream.newLineAtOffset(50, 750);
-                            yPosition = 750;
+                            contentStream.newLineAtOffset(xPosition + 5, yPosition - 7);
+                            contentStream.showText(headers[i]);
+                            contentStream.endText();
+                            xPosition += colWidths[i];
                         }
+                        contentStream.setNonStrokingColor(0, 0, 0);
+                        yPosition -= rowHeight;
+                    }
+                    
+                    // Check if this is a group header row
+                    Object col1 = model.getValueAt(row, 1);
+                    Object col2 = model.getValueAt(row, 2);
+                    Object col3 = model.getValueAt(row, 3);
+                    boolean isGroupHeader = (col1 != null && col1.toString().isEmpty() && 
+                                           col2 != null && col2.toString().isEmpty() && 
+                                           col3 != null && col3.toString().isEmpty());
+                    
+                    if (isGroupHeader) {
+                        // Draw group header row
+                        contentStream.setNonStrokingColor(200, 200, 200); // Light gray
+                        contentStream.addRect(margin, yPosition - rowHeight, tableWidth, rowHeight);
+                        contentStream.fill();
+                        contentStream.setNonStrokingColor(0, 0, 0);
                         
-                        contentStream.beginText();
-                        contentStream.setFont(PDType1Font.HELVETICA, 10);
-                        contentStream.newLineAtOffset(50, yPosition);
-                        
-                        StringBuilder line = new StringBuilder();
+                        contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
+                        xPosition = margin;
                         for (int col = 0; col < model.getColumnCount(); col++) {
                             Object value = model.getValueAt(row, col);
                             String stringValue = value != null ? value.toString() : "";
-                            line.append(String.format("%-20s", stringValue.length() > 20 ? stringValue.substring(0, 20) : stringValue));
+                            contentStream.beginText();
+                            contentStream.newLineAtOffset(xPosition + 5, yPosition - 7);
+                            contentStream.showText(stringValue.length() > 25 ? stringValue.substring(0, 25) : stringValue);
+                            contentStream.endText();
+                            xPosition += colWidths[col];
                         }
-                        contentStream.showText(line.toString());
-                        contentStream.endText();
-                        
-                        yPosition -= 15;
+                    } else {
+                        // Draw regular data row
+                        contentStream.setFont(PDType1Font.HELVETICA, 10);
+                        xPosition = margin;
+                        for (int col = 0; col < model.getColumnCount(); col++) {
+                            Object value = model.getValueAt(row, col);
+                            String stringValue = value != null ? value.toString() : "";
+                            contentStream.beginText();
+                            contentStream.newLineAtOffset(xPosition + 5, yPosition - 7);
+                            contentStream.showText(stringValue.length() > 25 ? stringValue.substring(0, 25) : stringValue);
+                            contentStream.endText();
+                            xPosition += colWidths[col];
+                        }
                     }
+                    
+                    // Draw row border
+                    contentStream.setStrokingColor(0, 0, 0);
+                    contentStream.moveTo(margin, yPosition);
+                    contentStream.lineTo(margin + tableWidth, yPosition);
+                    contentStream.stroke();
+                    
+                    yPosition -= rowHeight;
                 }
+                
+                // Draw table border
+                contentStream.setStrokingColor(0, 0, 0);
+                contentStream.setLineWidth(1f);
+                contentStream.moveTo(margin, 700);
+                contentStream.lineTo(margin, yPosition + rowHeight);
+                contentStream.lineTo(margin + tableWidth, yPosition + rowHeight);
+                contentStream.lineTo(margin + tableWidth, 700);
+                contentStream.lineTo(margin, 700);
+                contentStream.stroke();
+                
+                contentStream.close();
                 
                 document.save(fileToSave);
                 document.close();

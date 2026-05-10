@@ -52,7 +52,6 @@ public class HeaderNav extends javax.swing.JPanel {
         setupNavButton(memberNav, "Members");
         setupNavButton(serviceNav, "Service");
         setupNavButton(dividendNav, "Dividend");
-        setupNavButton(tableEditorNav, "Table Editor");
 
         jLabel1.setFont(new Font("Ubuntu", Font.BOLD, 24));
         jLabel1.setForeground(PRIMARY_COLOR);
@@ -145,8 +144,6 @@ public class HeaderNav extends javax.swing.JPanel {
                 .addComponent(serviceNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(8, 8, 8)
                 .addComponent(dividendNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(8, 8, 8)
-                .addComponent(tableEditorNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 200, Short.MAX_VALUE)
                 .addComponent(reloadButton, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(12, 12, 12)
@@ -165,7 +162,6 @@ public class HeaderNav extends javax.swing.JPanel {
                     .addComponent(memberNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(serviceNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(dividendNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(tableEditorNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(reloadButton, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(userDropdown, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(12, Short.MAX_VALUE))
@@ -226,15 +222,10 @@ public class HeaderNav extends javax.swing.JPanel {
             frame.showPage("dividend");
             setActive(dividendNav);
         });
-
-        tableEditorNav.addActionListener(e -> {
-            frame.showPage("tableEditor");
-            setActive(tableEditorNav);
-        });
     }
 
     private void setActive(JButton active) {
-        JButton[] all = {dashboardNav, ledgerNav, memberNav, serviceNav, dividendNav, tableEditorNav};
+        JButton[] all = {dashboardNav, ledgerNav, memberNav, serviceNav, dividendNav};
 
         for (JButton btn : all) {
             btn.setBackground(BACKGROUND_COLOR);
@@ -267,7 +258,6 @@ public class HeaderNav extends javax.swing.JPanel {
         memberNav = new javax.swing.JButton();
         serviceNav = new javax.swing.JButton();
         dividendNav = new javax.swing.JButton();
-        tableEditorNav = new javax.swing.JButton();
 
         setBackground(new java.awt.Color(255, 255, 255));
 
@@ -284,8 +274,6 @@ public class HeaderNav extends javax.swing.JPanel {
         serviceNav.addActionListener(this::serviceNavActionPerformed);
 
         dividendNav.setText("Dividend");
-
-        tableEditorNav.setText("Table Editor");
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -304,8 +292,6 @@ public class HeaderNav extends javax.swing.JPanel {
                 .addComponent(serviceNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(8, 8, 8)
                 .addComponent(dividendNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(8, 8, 8)
-                .addComponent(tableEditorNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addContainerGap(24, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
@@ -318,8 +304,7 @@ public class HeaderNav extends javax.swing.JPanel {
                     .addComponent(ledgerNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(memberNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(serviceNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(dividendNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(tableEditorNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(dividendNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(12, Short.MAX_VALUE))
         );
     }// </editor-fold>//GEN-END:initComponents
@@ -340,6 +325,5 @@ public class HeaderNav extends javax.swing.JPanel {
     private javax.swing.JButton ledgerNav;
     private javax.swing.JButton memberNav;
     private javax.swing.JButton serviceNav;
-    private javax.swing.JButton tableEditorNav;
     // End of variables declaration//GEN-END:variables
 }

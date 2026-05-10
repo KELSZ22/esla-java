@@ -112,11 +112,22 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
     exportPdfButton.addActionListener(evt -> exportToPDF());
     exportExcelButton.addActionListener(evt -> exportToExcel());
 
-    // Add export buttons to the panel (manually since using GroupLayout)
-    javax.swing.GroupLayout layout = (javax.swing.GroupLayout) this.getLayout();
-    // We'll need to modify the layout to include the buttons
-    // For now, let's add them to the existing button row
-    addExportButtonsToLayout();
+    // Initialize seed button
+    seedButton = new JButton("Seed Data");
+    style.applySecondaryButton(seedButton);
+    seedButton.addActionListener(evt -> {
+        int confirm = JOptionPane.showConfirmDialog(this, 
+            "This will clear all existing data and populate the database with sample data. Continue?", 
+            "Confirm Seeding", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            com.kelsz.esla.DatabaseSeeder.seed();
+            JOptionPane.showMessageDialog(this, "Database seeded successfully!");
+            refresh();
+        }
+    });
+
+    // Add export and seed buttons to the panel
+    addControlButtonsToLayout();
 
     }
 
@@ -572,13 +583,14 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
     private javax.swing.JPanel searchPanel;
     private javax.swing.JButton exportPdfButton;
     private javax.swing.JButton exportExcelButton;
+    private javax.swing.JButton seedButton;
     // End of variables declaration//GEN-END:variables
 
     // =========================
     // EXPORT METHODS
     // =========================
-    private void addExportButtonsToLayout() {
-        // Remove existing layout and recreate with export buttons
+    private void addControlButtonsToLayout() {
+        // Remove existing layout and recreate with export and seed buttons
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
         layout.setHorizontalGroup(
@@ -597,6 +609,8 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
                             .addComponent(exportPdfButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                             .addComponent(exportExcelButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(seedButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(chooseDate, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE))))
                 .addGap(40, 40, 40))
@@ -613,6 +627,7 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
                         .addComponent(memberTypeField, javax.swing.GroupLayout.Alignment.TRAILING)
                         .addComponent(exportPdfButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
                         .addComponent(exportExcelButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                        .addComponent(seedButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
                         .addComponent(chooseDate, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)))
                 .addGap(15, 15, 15)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 520, Short.MAX_VALUE)

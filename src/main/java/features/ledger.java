@@ -275,16 +275,16 @@ private void setupTable(String searchText, String memberTypeFilter) {
  DefaultTableModel model = new DefaultTableModel() {
     @Override
     public boolean isCellEditable(int row, int column) {
-        // Manage = 3, Delete = 4 (non-editable), others editable
-        return column != 3 && column != 4;
+        return false;
     }
 };
 
-   model.addColumn("Description");
+model.addColumn("Description");
 model.addColumn("Type");
 model.addColumn("Date");
-model.addColumn("Manage");
-model.addColumn("Delete");
+model.addColumn(""); // Edit
+model.addColumn(""); // Manage
+model.addColumn(""); // Delete
 
     try {
         Connection con = Database.getConnection();
@@ -326,8 +326,9 @@ model.addColumn("Delete");
                     description,
                     type,
                     date,
-                    "Manage",
-                    "Delete"
+                    "",
+                    "",
+                    ""
                 });
             }
         }
@@ -342,35 +343,61 @@ model.addColumn("Delete");
     }
 
     // Set column identifiers before setting model
-    model.setColumnIdentifiers(new Object[]{"Description", "Type", "Date", "", ""});
+    model.setColumnIdentifiers(new Object[]{"Description", "Type", "Date", "", "", ""});
 
     ledgerTable.setModel(model);
-
-    // Set custom date editor for Date column (column 2)
-    ledgerTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
 
     // Set custom date renderer for Date column (column 2)
     ledgerTable.getColumnModel().getColumn(2).setCellRenderer(new DateCellRenderer());
 
-    // Set custom type editor for Type column (column 1)
-    ledgerTable.getColumnModel().getColumn(1).setCellEditor(new TypeCellEditor());
-
     // Set custom type renderer for Type column (column 1)
     ledgerTable.getColumnModel().getColumn(1).setCellRenderer(new TypeCellRenderer());
 
-    // Load manage icon
-    java.net.URL settingsUrl = getClass().getResource("/images/file-text.png");
-    ImageIcon manageIcon;
-    if (settingsUrl != null) {
-        manageIcon = new ImageIcon(
-                new ImageIcon(settingsUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
-        );
-    } else {
-        manageIcon = null;
-    }
+    // Custom renderer for Edit column
+    ledgerTable.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
+        private ImageIcon editIcon;
+        {
+            java.net.URL iconUrl = getClass().getResource("/images/square-pen.png");
+            if (iconUrl != null) {
+                editIcon = new ImageIcon(
+                        new ImageIcon(iconUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
+                );
+            }
+        }
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            label.setIcon(editIcon);
+            label.setText("");
+            label.setHorizontalAlignment(JLabel.CENTER);
+            label.setOpaque(true);
+
+            if (isSelected) {
+                label.setBackground(new Color(200, 255, 200));
+            } else {
+                label.setBackground(table.getBackground());
+            }
+
+            return label;
+        }
+    });
+
+    // Minimize Edit column width
+    ledgerTable.getColumnModel().getColumn(3).setPreferredWidth(30);
+    ledgerTable.getColumnModel().getColumn(3).setMinWidth(30);
+    ledgerTable.getColumnModel().getColumn(3).setMaxWidth(30);
 
     // Custom renderer for Manage column
-    ledgerTable.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
+    ledgerTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+        private ImageIcon manageIcon;
+        {
+            java.net.URL settingsUrl = getClass().getResource("/images/file-text.png");
+            if (settingsUrl != null) {
+                manageIcon = new ImageIcon(
+                        new ImageIcon(settingsUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
+                );
+            }
+        }
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -390,23 +417,21 @@ model.addColumn("Delete");
     });
 
     // Minimize Manage column width
-    ledgerTable.getColumnModel().getColumn(3).setPreferredWidth(30);
-    ledgerTable.getColumnModel().getColumn(3).setMinWidth(30);
-    ledgerTable.getColumnModel().getColumn(3).setMaxWidth(30);
-
-    // Load trash icon
-    java.net.URL trashUrl = getClass().getResource("/images/trash-2.png");
-    ImageIcon trashIcon;
-    if (trashUrl != null) {
-        trashIcon = new ImageIcon(
-                new ImageIcon(trashUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
-        );
-    } else {
-        trashIcon = null;
-    }
+    ledgerTable.getColumnModel().getColumn(4).setPreferredWidth(30);
+    ledgerTable.getColumnModel().getColumn(4).setMinWidth(30);
+    ledgerTable.getColumnModel().getColumn(4).setMaxWidth(30);
 
     // Custom renderer for Delete column with hover effect
-    ledgerTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+    ledgerTable.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
+        private ImageIcon trashIcon;
+        {
+            java.net.URL trashUrl = getClass().getResource("/images/trash-2.png");
+            if (trashUrl != null) {
+                trashIcon = new ImageIcon(
+                        new ImageIcon(trashUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
+                );
+            }
+        }
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -427,9 +452,9 @@ model.addColumn("Delete");
     });
 
     // Minimize Delete column width and remove header label
-    ledgerTable.getColumnModel().getColumn(4).setPreferredWidth(30);
-    ledgerTable.getColumnModel().getColumn(4).setMinWidth(30);
-    ledgerTable.getColumnModel().getColumn(4).setMaxWidth(30);
+    ledgerTable.getColumnModel().getColumn(5).setPreferredWidth(30);
+    ledgerTable.getColumnModel().getColumn(5).setMinWidth(30);
+    ledgerTable.getColumnModel().getColumn(5).setMaxWidth(30);
 
     // Track hovered row for hover effect
     final int[] hoveredRow = {-1};
@@ -446,67 +471,8 @@ model.addColumn("Delete");
 
     ledgerTable.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
     
-    // Prevent single-click editing - only allow double-click
+    // Prevent single-click editing
     ledgerTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
-    
-    model.addTableModelListener(e -> {
-
-    if (e.getType() != javax.swing.event.TableModelEvent.UPDATE) return;
-
-    int row = e.getFirstRow();
-    int col = e.getColumn();
-
-    if (col < 0) return;
-
-    try {
-        int id = rowIds.get(row);
-
-        String description = model.getValueAt(row, 0).toString();
-        String type = model.getValueAt(row, 1).toString();
-        String date = model.getValueAt(row, 2).toString();
-
-        String columnName = switch (col) {
-            case 0 -> "description";
-            case 1 -> "type";
-            case 2 -> "date";
-            default -> null;
-        };
-
-        if (columnName == null) return;
-
-        // Show confirmation dialog before updating
-        Object newValue = model.getValueAt(row, col);
-        int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
-            "Are you sure you want to update " + columnName + " to: " + (newValue != null ? newValue.toString() : "") + "?",
-            "Confirm Update",
-            javax.swing.JOptionPane.YES_NO_OPTION,
-            javax.swing.JOptionPane.QUESTION_MESSAGE);
-
-        if (confirm != javax.swing.JOptionPane.YES_OPTION) {
-            // Reload data to revert the change
-            applyFilters();
-            return;
-        }
-
-        Connection con = Database.getConnection();
-
-        String sql = "UPDATE ledgers SET " + columnName + " = ? WHERE id = ?";
-        PreparedStatement ps = con.prepareStatement(sql);
-
-        ps.setObject(1, newValue);
-        ps.setInt(2, id);
-
-        ps.executeUpdate();
-
-        ps.close();
-        con.close();
-
-        System.out.println("Auto-saved row ID: " + id);
-
-    } catch (Exception ex) {
-        ex.printStackTrace();
-    }
-});
 
     // UI tweaks ✨
     ledgerTable.setRowHeight(35);

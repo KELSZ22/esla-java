@@ -291,8 +291,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         DefaultTableModel model = new DefaultTableModel() {
             @Override
             public boolean isCellEditable(int row, int column) {
-                // Delete = 7 (non-editable), others editable
-                return column != 7;
+                return false;
             }
         };
 
@@ -303,6 +302,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         model.addColumn("Member Type");
         model.addColumn("Premium");
         model.addColumn("Member Since");
+        model.addColumn("Edit");
         model.addColumn("Delete");
 
         try {
@@ -356,6 +356,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
                         memberType,
                         premium,
                         memberSince,
+                        "Edit",
                         "Delete"
                     });
                 }
@@ -371,7 +372,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         }
 
         // Set column identifiers before setting model
-        model.setColumnIdentifiers(new Object[]{"Name", "Email", "Phone", "Address", "Member Type", "Premium", "Member Since", ""});
+        model.setColumnIdentifiers(new Object[]{"Name", "Email", "Phone", "Address", "Member Type", "Premium", "Member Since", "", ""});
 
         memberTable.setModel(model);
 
@@ -387,24 +388,56 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         // Set custom type renderer for Member Type column (column 4)
         memberTable.getColumnModel().getColumn(4).setCellRenderer(new TypeCellRenderer());
 
-        // Minimize Delete column width and remove header label
+        // Minimize Edit column width and remove header label
         memberTable.getColumnModel().getColumn(7).setPreferredWidth(30);
         memberTable.getColumnModel().getColumn(7).setMinWidth(30);
         memberTable.getColumnModel().getColumn(7).setMaxWidth(30);
 
-        // Load trash icon
-        java.net.URL trashUrl = getClass().getResource("/images/trash-2.png");
-        ImageIcon trashIcon;
-        if (trashUrl != null) {
-            trashIcon = new ImageIcon(
-                    new ImageIcon(trashUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
-            );
-        } else {
-            trashIcon = null;
-        }
+        // Minimize Delete column width and remove header label
+        memberTable.getColumnModel().getColumn(8).setPreferredWidth(30);
+        memberTable.getColumnModel().getColumn(8).setMinWidth(30);
+        memberTable.getColumnModel().getColumn(8).setMaxWidth(30);
+
+        // Custom renderer for Edit column with hover effect
+        memberTable.getColumnModel().getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
+            private ImageIcon editIcon;
+            {
+                java.net.URL editUrl = getClass().getResource("/images/square-pen.png");
+                if (editUrl != null) {
+                    editIcon = new ImageIcon(
+                            new ImageIcon(editUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
+                    );
+                }
+            }
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                label.setIcon(editIcon);
+                label.setText("");
+                label.setHorizontalAlignment(JLabel.CENTER);
+                label.setOpaque(true);
+
+                if (isSelected) {
+                    label.setBackground(new Color(200, 200, 255));
+                } else {
+                    label.setBackground(table.getBackground());
+                }
+
+                return label;
+            }
+        });
 
         // Custom renderer for Delete column with hover effect
-        memberTable.getColumnModel().getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
+        memberTable.getColumnModel().getColumn(8).setCellRenderer(new DefaultTableCellRenderer() {
+            private ImageIcon trashIcon;
+            {
+                java.net.URL trashUrl = getClass().getResource("/images/trash-2.png");
+                if (trashUrl != null) {
+                    trashIcon = new ImageIcon(
+                            new ImageIcon(trashUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
+                    );
+                }
+            }
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -442,77 +475,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         // Prevent single-click editing - only allow double-click
         memberTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
         
-        model.addTableModelListener(e -> {
-
-            if (e.getType() != javax.swing.event.TableModelEvent.UPDATE) return;
-
-            int row = e.getFirstRow();
-            int col = e.getColumn();
-
-            if (col < 0) return;
-
-            try {
-                int id = rowIds.get(row);
-
-                String columnName = switch (col) {
-                    case 0 -> "name";
-                    case 1 -> "email";
-                    case 2 -> "phone";
-                    case 3 -> "address";
-                    case 4 -> "member_type";
-                    case 5 -> "premium";
-                    case 6 -> "member_since";
-                    default -> null;
-                };
-
-                if (columnName == null) return;
-
-                // Prevent duplicate confirmations for the same cell
-                if (row == lastEditedRow && col == lastEditedCol) {
-                    lastEditedRow = -1;
-                    lastEditedCol = -1;
-                    return;
-                }
-
-                // Mark this cell as being edited before showing confirmation
-                lastEditedRow = row;
-                lastEditedCol = col;
-
-                // Show confirmation dialog before updating
-                Object newValue = model.getValueAt(row, col);
-                int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
-                    "Are you sure you want to update " + columnName + " to: " + (newValue != null ? newValue.toString() : "") + "?",
-                    "Confirm Update",
-                    javax.swing.JOptionPane.YES_NO_OPTION,
-                    javax.swing.JOptionPane.QUESTION_MESSAGE);
-
-                if (confirm != javax.swing.JOptionPane.YES_OPTION) {
-                    // Reload data to revert the change
-                    applyFilters();
-                    lastEditedRow = -1;
-                    lastEditedCol = -1;
-                    return;
-                }
-
-                Connection con = Database.getConnection();
-
-                String sql = "UPDATE members SET " + columnName + " = ? WHERE id = ?";
-                PreparedStatement ps = con.prepareStatement(sql);
-
-                ps.setObject(1, newValue);
-                ps.setInt(2, id);
-
-                ps.executeUpdate();
-
-                ps.close();
-                con.close();
-
-                System.out.println("Auto-saved row ID: " + id);
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
+        // Removed auto-save table model listener
 
         // UI tweaks
         memberTable.setRowHeight(35);
@@ -606,8 +569,24 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
 
         if (row < 0 || col < 0) return;
 
-        // Handle Delete column click
+        // Handle Edit column click
         if (col == 7) {
+            int id = rowIds.get(row);
+            java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
+            ui.MemberForm memberFormPanel = new ui.MemberForm(id);
+            javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Edit Member", true);
+            style.applyModernDialog(dialog, memberFormPanel, "Edit Member");
+            dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+            dialog.pack();
+            dialog.setLocationRelativeTo(parentFrame);
+            dialog.setVisible(true);
+            setupTable();
+            populateMemberTypes();
+            return;
+        }
+
+        // Handle Delete column click
+        if (col == 8) {
             int id = rowIds.get(row);
             int confirm = JOptionPane.showConfirmDialog(
                 this,
@@ -637,14 +616,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
             return;
         }
 
-        // Prevent editing Delete column
-        if (col == 7) return;
 
-        // Only trigger edit on double-click
-        if (evt.getClickCount() == 2) {
-            memberTable.editCellAt(row, col);
-            memberTable.getEditorComponent().requestFocus();
-        }
 
     }//GEN-LAST:event_memberTableMouseClicked
 

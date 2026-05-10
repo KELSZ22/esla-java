@@ -144,13 +144,12 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
             new Object [][] {},
             new String [] {
                 "Member Name", "Form No", "Date", "Loan", "Interest", "Service Charge", "Total",
-                "No. of Months", "Collected Interest", "Total Interest", "Refund 60%", "Refund 40%", "Remarks"
+                "No. of Months", "Collected Interest", "Total Interest", "Refund 60%", "Refund 40%", "Remarks", ""
             }
         ) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                // Only allow editing the Collected Interest column (index 8)
-                return column == 8;
+                return false;
             }
         };
         paymentTable.setModel(paymentModel);
@@ -211,16 +210,46 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
             }
         });
         
-        // Add cell editor listener for collected interest edits
-        paymentTable.getModel().addTableModelListener(e -> {
-            if (e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
-                int column = e.getColumn();
-                int row = e.getFirstRow();
-                if (column == 8) { // Collected Interest column
-                    handleCollectedInterestEdit(row);
+        // Add mouse listener for edit action column
+        paymentTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                int row = paymentTable.rowAtPoint(evt.getPoint());
+                int col = paymentTable.columnAtPoint(evt.getPoint());
+                if (row >= 0 && col == 13) { // Edit column
+                    if (row < formIds.size()) {
+                        int formId = formIds.get(row);
+                        Object ciValue = paymentTable.getModel().getValueAt(row, 8);
+                        java.math.BigDecimal currentCI = null;
+                        if (ciValue instanceof java.math.BigDecimal) {
+                            currentCI = (java.math.BigDecimal) ciValue;
+                        } else if (ciValue != null && !ciValue.toString().isEmpty()) {
+                            try { currentCI = new java.math.BigDecimal(ciValue.toString()); } catch (NumberFormatException ex) {}
+                        }
+                        java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(serviceCharge.this);
+                        ui.CollectedInterestForm form = new ui.CollectedInterestForm(formId, currentCI);
+                        javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Edit Collected Interest", true);
+                        style.applyModernDialog(dialog, form, "Edit Collected Interest");
+                        dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+                        dialog.pack();
+                        dialog.setLocationRelativeTo(parentFrame);
+                        dialog.setVisible(true);
+                        // Refresh after edit
+                        int memberIndex = memberList.getSelectedIndex();
+                        if (memberIndex >= 0) {
+                            if (selectServiceCharge.getSelectedIndex() >= 0) {
+                                onServiceChargeOrMemberContextChanged();
+                            } else {
+                                loadMemberServiceChargeData(memberIds.get(memberIndex));
+                            }
+                        }
+                    }
                 }
             }
         });
+
+        // Set edit column width and renderer
+        setupEditColumn();
         
         loadMembers();
         loadServiceCharges();
@@ -775,11 +804,12 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                 totalInterest != null ? totalInterest : "",
                 refund60 != null ? refund60 : "",
                 refund40 != null ? refund40 : "",
-                remarks != null ? remarks : ""
+                remarks != null ? remarks : "",
+                ""
             });
         }
 
-
+        setupEditColumn();
     }
 
     private void populateSummaryTable(Map<String, Object> summary, Map<String, Object> refund) {
@@ -980,6 +1010,33 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
             
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private void setupEditColumn() {
+        if (paymentTable.getColumnCount() > 13) {
+            paymentTable.getColumnModel().getColumn(13).setPreferredWidth(30);
+            paymentTable.getColumnModel().getColumn(13).setMinWidth(30);
+            paymentTable.getColumnModel().getColumn(13).setMaxWidth(30);
+
+            paymentTable.getColumnModel().getColumn(13).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+                private javax.swing.Icon editIcon;
+                {
+                    java.net.URL iconUrl = getClass().getResource("/images/square-pen.png");
+                    if (iconUrl != null) {
+                        editIcon = new javax.swing.ImageIcon(new javax.swing.ImageIcon(iconUrl).getImage().getScaledInstance(16, 16, java.awt.Image.SCALE_SMOOTH));
+                    }
+                }
+                @Override
+                public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                    javax.swing.JLabel label = (javax.swing.JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                    label.setIcon(editIcon);
+                    label.setText("");
+                    label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                    label.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+                    return label;
+                }
+            });
         }
     }
 

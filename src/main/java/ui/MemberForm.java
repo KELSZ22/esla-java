@@ -18,12 +18,54 @@ import javax.swing.JOptionPane;
  */
 public class MemberForm extends javax.swing.JPanel {
 
+    private int memberId = -1;
+    private boolean isEditMode = false;
+
     /**
      * Creates new form MemberForm
      */
     public MemberForm() {
         initComponents();
         applyStyles();
+    }
+
+    /**
+     * Creates new form MemberForm for editing
+     */
+    public MemberForm(int memberId) {
+        this.memberId = memberId;
+        this.isEditMode = true;
+        initComponents();
+        applyStyles();
+        jLabel1.setText("Edit Member");
+        loadMemberData();
+    }
+
+    private void loadMemberData() {
+        try {
+            Connection con = Database.getConnection();
+            String sql = "SELECT * FROM members WHERE id = ?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, memberId);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                name.setText(rs.getString("name"));
+                email.setText(rs.getString("email"));
+                phone.setText(rs.getString("phone"));
+                formNo3.setText(rs.getString("address"));
+                jComboBox1.setSelectedItem(rs.getString("member_type"));
+                formNo5.setText(String.valueOf(rs.getInt("premium")));
+                java.sql.Date sqlDate = rs.getDate("member_since");
+                if (sqlDate != null) {
+                    memberSince.setDate(new java.util.Date(sqlDate.getTime()));
+                }
+            }
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -284,34 +326,66 @@ public class MemberForm extends javax.swing.JPanel {
 
             int premium = premiumText.isEmpty() ? 0 : Integer.parseInt(premiumText);
 
-            // Insert member into database
+            // Insert or update member in database
             Connection con = Database.getConnection();
-            String sql = "INSERT INTO members (name, email, phone, address, member_type, member_since, premium) VALUES (?, ?, ?, ?, ?, ?, ?)";
-            PreparedStatement ps = con.prepareStatement(sql);
             
-            ps.setString(1, nameText);
-            ps.setString(2, emailText);
-            ps.setString(3, phoneText);
-            ps.setString(4, addressText);
-            ps.setString(5, memberType);
-            ps.setString(6, memberSinceDate.toString());
-            ps.setInt(7, premium);
-            
-            int rowsAffected = ps.executeUpdate();
-            ps.close();
-            con.close();
+            if (isEditMode) {
+                String sql = "UPDATE members SET name=?, email=?, phone=?, address=?, member_type=?, member_since=?, premium=? WHERE id=?";
+                PreparedStatement ps = con.prepareStatement(sql);
+                
+                ps.setString(1, nameText);
+                ps.setString(2, emailText);
+                ps.setString(3, phoneText);
+                ps.setString(4, addressText);
+                ps.setString(5, memberType);
+                ps.setString(6, memberSinceDate.toString());
+                ps.setInt(7, premium);
+                ps.setInt(8, memberId);
+                
+                int rowsAffected = ps.executeUpdate();
+                ps.close();
+                con.close();
 
-            if (rowsAffected > 0) {
-                JOptionPane.showMessageDialog(this,
-                    "Member created successfully!",
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
-                javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                if (rowsAffected > 0) {
+                    JOptionPane.showMessageDialog(this,
+                        "Member updated successfully!",
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                        "Failed to update member. Please try again.",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                }
             } else {
-                JOptionPane.showMessageDialog(this,
-                    "Failed to create member. Please try again.",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
+                String sql = "INSERT INTO members (name, email, phone, address, member_type, member_since, premium) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                PreparedStatement ps = con.prepareStatement(sql);
+                
+                ps.setString(1, nameText);
+                ps.setString(2, emailText);
+                ps.setString(3, phoneText);
+                ps.setString(4, addressText);
+                ps.setString(5, memberType);
+                ps.setString(6, memberSinceDate.toString());
+                ps.setInt(7, premium);
+                
+                int rowsAffected = ps.executeUpdate();
+                ps.close();
+                con.close();
+
+                if (rowsAffected > 0) {
+                    JOptionPane.showMessageDialog(this,
+                        "Member created successfully!",
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                        "Failed to create member. Please try again.",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                }
             }
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(this,

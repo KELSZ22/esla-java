@@ -25,10 +25,47 @@ public class LedgerForm extends javax.swing.JPanel {
      */
     private Runnable callback;
 
+    private int ledgerId = -1;
+
     public LedgerForm() {
         initComponents();
         applyStyles();
         populateMemberTypes();
+    }
+
+    public LedgerForm(int id) {
+        this.ledgerId = id;
+        initComponents();
+        applyStyles();
+        populateMemberTypes();
+        loadLedgerData();
+        jLabel1.setText("Edit Ledger");
+        jLabel1.setVisible(true);
+    }
+
+    private void loadLedgerData() {
+        try {
+            Connection con = Database.getConnection();
+            String sql = "SELECT * FROM ledgers WHERE id = ?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, ledgerId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                description.setText(rs.getString("description"));
+                selectTypeField.setSelectedItem(rs.getString("type"));
+                String dateStr = rs.getString("date");
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    ledgerDate.setDate(new SimpleDateFormat("yyyy-MM-dd").parse(dateStr));
+                }
+            }
+
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void setCallback(Runnable callback) {
@@ -210,18 +247,27 @@ public class LedgerForm extends javax.swing.JPanel {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
             String dateStr = sdf.format(date);
 
-            String sql = "INSERT INTO ledgers (description, type, date) VALUES (?, ?, ?)";
+            String sql;
+            if (ledgerId == -1) {
+                sql = "INSERT INTO ledgers (description, type, date) VALUES (?, ?, ?)";
+            } else {
+                sql = "UPDATE ledgers SET description = ?, type = ?, date = ? WHERE id = ?";
+            }
+            
             PreparedStatement ps = con.prepareStatement(sql);
             ps.setString(1, desc);
             ps.setString(2, type);
             ps.setString(3, dateStr);
+            if (ledgerId != -1) {
+                ps.setInt(4, ledgerId);
+            }
 
             ps.executeUpdate();
 
             ps.close();
             con.close();
 
-            JOptionPane.showMessageDialog(this, "Ledger added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Ledger " + (ledgerId == -1 ? "added" : "updated") + " successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
 
             // Clear form
             description.setText("");

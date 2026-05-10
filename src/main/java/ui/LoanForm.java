@@ -15,6 +15,8 @@ public class LoanForm extends javax.swing.JPanel {
     private int ledgerId;
     private int memberId;
     private String ledgerType;
+    private int loanRecordId = -1;
+    private boolean isEditMode = false;
 
     /**
      * Creates new form LoanForm as a modal dialog
@@ -29,6 +31,60 @@ public class LoanForm extends javax.swing.JPanel {
         this.ledgerType = ledgerType;
         initComponents();
         applyStyling();
+    }
+
+    public LoanForm(int ledgerId, int memberId, String ledgerType, int loanRecordId) {
+        this.ledgerId = ledgerId;
+        this.memberId = memberId;
+        this.ledgerType = ledgerType;
+        this.loanRecordId = loanRecordId;
+        this.isEditMode = true;
+        initComponents();
+        applyStyling();
+        jLabel1.setText("Edit Loan");
+        loadLoanData();
+    }
+    
+    private void loadLoanData() {
+        try {
+            java.sql.Connection con = com.kelsz.esla.Database.getConnection();
+            String sql = "SELECT * FROM loans WHERE id = ?";
+            java.sql.PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, loanRecordId);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                if (rs.getObject("form_number") != null) {
+                    formNo.setText(String.valueOf(rs.getInt("form_number")));
+                }
+                java.sql.Date dateVal = rs.getDate("date");
+                if (dateVal != null) jDateChooser2.setDate(new java.util.Date(dateVal.getTime()));
+                
+                java.sql.Date deductionDateVal = rs.getDate("start_deduction_date");
+                if (deductionDateVal != null) jDateChooser1.setDate(new java.util.Date(deductionDateVal.getTime()));
+                
+                if (rs.getBigDecimal("principal") != null) {
+                    jTextField1.setText(formatCurrency(rs.getBigDecimal("principal")));
+                }
+                if (rs.getBigDecimal("service_charge") != null) {
+                    serviceCharge.setText(formatCurrency(rs.getBigDecimal("service_charge")));
+                }
+                if (rs.getObject("cutoffs") != null) {
+                    no_of_months.setText(String.valueOf(rs.getInt("cutoffs")));
+                }
+                remarks.setText(rs.getString("remarks"));
+            }
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private String formatCurrency(java.math.BigDecimal value) {
+        if (value == null) return "0.00";
+        java.text.DecimalFormat currencyFormat = new java.text.DecimalFormat("#,##0.00");
+        return currencyFormat.format(value);
     }
 
     private void applyStyling() {
@@ -247,24 +303,71 @@ public class LoanForm extends javax.swing.JPanel {
             Integer noOfMonths = no_of_months.getText().trim().isEmpty() ? null : Integer.parseInt(no_of_months.getText().trim());
             String remarks = this.remarks.getText();
 
-            // Create loan using LoanService
-            services.LoanService loanService = new services.LoanService();
-            int loanId = loanService.createLoan(
-                ledgerId, memberId, formNumber, loanDate,
-                principal, serviceChargeValue, noOfMonths, startDeductionDate, null, remarks
-            );
-
-            if (loanId > 0) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Loan created successfully!",
-                    "Success",
-                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+            if (isEditMode) {
+                // Calculate computed fields
+                java.math.BigDecimal p = principal != null ? principal : java.math.BigDecimal.ZERO;
+                int cutoffs = noOfMonths != null ? noOfMonths : 0;
+                
+                java.math.BigDecimal serviceChargeCalculated = p.multiply(new java.math.BigDecimal("0.03")).setScale(2, java.math.RoundingMode.HALF_UP);
+                java.math.BigDecimal interest = p.multiply(new java.math.BigDecimal("0.03")).multiply(java.math.BigDecimal.valueOf(cutoffs));
+                java.math.BigDecimal total = p.add(serviceChargeCalculated).add(interest);
+                
+                java.math.BigDecimal cutoffsAmount = java.math.BigDecimal.ZERO;
+                if (cutoffs > 0) {
+                    cutoffsAmount = total.divide(java.math.BigDecimal.valueOf(cutoffs * 2), 2, java.math.RoundingMode.HALF_UP);
+                }
+                
+                java.sql.Connection con = com.kelsz.esla.Database.getConnection();
+                String sql = "UPDATE loans SET form_number=?, date=?, start_deduction_date=?, principal=?, service_charge=?, interest=?, total=?, cutoffs=?, cutoffs_amount=?, remarks=? WHERE id=?";
+                java.sql.PreparedStatement ps = con.prepareStatement(sql);
+                ps.setObject(1, formNumber);
+                ps.setDate(2, loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
+                ps.setDate(3, startDeductionDate != null ? java.sql.Date.valueOf(startDeductionDate) : null);
+                ps.setBigDecimal(4, p);
+                ps.setBigDecimal(5, serviceChargeCalculated);
+                ps.setBigDecimal(6, interest);
+                ps.setBigDecimal(7, total);
+                ps.setInt(8, cutoffs);
+                ps.setBigDecimal(9, cutoffsAmount);
+                ps.setString(10, remarks);
+                ps.setInt(11, loanRecordId);
+                
+                int rowsAffected = ps.executeUpdate();
+                ps.close();
+                con.close();
+                
+                if (rowsAffected > 0) {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Loan updated successfully!",
+                        "Success",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Failed to update loan. Please try again.",
+                        "Error",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
             } else {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Failed to create loan. Please try again.",
-                    "Error",
-                    javax.swing.JOptionPane.ERROR_MESSAGE);
+                // Create loan using LoanService
+                services.LoanService loanService = new services.LoanService();
+                int loanId = loanService.createLoan(
+                    ledgerId, memberId, formNumber, loanDate,
+                    principal, serviceChargeValue, noOfMonths, startDeductionDate, null, remarks
+                );
+
+                if (loanId > 0) {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Loan created successfully!",
+                        "Success",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Failed to create loan. Please try again.",
+                        "Error",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
             }
         } catch (NumberFormatException e) {
             e.printStackTrace();

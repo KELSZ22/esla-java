@@ -22,6 +22,11 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
 import javax.swing.AbstractCellEditor;
 import javax.swing.JTable;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import com.kelsz.esla.util.ReportExporter;
+import java.time.LocalDate;
 import java.awt.Component;
 import java.util.Date;
 import com.toedter.calendar.JDateChooser;
@@ -40,6 +45,9 @@ public class manageLedger extends javax.swing.JPanel {
     private Timer searchTimer;
     private javax.swing.JButton deletePaymentButton;
     private javax.swing.JButton deleteLoanButton;
+
+    private javax.swing.JButton exportPdfButton;
+    private javax.swing.JButton exportExcelButton;
 
     /**
      * Custom table model for payment table with inline editing
@@ -200,9 +208,10 @@ public class manageLedger extends javax.swing.JPanel {
         
         // Style tabbed pane with transparent design
         style.applyTransparentTabbedPane(paymentTab);
-
+        
+        setupExportButtons();
         // Add tab change listener to update button when switching tabs
-        paymentTab.addChangeListener(e -> {
+    paymentTab.addChangeListener(e -> {
             updateButtonAndForm();
         });
 
@@ -1814,6 +1823,64 @@ public class manageLedger extends javax.swing.JPanel {
         }
     }
 
+
+    private void setupExportButtons() {
+        exportPdfButton = new javax.swing.JButton("Export PDF");
+        exportExcelButton = new javax.swing.JButton("Export Excel");
+        
+        style.applyButton(exportPdfButton);
+        style.applyButton(exportExcelButton);
+        
+        // Refactor jPanel1 to use BorderLayout for better control over dynamic components
+        jPanel1.setLayout(new java.awt.BorderLayout(10, 10));
+        jPanel1.removeAll();
+        
+        JPanel headerArea = new JPanel(new java.awt.BorderLayout());
+        headerArea.setBackground(java.awt.Color.WHITE);
+        
+        JPanel leftHeader = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 0));
+        leftHeader.setBackground(java.awt.Color.WHITE);
+        leftHeader.add(formSearch);
+        leftHeader.add(exportPdfButton);
+        leftHeader.add(exportExcelButton);
+        
+        JPanel rightHeader = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 10, 0));
+        rightHeader.setBackground(java.awt.Color.WHITE);
+        rightHeader.add(paymentLoanButton);
+        
+        headerArea.add(leftHeader, java.awt.BorderLayout.WEST);
+        headerArea.add(rightHeader, java.awt.BorderLayout.EAST);
+        
+        JPanel contentArea = new JPanel(new java.awt.BorderLayout(10, 0));
+        contentArea.setBackground(java.awt.Color.WHITE);
+        contentArea.add(jScrollPane3, java.awt.BorderLayout.WEST);
+        contentArea.add(paymentTab, java.awt.BorderLayout.CENTER);
+        
+        jPanel1.add(headerArea, java.awt.BorderLayout.NORTH);
+        jPanel1.add(contentArea, java.awt.BorderLayout.CENTER);
+        
+        exportPdfButton.addActionListener(e -> exportToPDF());
+        exportExcelButton.addActionListener(e -> exportToExcel());
+        
+        jPanel1.revalidate();
+        jPanel1.repaint();
+    }
+
+    private void exportToExcel() {
+        if (paymentTab.getSelectedIndex() == 0) {
+            ReportExporter.exportToExcel(paymentTable, "Payment Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        } else {
+            ReportExporter.exportToExcel(loanTable, "Loan Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9});
+        }
+    }
+
+    private void exportToPDF() {
+        if (paymentTab.getSelectedIndex() == 0) {
+            ReportExporter.exportToPDF(paymentTable, "Payment Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        } else {
+            ReportExporter.exportToPDF(loanTable, "Loan Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9});
+        }
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton backButton;

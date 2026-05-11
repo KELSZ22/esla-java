@@ -13,6 +13,11 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import services.DividendService;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import com.kelsz.esla.util.ReportExporter;
+import java.time.LocalDate;
 import ui.style;
 
 /**
@@ -29,6 +34,8 @@ public class dividend extends javax.swing.JPanel implements ui.Refreshable {
 
     private final DividendService dividendService;
     private final Timer searchTimer;
+    private javax.swing.JButton exportPdfButton;
+    private javax.swing.JButton exportExcelButton;
     private final List<String> serviceChargeDates = new java.util.ArrayList<>();
     private final DecimalFormat currencyFormat = new DecimalFormat("#,##0.00");
     private final DecimalFormat percentageFormat = new DecimalFormat("0.000000000");
@@ -83,7 +90,35 @@ public class dividend extends javax.swing.JPanel implements ui.Refreshable {
         style.applyTableStyle(dividendTable, 14, 14);
         style.applyScrollStyle(jScrollPane1);
         
+        setupExportButtons();
         style.applyStandardSizes(dividendSearchField, selectServiceCharge);
+    }
+
+    private void setupExportButtons() {
+        exportPdfButton = new javax.swing.JButton("Export PDF");
+        exportExcelButton = new javax.swing.JButton("Export Excel");
+        
+        style.applyButton(exportPdfButton);
+        style.applyButton(exportExcelButton);
+        
+        // Ensure buttons are visible by setting FlowLayout (GroupLayout can be restrictive for dynamic additions)
+        jPanel1.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 0));
+        jPanel1.add(dividendSearchField);
+        jPanel1.add(selectServiceCharge);
+        jPanel1.add(dateLabel);
+        jPanel1.add(exportPdfButton);
+        jPanel1.add(exportExcelButton);
+        
+        exportPdfButton.addActionListener(e -> exportToPDF());
+        exportExcelButton.addActionListener(e -> exportToExcel());
+    }
+
+    private void exportToExcel() {
+        ReportExporter.exportToExcel(dividendTable, "Dividend Report", "Service Charge: " + selectServiceCharge.getSelectedItem(), new int[]{0, 1, 2, 3, 4, 5, 6, 7});
+    }
+
+    private void exportToPDF() {
+        ReportExporter.exportToPDF(dividendTable, "Dividend Report", "Service Charge: " + selectServiceCharge.getSelectedItem(), new int[]{0, 1, 2, 3, 4, 5, 6, 7});
     }
 
     private void setupListeners() {

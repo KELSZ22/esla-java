@@ -16,6 +16,11 @@ import java.util.Map;
 import javax.swing.DefaultListModel;
 import javax.swing.table.DefaultTableModel;
 import services.MemberServiceChargeRefundFormService;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import com.kelsz.esla.util.ReportExporter;
+import java.time.LocalDate;
 import ui.style;
 import javax.swing.Timer;
 import java.awt.event.ActionListener;
@@ -58,6 +63,9 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
     private boolean suppressServiceChargeItemRefresh;
     private Timer searchTimer;
 
+    private javax.swing.JButton exportPdfButton;
+    private javax.swing.JButton exportExcelButton;
+
     /**
      * Creates new form serviceCharge
      */
@@ -98,8 +106,9 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
         style.applyTableStyle(summaryTable, 14, 14);
         style.applyTransparentTabbedPane(memberServiceCharge);
         
+        setupExportButtons();
         style.applyListStyle(memberList);
-        style.applyScrollStyle(jScrollPane1);
+    style.applyScrollStyle(jScrollPane1);
         style.applyScrollStyle(jScrollPane2);
         style.applyScrollStyle(jScrollPane3);
         
@@ -1470,6 +1479,46 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
         onServiceChargeOrMemberContextChanged();
         loadAllMembersServiceChargeRefunds();
     }//GEN-LAST:event_editServiceChargeActionPerformed
+
+    private void setupExportButtons() {
+        exportPdfButton = new javax.swing.JButton("Export PDF");
+        exportExcelButton = new javax.swing.JButton("Export Excel");
+        
+        style.applyButton(exportPdfButton);
+        style.applyButton(exportExcelButton);
+        
+        // Use FlowLayout for the header panel to easily accommodate the new buttons
+        jPanel1.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 0));
+        jPanel1.removeAll(); // Remove GroupLayout components to re-add with FlowLayout
+        jPanel1.add(formSearch);
+        jPanel1.add(selectServiceCharge);
+        jPanel1.add(displayDateFrom);
+        jPanel1.add(jLabel2);
+        jPanel1.add(displayDateTo);
+        jPanel1.add(editServiceCharge);
+        jPanel1.add(exportPdfButton);
+        jPanel1.add(exportExcelButton);
+        jPanel1.add(addServiceCharge);
+        
+        exportPdfButton.addActionListener(e -> exportToPDF());
+        exportExcelButton.addActionListener(e -> exportToExcel());
+    }
+
+    private void exportToExcel() {
+        if (memberServiceCharge.getSelectedIndex() == 0) {
+            ReportExporter.exportToExcel(paymentTable, "Service Charge Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+        } else {
+            ReportExporter.exportToExcel(summaryTable, "Service Charge Summary", "Period: " + displayDateFrom.getText() + " to " + displayDateTo.getText(), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+        }
+    }
+
+    private void exportToPDF() {
+        if (memberServiceCharge.getSelectedIndex() == 0) {
+            ReportExporter.exportToPDF(paymentTable, "Service Charge Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+        } else {
+            ReportExporter.exportToPDF(summaryTable, "Service Charge Summary", "Period: " + displayDateFrom.getText() + " to " + displayDateTo.getText(), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+        }
+    }
 
     private void formSearchActionPerformed(java.awt.event.ActionEvent evt) {
         performSearch();

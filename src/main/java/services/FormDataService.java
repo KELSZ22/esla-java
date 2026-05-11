@@ -66,7 +66,7 @@ public class FormDataService {
             previousPs = con.prepareStatement(previousSql);
             previousPs.setString(1, ledgerType);
             previousPs.setInt(2, memberId);
-            previousPs.setDate(3, date != null ? java.sql.Date.valueOf(date) : null);
+            previousPs.setString(3, date != null ? date.toString() : null);
             previousRs = previousPs.executeQuery();
 
             BigDecimal previousUnderPaid = BigDecimal.ZERO;

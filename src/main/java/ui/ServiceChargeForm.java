@@ -195,13 +195,13 @@ public class ServiceChargeForm extends javax.swing.JPanel {
             if (originalDescriptionForEdit != null) {
                 String updateSql = """
                     UPDATE member_service_charge_refunds
-                    SET description = ?, date_from = ?, date_to = ?, updated_at = NOW()
+                    SET description = ?, date_from = ?, date_to = ?, updated_at = datetime('now')
                     WHERE description = ? AND deleted_at IS NULL
                     """;
                 PreparedStatement up = con.prepareStatement(updateSql);
                 up.setString(1, desc);
-                up.setDate(2, new java.sql.Date(fromDateValue.getTime()));
-                up.setDate(3, new java.sql.Date(toDateValue.getTime()));
+                up.setString(2, dateFromStr);
+                up.setString(3, dateToStr);
                 up.setString(4, originalDescriptionForEdit);
                 int rows = up.executeUpdate();
                 up.close();
@@ -215,57 +215,68 @@ public class ServiceChargeForm extends javax.swing.JPanel {
                 return;
             }
 
-            // Get all member IDs
+            // Get all member IDs first to avoid keeping a ResultSet open during inserts
+            java.util.List<Integer> memberIds = new java.util.ArrayList<>();
             String selectSql = "SELECT id FROM members WHERE deleted_at IS NULL";
-            PreparedStatement selectPs = con.prepareStatement(selectSql);
-            ResultSet rs = selectPs.executeQuery();
-
-            // Prepare bulk insert statement for refunds
-            String insertSql = "INSERT INTO member_service_charge_refunds (member_id, description, date_from, date_to, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())";
-            PreparedStatement insertPs = con.prepareStatement(insertSql, PreparedStatement.RETURN_GENERATED_KEYS);
-
-            LocalDate dateFromLocal = fromDateValue.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-            LocalDate dateToLocal = toDateValue.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
-
-            int refundCount = 0;
-            int totalFormsCreated = 0;
-            
-            while (rs.next()) {
-                int memberId = rs.getInt("id");
-                insertPs.setInt(1, memberId);
-                insertPs.setString(2, desc);
-                insertPs.setString(3, dateFromStr);
-                insertPs.setString(4, dateToStr);
-                insertPs.executeUpdate();
-                
-                // Get the generated refund ID
-                ResultSet generatedKeys = insertPs.getGeneratedKeys();
-                if (generatedKeys.next()) {
-                    int refundId = generatedKeys.getInt(1);
-                    // Create refund forms from loans for this member
-                    int formsCreated = refundFormService.bulkInsertFromLoans(memberId, dateFromLocal, dateToLocal, refundId);
-                    totalFormsCreated += formsCreated;
+            try (PreparedStatement selectPs = con.prepareStatement(selectSql);
+                 ResultSet rs = selectPs.executeQuery()) {
+                while (rs.next()) {
+                    memberIds.add(rs.getInt("id"));
                 }
-                generatedKeys.close();
-                refundCount++;
             }
 
-            rs.close();
-            selectPs.close();
-            insertPs.close();
-            con.close();
+            // Start transaction for better performance and to avoid SQLITE_BUSY
+            con.setAutoCommit(false);
+            
+            try {
+                // Prepare bulk insert statement for refunds
+                String insertSql = "INSERT INTO member_service_charge_refunds (member_id, description, date_from, date_to, created_at, updated_at) VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))";
+                PreparedStatement insertPs = con.prepareStatement(insertSql, PreparedStatement.RETURN_GENERATED_KEYS);
 
-            lastCommittedDescription = desc;
-            JOptionPane.showMessageDialog(this, 
-                "Successfully created service charge refunds for " + refundCount + " members\n" +
-                "Total refund forms created: " + totalFormsCreated, 
-                "Success", JOptionPane.INFORMATION_MESSAGE);
+                LocalDate dateFromLocal = fromDateValue.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+                LocalDate dateToLocal = toDateValue.toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDate();
 
-            // Clear form
-            description.setText("");
-            fromDate.setDate(null);
-            toDate.setDate(null);
-            closeHostDialog();
+                int refundCount = 0;
+                int totalFormsCreated = 0;
+                for (int memberId : memberIds) {
+                    insertPs.setInt(1, memberId);
+                    insertPs.setString(2, desc);
+                    insertPs.setString(3, dateFromStr);
+                    insertPs.setString(4, dateToStr);
+                    insertPs.executeUpdate();
+                    
+                    // Get the generated refund ID
+                    ResultSet generatedKeys = insertPs.getGeneratedKeys();
+                    if (generatedKeys.next()) {
+                        int refundId = generatedKeys.getInt(1);
+                        // Create refund forms from loans for this member - Pass the existing connection
+                        int formsCreated = refundFormService.bulkInsertFromLoans(con, memberId, dateFromLocal, dateToLocal, refundId);
+                        totalFormsCreated += formsCreated;
+                    }
+                    generatedKeys.close();
+                    refundCount++;
+                }
+
+                con.commit();
+                insertPs.close();
+                con.close();
+
+                lastCommittedDescription = desc;
+                JOptionPane.showMessageDialog(this, 
+                    "Successfully created service charge refunds for " + refundCount + " members\n" +
+                    "Total forms generated: " + totalFormsCreated,
+                    "Success", JOptionPane.INFORMATION_MESSAGE);
+                
+                // Clear form
+                description.setText("");
+                fromDate.setDate(null);
+                toDate.setDate(null);
+                closeHostDialog();
+            } catch (Exception e) {
+                con.rollback();
+                con.close();
+                throw e;
+            }
 
         } catch (Exception e) {
             e.printStackTrace();

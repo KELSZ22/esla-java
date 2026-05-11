@@ -140,7 +140,9 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
 
         public TypeCellEditor() {
             comboBox = new javax.swing.JComboBox<>();
-            comboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "channel 3", "resort", "executive", "consultant", "other" }));
+            for (com.kelsz.esla.enums.MemberType type : com.kelsz.esla.enums.MemberType.values()) {
+                comboBox.addItem(type.getValue());
+            }
             style.applyComboBox(comboBox);
         }
 
@@ -330,8 +332,11 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
                 String address = rs.getString("address");
                 String memberType = rs.getString("member_type");
                 int premium = rs.getInt("premium");
-                java.sql.Date sqlDate = rs.getDate("member_since");
-                String memberSince = sqlDate != null ? sqlDate.toString() : "";
+                String msStr = rs.getString("member_since");
+                if (msStr != null && msStr.length() > 10) {
+                    msStr = msStr.substring(0, 10);
+                }
+                String memberSince = msStr != null ? msStr : "";
 
                 // Store all data for filtering
                 allMemberData.add(new Object[]{id, name, email, phone, address, memberType, premium, memberSince});
@@ -598,7 +603,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
             if (confirm == JOptionPane.YES_OPTION) {
                 try {
                     Connection con = Database.getConnection();
-                    String sql = "UPDATE members SET deleted_at = NOW() WHERE id = ?";
+                    String sql = "UPDATE members SET deleted_at = datetime('now') WHERE id = ?";
                     PreparedStatement ps = con.prepareStatement(sql);
                     ps.setInt(1, id);
                     ps.executeUpdate();

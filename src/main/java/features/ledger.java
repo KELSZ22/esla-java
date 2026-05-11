@@ -122,7 +122,9 @@ public class ledger extends javax.swing.JPanel implements ui.Refreshable {
 
         public TypeCellEditor() {
             comboBox = new javax.swing.JComboBox<>();
-            comboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "income", "expense", "loan", "payment" }));
+            for (com.kelsz.esla.enums.MemberType type : com.kelsz.esla.enums.MemberType.values()) {
+                comboBox.addItem(type.getValue());
+            }
             style.applyComboBox(comboBox);
         }
 
@@ -306,8 +308,11 @@ model.addColumn(""); // Delete
             int id = rs.getInt("id");
             String description = rs.getString("description");
             String type = rs.getString("type");
-            java.sql.Date sqlDate = rs.getDate("date");
-            String date = sqlDate != null ? sqlDate.toString() : "";
+            String dateStr = rs.getString("date");
+            if (dateStr != null && dateStr.length() > 10) {
+                dateStr = dateStr.substring(0, 10);
+            }
+            String date = dateStr != null ? dateStr : "";
 
             // Store all data for filtering
             allLedgerData.add(new Object[]{id, description, type, date});
@@ -588,8 +593,32 @@ model.addColumn(""); // Delete
 
     if (row < 0 || col < 0) return;
 
-    // Handle Manage column click
+    // Handle Edit column click (Column 3)
     if (col == 3) {
+        int id = rowIds.get(row);
+        currentLedgerForm = new LedgerForm(id);
+
+        // Create modern dialog
+        java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
+        javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Edit Ledger", true);
+        style.applyModernDialog(dialog, currentLedgerForm, "Edit Ledger");
+        dialog.setDefaultCloseOperation(javax.swing.JDialog.DISPOSE_ON_CLOSE);
+        dialog.pack();
+        dialog.setLocationRelativeTo(parentFrame);
+
+        // Set callback to refresh table when dialog closes
+        currentLedgerForm.setCallback(() -> {
+            dialog.dispose();
+            setupTable();
+            populateMemberTypes();
+        });
+
+        dialog.setVisible(true);
+        return;
+    }
+
+    // Handle Manage column click (Column 4)
+    if (col == 4) {
         int id = rowIds.get(row);
         // Open manageLedger panel with selected ledger data
         currentManagePanel = new manageLedger();
@@ -684,8 +713,8 @@ model.addColumn(""); // Delete
         return;
     }
 
-    // Handle Delete column click
-    if (col == 4) {
+    // Handle Delete column click (Column 5)
+    if (col == 5) {
         int id = rowIds.get(row);
         int confirm = JOptionPane.showConfirmDialog(
             this,
@@ -715,8 +744,8 @@ model.addColumn(""); // Delete
         return;
     }
 
-    // 🚫 prevent editing Delete and Manage columns
-    if (col == 3 || col == 4) return;
+    // 🚫 prevent editing Action columns
+    if (col >= 3) return;
 
     // Only trigger edit on double-click
     if (evt.getClickCount() == 2) {

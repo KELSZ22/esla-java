@@ -429,8 +429,20 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
             ResultSet rs = ps.executeQuery();
 
             if (rs.next()) {
-                java.sql.Date dateFrom = rs.getDate("date_from");
-                java.sql.Date dateTo = rs.getDate("date_to");
+                String dfStr = rs.getString("date_from");
+                java.sql.Date dateFrom = null;
+                if (dfStr != null && !dfStr.isEmpty()) {
+                    if (dfStr.length() > 10) dfStr = dfStr.substring(0, 10);
+                    dateFrom = java.sql.Date.valueOf(dfStr);
+                }
+                
+                String dtStr = rs.getString("date_to");
+                java.sql.Date dateTo = null;
+                if (dtStr != null && !dtStr.isEmpty()) {
+                    if (dtStr.length() > 10) dtStr = dtStr.substring(0, 10);
+                    dateTo = java.sql.Date.valueOf(dtStr);
+                }
+                
                 setDisplayDateLabels(dateFrom, dateTo);
             } else {
                 setDisplayDateLabels(null, null);
@@ -621,8 +633,23 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                 Map<String, Object> refund = new java.util.HashMap<>();
                 refund.put("id", rs.getInt("id"));
                 refund.put("description", rs.getString("description"));
-                refund.put("date_from", rs.getDate("date_from"));
-                refund.put("date_to", rs.getDate("date_to"));
+                
+                String dfStr = rs.getString("date_from");
+                if (dfStr != null && !dfStr.isEmpty()) {
+                    if (dfStr.length() > 10) dfStr = dfStr.substring(0, 10);
+                    refund.put("date_from", java.sql.Date.valueOf(dfStr));
+                } else {
+                    refund.put("date_from", null);
+                }
+                
+                String dtStr = rs.getString("date_to");
+                if (dtStr != null && !dtStr.isEmpty()) {
+                    if (dtStr.length() > 10) dtStr = dtStr.substring(0, 10);
+                    refund.put("date_to", java.sql.Date.valueOf(dtStr));
+                } else {
+                    refund.put("date_to", null);
+                }
+                
                 refunds.add(refund);
             }
 
@@ -678,8 +705,12 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                 Map<String, Object> refund = new java.util.HashMap<>();
                 refund.put("id", rs.getInt("id"));
                 refund.put("description", rs.getString("description"));
-                refund.put("date_from", rs.getDate("date_from"));
-                refund.put("date_to", rs.getDate("date_to"));
+                
+                // Safe date parsing from string using utility
+                for (String key : new String[]{"date_from", "date_to"}) {
+                    String dateStr = rs.getString(key);
+                    refund.put(key, com.kelsz.esla.util.DateUtils.parseSqlDateSafely(dateStr));
+                }
 
                 int refundId = (Integer) refund.get("id");
 
@@ -870,7 +901,12 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
             while (rs.next()) {
                 String memberName = rs.getString("name");
                 Integer formNumber = rs.getInt("form_number");
-                java.sql.Date dateLoan = rs.getDate("date_loan");
+                String dlStr = rs.getString("date_loan");
+                java.sql.Date dateLoan = null;
+                if (dlStr != null && !dlStr.isEmpty()) {
+                    if (dlStr.length() > 10) dlStr = dlStr.substring(0, 10);
+                    dateLoan = java.sql.Date.valueOf(dlStr);
+                }
                 BigDecimal principal = rs.getBigDecimal("principal");
                 BigDecimal interest = rs.getBigDecimal("interest");
                 BigDecimal serviceCharge = rs.getBigDecimal("service_charge");

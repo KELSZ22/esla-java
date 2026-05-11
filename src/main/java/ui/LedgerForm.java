@@ -193,22 +193,43 @@ public class LedgerForm extends javax.swing.JPanel {
 
         style.applyDateChooserStyle(ledgerDate);
         jLabel1.setVisible(false);
+
+        // Ensure save button listener is attached if not already
+        if (saveLedgerButton.getActionListeners().length == 0) {
+            saveLedgerButton.addActionListener(e -> saveLedger());
+        }
     }
 
     // =========================
     // POPULATE MEMBER TYPES
     // =========================
     private void populateMemberTypes() {
+        selectTypeField.removeAllItems();
+        for (com.kelsz.esla.enums.MemberType type : com.kelsz.esla.enums.MemberType.values()) {
+            selectTypeField.addItem(type.getValue());
+        }
+        
         try {
             Connection con = Database.getConnection();
             String sql = "SELECT DISTINCT type FROM ledgers ORDER BY type";
             PreparedStatement ps = con.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
 
-            selectTypeField.removeAllItems();
-
             while (rs.next()) {
-                selectTypeField.addItem(rs.getString("type"));
+                String type = rs.getString("type");
+                if (type != null && !type.isEmpty()) {
+                    // Only add if not already in the list
+                    boolean exists = false;
+                    for (int i = 0; i < selectTypeField.getItemCount(); i++) {
+                        if (selectTypeField.getItemAt(i).equals(type)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        selectTypeField.addItem(type);
+                    }
+                }
             }
 
             rs.close();

@@ -10,17 +10,30 @@ public class Database {
 
     // 🔌 SQLite CONFIG (HARDCODED)
     private static final String URL = "jdbc:sqlite:esla.db";
+    private static boolean isInitialized = false;
 
     private Database() {
         // prevent instantiation
     }
 
-    public static Connection getConnection() {
+    public static synchronized Connection getConnection() {
         try {
             // Explicitly load the SQLite driver class
             Class.forName("org.sqlite.JDBC");
             Connection connection = DriverManager.getConnection(URL);
-            initializeDatabase(connection);
+            
+            // Set SQLite Pragmas for better concurrency and performance
+            try (Statement stmt = connection.createStatement()) {
+                stmt.execute("PRAGMA journal_mode=WAL;");
+                stmt.execute("PRAGMA synchronous=NORMAL;");
+                stmt.execute("PRAGMA busy_timeout=5000;");
+            }
+            
+            if (!isInitialized) {
+                initializeDatabase(connection);
+                isInitialized = true;
+            }
+            
             System.out.println("✅ SQLite Connected!");
             return connection;
         } catch (ClassNotFoundException e) {
@@ -35,6 +48,7 @@ public class Database {
     }
 
     private static void initializeDatabase(Connection conn) {
+        System.out.println("🔄 Initializing Database Schema...");
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS users (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -159,6 +173,7 @@ public class Database {
                 "FOREIGN KEY (mscr_refund_id) REFERENCES member_service_charge_refunds(id) ON DELETE CASCADE" +
                 ")");
 
+            System.out.println("✅ Database Schema Initialized!");
         } catch (SQLException e) {
             System.out.println("❌ DB Initialization Failed");
             e.printStackTrace();

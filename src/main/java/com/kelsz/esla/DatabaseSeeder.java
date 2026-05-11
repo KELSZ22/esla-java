@@ -37,21 +37,21 @@ public class DatabaseSeeder {
 
             // 1. Seed Members
             System.out.println("👤 Seeding Members...");
-            String[] memberTypes = {"Regular", "Associate"};
+            com.kelsz.esla.enums.MemberType[] memberTypes = com.kelsz.esla.enums.MemberType.values();
             for (int i = 1; i <= 20; i++) {
                 insertMember(conn, "Member " + i, "member" + i + "@example.com", 
                              "0912345678" + i, "Address " + i, 
-                             memberTypes[random.nextInt(memberTypes.length)], 
+                             memberTypes[random.nextInt(memberTypes.length)].getValue(), 
                              Date.valueOf(LocalDate.now().minusMonths(random.nextInt(24))), 
                              500 + random.nextInt(1500));
             }
 
             // 2. Seed Ledgers
             System.out.println("📔 Seeding Ledgers...");
-            String[] ledgerTypes = {"Regular Loan", "Salary Loan", "Emergency Loan"};
-            for (int i = 1; i <= 5; i++) {
-                insertLedger(conn, "Batch " + i + " " + LocalDate.now().getYear(), 
-                             ledgerTypes[random.nextInt(ledgerTypes.length)], 
+            com.kelsz.esla.enums.MemberType[] ledgerTypes = com.kelsz.esla.enums.MemberType.values();
+            for (int i = 1; i <= ledgerTypes.length; i++) {
+                insertLedger(conn, ledgerTypes[i-1].toString().toUpperCase() + " Batch " + LocalDate.now().getYear(), 
+                             ledgerTypes[i-1].getValue(), 
                              Date.valueOf(LocalDate.now().minusDays(i * 30)));
             }
 

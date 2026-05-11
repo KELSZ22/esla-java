@@ -32,8 +32,19 @@ public class MemberServiceChargeRefundFormService {
      * @return Number of forms created
      */
     public int bulkInsertFromLoans(int memberId, LocalDate dateFrom, LocalDate dateTo, int mscrRefundId) {
+        try (Connection con = Database.getConnection()) {
+            return bulkInsertFromLoans(con, memberId, dateFrom, dateTo, mscrRefundId);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    /**
+     * Overloaded version that accepts a connection
+     */
+    public int bulkInsertFromLoans(Connection con, int memberId, LocalDate dateFrom, LocalDate dateTo, int mscrRefundId) {
         try {
-            Connection con = Database.getConnection();
 
             // Pre-fetch all form_data dates for this member to calculate positions
             java.util.Map<String, java.util.List<LocalDate>> ledgerTypeFormDates = new java.util.HashMap<>();
@@ -49,9 +60,10 @@ public class MemberServiceChargeRefundFormService {
             ResultSet allRs = allPs.executeQuery();
             while (allRs.next()) {
                 String type = allRs.getString("ledger_type");
-                java.sql.Date fdDate = allRs.getDate("date");
-                if (fdDate != null) {
-                    ledgerTypeFormDates.computeIfAbsent(type, k -> new ArrayList<>()).add(fdDate.toLocalDate());
+                String fdDateStr = allRs.getString("date");
+                LocalDate parsedDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(fdDateStr);
+                if (parsedDate != null) {
+                    ledgerTypeFormDates.computeIfAbsent(type, k -> new java.util.ArrayList<>()).add(parsedDate);
                 }
             }
             allRs.close();
@@ -77,7 +89,7 @@ public class MemberServiceChargeRefundFormService {
                     mscr_refund_id, form_number, date_loan, principal, interest, service_charge,
                     total, no_of_months, collected_interest, total_interest, refund_60, refund_40,
                     remarks, has_balance, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
             """;
             PreparedStatement insertPs = con.prepareStatement(insertSql);
 
@@ -85,8 +97,13 @@ public class MemberServiceChargeRefundFormService {
             while (loanRs.next()) {
                 String ledgerType = loanRs.getString("ledger_type");
                 int formNumber = loanRs.getInt("form_number");
-                LocalDate loanDate = loanRs.getDate("date") != null ? loanRs.getDate("date").toLocalDate() : null;
-                LocalDate startDeductionDate = loanRs.getDate("start_deduction_date") != null ? loanRs.getDate("start_deduction_date").toLocalDate() : null;
+                
+                String dateStr = loanRs.getString("date");
+                LocalDate loanDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
+
+                String sddStr = loanRs.getString("start_deduction_date");
+                LocalDate startDeductionDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(sddStr);
+                
                 Boolean startDeductionOnLoanDate = loanRs.getBoolean("start_deduction_on_loan_date");
                 BigDecimal principal = loanRs.getBigDecimal("principal");
                 BigDecimal interest = loanRs.getBigDecimal("interest");
@@ -173,7 +190,7 @@ public class MemberServiceChargeRefundFormService {
                 // Insert the refund form
                 insertPs.setInt(1, mscrRefundId);
                 insertPs.setInt(2, formNumber);
-                insertPs.setDate(3, loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
+                insertPs.setString(3, loanDate != null ? loanDate.toString() : null);
                 insertPs.setBigDecimal(4, principal);
                 insertPs.setBigDecimal(5, interest);
                 insertPs.setBigDecimal(6, serviceCharge);
@@ -197,7 +214,6 @@ public class MemberServiceChargeRefundFormService {
             loanRs.close();
             loanPs.close();
             insertPs.close();
-            con.close();
 
             return count;
         } catch (SQLException e) {
@@ -233,7 +249,14 @@ public class MemberServiceChargeRefundFormService {
                 Map<String, Object> form = new java.util.HashMap<>();
                 form.put("id", rs.getInt("id"));
                 form.put("form_number", rs.getInt("form_number"));
-                form.put("date_loan", rs.getDate("date_loan"));
+                String dlStr = rs.getString("date_loan");
+                if (dlStr != null && !dlStr.isEmpty()) {
+                    if (dlStr.length() > 10) dlStr = dlStr.substring(0, 10);
+                    form.put("date_loan", java.sql.Date.valueOf(dlStr));
+                } else {
+                    form.put("date_loan", null);
+                }
+                
                 form.put("principal", rs.getBigDecimal("principal"));
                 form.put("interest", rs.getBigDecimal("interest"));
                 form.put("service_charge", rs.getBigDecimal("service_charge"));
@@ -328,8 +351,14 @@ public class MemberServiceChargeRefundFormService {
                 refund = new java.util.HashMap<>();
                 refund.put("id", rs.getInt("id"));
                 refund.put("description", rs.getString("description"));
-                refund.put("date_from", rs.getDate("date_from"));
-                refund.put("date_to", rs.getDate("date_to"));
+                
+                String dfStr = rs.getString("date_from");
+                if (dfStr != null && dfStr.length() > 10) dfStr = dfStr.substring(0, 10);
+                refund.put("date_from", dfStr);
+                
+                String dtStr = rs.getString("date_to");
+                if (dtStr != null && dtStr.length() > 10) dtStr = dtStr.substring(0, 10);
+                refund.put("date_to", dtStr);
             }
 
             rs.close();
@@ -415,7 +444,7 @@ public class MemberServiceChargeRefundFormService {
                         refund_40 = ?,
                         remarks = ?,
                         has_balance = ?,
-                        updated_at = NOW()
+                        updated_at = datetime('now')
                     WHERE id = ? AND deleted_at IS NULL
                     """;
                 PreparedStatement updatePs = con.prepareStatement(updateSql);

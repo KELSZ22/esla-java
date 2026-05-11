@@ -110,7 +110,8 @@ public class PaymentService {
                 previousEntry.memberId = rs.getInt("member_id");
                 previousEntry.formNumber = rs.getObject("form_number", Integer.class);
                 previousEntry.isLoan = rs.getObject("is_loan", Boolean.class);
-                previousEntry.date = rs.getDate("date").toLocalDate();
+                String dateStr = rs.getString("date");
+                previousEntry.date = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
                 previousEntry.shouldBePaid = rs.getBigDecimal("should_be_paid");
                 previousEntry.actualPayment = rs.getBigDecimal("actual_payment");
                 previousEntry.balance = rs.getBigDecimal("balance");
@@ -309,7 +310,7 @@ public class PaymentService {
             ps.setInt(2, memberId);
             ps.setInt(3, formNumber);
             ps.setBoolean(4, false); // is_loan
-            ps.setDate(5, date != null ? java.sql.Date.valueOf(date) : null);
+            ps.setString(5, date != null ? date.toString() : null);
             ps.setBigDecimal(6, scheduledPayment);
             ps.setBigDecimal(7, premium);
             ps.setBigDecimal(8, actualPayment);
@@ -378,11 +379,15 @@ public class PaymentService {
                 loanInfo.ledgerId = rs.getInt("ledger_id");
                 loanInfo.memberId = rs.getInt("member_id");
                 loanInfo.formNumber = rs.getObject("form_number", Integer.class);
-                loanInfo.date = rs.getDate("date").toLocalDate();
+                loanInfo.formNumber = rs.getObject("form_number", Integer.class);
+                
+                String dateStr = rs.getString("date");
+                loanInfo.date = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
+                
                 loanInfo.startDeductionOnLoanDate = rs.getObject("start_deduction_on_loan_date", Boolean.class);
-                loanInfo.startDeductionDate = rs.getDate("start_deduction_date") != null 
-                    ? rs.getDate("start_deduction_date").toLocalDate() 
-                    : null;
+                
+                String sddStr = rs.getString("start_deduction_date");
+                loanInfo.startDeductionDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(sddStr);
                 loanInfo.principal = rs.getBigDecimal("principal");
                 loanInfo.serviceCharge = rs.getBigDecimal("service_charge");
                 loanInfo.serviceChargeBalance = rs.getBigDecimal("service_charge_balance");

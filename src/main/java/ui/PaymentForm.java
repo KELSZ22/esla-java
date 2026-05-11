@@ -42,9 +42,10 @@ public class PaymentForm extends javax.swing.JPanel {
             ps.setInt(1, paymentRecordId);
             java.sql.ResultSet rs = ps.executeQuery();
             if (rs.next()) {
-                java.sql.Date sqlDate = rs.getDate("date");
-                if (sqlDate != null) {
-                    date.setDate(new java.util.Date(sqlDate.getTime()));
+                String dateStr = rs.getString("date");
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    if (dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
+                    date.setDate(java.sql.Date.valueOf(dateStr));
                 }
                 scheduledPayment.setText(formatCurrency(rs.getBigDecimal("scheduled_payment")));
                 shouldBePaid.setText(formatCurrency(rs.getBigDecimal("should_be_paid")));
@@ -534,7 +535,7 @@ public class PaymentForm extends javax.swing.JPanel {
                     prevPs.setString(1, ledgerType);
                     prevPs.setInt(2, memberId);
                     prevPs.setInt(3, paymentRecordId);
-                    prevPs.setDate(4, java.sql.Date.valueOf(paymentDate));
+                    prevPs.setString(4, paymentDate.toString());
                     java.sql.ResultSet prevRs = prevPs.executeQuery();
                     
                     java.math.BigDecimal prevBalance = java.math.BigDecimal.ZERO;
@@ -558,7 +559,7 @@ public class PaymentForm extends javax.swing.JPanel {
                     java.sql.PreparedStatement loanPs = con.prepareStatement(loanSql);
                     loanPs.setString(1, ledgerType);
                     loanPs.setInt(2, memberId);
-                    loanPs.setDate(3, java.sql.Date.valueOf(paymentDate));
+                    loanPs.setString(3, paymentDate.toString());
                     java.sql.ResultSet loanRs = loanPs.executeQuery();
                     if (loanRs.next()) {
                         loanTotal = loanRs.getBigDecimal("total");
@@ -576,7 +577,7 @@ public class PaymentForm extends javax.swing.JPanel {
                                    // Update
                     String updateSql = "UPDATE form_data SET date=?, scheduled_payment=?, actual_payment=?, premium=?, remarks=?, should_be_paid=?, balance=?, under_paid=?, premium_total=?, actual_payroll=? WHERE id=?";
                     java.sql.PreparedStatement updatePs = con.prepareStatement(updateSql);
-                    updatePs.setDate(1, java.sql.Date.valueOf(paymentDate));
+                    updatePs.setString(1, paymentDate.toString());
                     updatePs.setBigDecimal(2, scheduledPayment);
                     updatePs.setBigDecimal(3, actualPayment);
                     updatePs.setBigDecimal(4, premium);

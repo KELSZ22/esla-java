@@ -511,8 +511,8 @@ public class manageLedger extends javax.swing.JPanel {
                 Object remarksObj = model.getValueAt(row, 9);
                 String remarks = remarksObj != null ? remarksObj.toString() : "";
                 
-                ps.setDate(1, date);
-                ps.setDate(2, deductionDate);
+                ps.setString(1, date != null ? date.toString() : null);
+                ps.setString(2, deductionDate != null ? deductionDate.toString() : null);
                 ps.setBigDecimal(3, principal);
                 ps.setBigDecimal(4, serviceCharge);
                 ps.setBigDecimal(5, interest);
@@ -1042,9 +1042,24 @@ public class manageLedger extends javax.swing.JPanel {
 
             int rowCount = 0;
             while (rs.next()) {
+                String dateStr = rs.getString("date");
+                java.util.Date dateVal = null;
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    try {
+                        if (dateStr.matches("\\d+")) {
+                            dateVal = new java.sql.Date(Long.parseLong(dateStr));
+                        } else {
+                            if (dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
+                            dateVal = java.sql.Date.valueOf(dateStr);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Failed to parse date: " + dateStr);
+                    }
+                }
+                
                 model.addRow(new Object[]{
                     rs.getInt("id"),
-                    rs.getDate("date"),
+                    dateVal,
                     formatCurrency(rs.getBigDecimal("should_be_paid")),
                     formatCurrency(rs.getBigDecimal("actual_payment")),
                     formatCurrency(rs.getBigDecimal("balance")),
@@ -1184,10 +1199,40 @@ public class manageLedger extends javax.swing.JPanel {
 
             int rowCount = 0;
             while (rs.next()) {
+                String dateStr = rs.getString("date");
+                java.util.Date dateVal = null;
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    try {
+                        if (dateStr.matches("\\d+")) {
+                            dateVal = new java.sql.Date(Long.parseLong(dateStr));
+                        } else {
+                            if (dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
+                            dateVal = java.sql.Date.valueOf(dateStr);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Failed to parse date: " + dateStr);
+                    }
+                }
+
+                String sddStr = rs.getString("start_deduction_date");
+                java.util.Date sddVal = null;
+                if (sddStr != null && !sddStr.isEmpty()) {
+                    try {
+                        if (sddStr.matches("\\d+")) {
+                            sddVal = new java.sql.Date(Long.parseLong(sddStr));
+                        } else {
+                            if (sddStr.length() > 10) sddStr = sddStr.substring(0, 10);
+                            sddVal = java.sql.Date.valueOf(sddStr);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Failed to parse start_deduction_date: " + sddStr);
+                    }
+                }
+
                 model.addRow(new Object[]{
                     rs.getInt("id"),
-                    rs.getDate("date"),
-                    rs.getDate("start_deduction_date"),
+                    dateVal,
+                    sddVal,
                     formatCurrency(rs.getBigDecimal("principal")),
                     formatCurrency(rs.getBigDecimal("service_charge")),
                     formatCurrency(rs.getBigDecimal("interest")),

@@ -56,11 +56,17 @@ public class LoanForm extends javax.swing.JPanel {
                 if (rs.getObject("form_number") != null) {
                     formNo.setText(String.valueOf(rs.getInt("form_number")));
                 }
-                java.sql.Date dateVal = rs.getDate("date");
-                if (dateVal != null) jDateChooser2.setDate(new java.util.Date(dateVal.getTime()));
+                String dateStr = rs.getString("date");
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    if (dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
+                    jDateChooser2.setDate(java.sql.Date.valueOf(dateStr));
+                }
                 
-                java.sql.Date deductionDateVal = rs.getDate("start_deduction_date");
-                if (deductionDateVal != null) jDateChooser1.setDate(new java.util.Date(deductionDateVal.getTime()));
+                String deductionDateStr = rs.getString("start_deduction_date");
+                if (deductionDateStr != null && !deductionDateStr.isEmpty()) {
+                    if (deductionDateStr.length() > 10) deductionDateStr = deductionDateStr.substring(0, 10);
+                    jDateChooser1.setDate(java.sql.Date.valueOf(deductionDateStr));
+                }
                 
                 if (rs.getBigDecimal("principal") != null) {
                     jTextField1.setText(formatCurrency(rs.getBigDecimal("principal")));
@@ -212,7 +218,8 @@ public class LoanForm extends javax.swing.JPanel {
                             .addComponent(jLabel3)
                             .addComponent(jLabel5)
                             .addComponent(jLabel6)
-                            .addComponent(formNo, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addComponent(formNo, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(serviceCharge, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addGap(15, 15, 15)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -321,8 +328,8 @@ public class LoanForm extends javax.swing.JPanel {
                 String sql = "UPDATE loans SET form_number=?, date=?, start_deduction_date=?, principal=?, service_charge=?, interest=?, total=?, cutoffs=?, cutoffs_amount=?, remarks=? WHERE id=?";
                 java.sql.PreparedStatement ps = con.prepareStatement(sql);
                 ps.setObject(1, formNumber);
-                ps.setDate(2, loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
-                ps.setDate(3, startDeductionDate != null ? java.sql.Date.valueOf(startDeductionDate) : null);
+                ps.setString(2, loanDate != null ? loanDate.toString() : null);
+                ps.setString(3, startDeductionDate != null ? startDeductionDate.toString() : null);
                 ps.setBigDecimal(4, p);
                 ps.setBigDecimal(5, serviceChargeCalculated);
                 ps.setBigDecimal(6, interest);

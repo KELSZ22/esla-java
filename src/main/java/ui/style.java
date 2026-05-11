@@ -578,13 +578,9 @@ public static void applyTableStyle(JTable table, int fontSize, int headerFontSiz
         contentWrapper.setOpaque(false);
         contentWrapper.setBorder(BorderFactory.createEmptyBorder(10, 20, 20, 20));
         
-        // Remove background from the provided content to blend in
-        content.setOpaque(false);
-        for (Component c : content.getComponents()) {
-            if (c instanceof JPanel) {
-                ((JPanel) c).setOpaque(false);
-            }
-        }
+        // Ensure content is opaque for stable rendering and no blinking while typing
+        content.setOpaque(true);
+        content.setBackground(Color.WHITE);
         
         contentWrapper.add(content, BorderLayout.CENTER);
         mainPanel.add(contentWrapper, BorderLayout.CENTER);

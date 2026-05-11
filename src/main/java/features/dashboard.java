@@ -169,9 +169,8 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
 
             LocalDate latestDate = null;
             if (rs.next()) {
-                if (rs.getDate("latest_date") != null) {
-                    latestDate = rs.getDate("latest_date").toLocalDate();
-                }
+                String dateStr = rs.getString("latest_date");
+                latestDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
             }
 
             rs.close();
@@ -230,8 +229,13 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
 
             while (rs.next()) {
                 int memberId = rs.getInt("member_id");
-                LocalDate loanDate = rs.getDate("date") != null ? rs.getDate("date").toLocalDate() : null;
-                LocalDate startDeductionDate = rs.getDate("start_deduction_date") != null ? rs.getDate("start_deduction_date").toLocalDate() : null;
+                
+                String dateStr = rs.getString("date");
+                LocalDate loanDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
+
+                String sddStr = rs.getString("start_deduction_date");
+                LocalDate startDeductionDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(sddStr);
+                
                 Boolean startDeductionOnLoanDate = rs.getBoolean("start_deduction_on_loan_date");
                 BigDecimal total = rs.getBigDecimal("total");
                 Integer cutoffs = rs.getInt("cutoffs");

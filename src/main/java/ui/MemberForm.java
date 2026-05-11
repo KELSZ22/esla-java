@@ -26,6 +26,7 @@ public class MemberForm extends javax.swing.JPanel {
      */
     public MemberForm() {
         initComponents();
+        populateMemberTypes();
         applyStyles();
     }
 
@@ -36,6 +37,7 @@ public class MemberForm extends javax.swing.JPanel {
         this.memberId = memberId;
         this.isEditMode = true;
         initComponents();
+        populateMemberTypes();
         applyStyles();
         jLabel1.setText("Edit Member");
         loadMemberData();
@@ -55,9 +57,10 @@ public class MemberForm extends javax.swing.JPanel {
                 formNo3.setText(rs.getString("address"));
                 jComboBox1.setSelectedItem(rs.getString("member_type"));
                 formNo5.setText(String.valueOf(rs.getInt("premium")));
-                java.sql.Date sqlDate = rs.getDate("member_since");
-                if (sqlDate != null) {
-                    memberSince.setDate(new java.util.Date(sqlDate.getTime()));
+                String msStr = rs.getString("member_since");
+                if (msStr != null && !msStr.isEmpty()) {
+                    if (msStr.length() > 10) msStr = msStr.substring(0, 10);
+                    memberSince.setDate(java.sql.Date.valueOf(msStr));
                 }
             }
             rs.close();
@@ -241,7 +244,13 @@ public class MemberForm extends javax.swing.JPanel {
 
     private void formNo5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_formNo5ActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_formNo5ActionPerformed
+    }
+    private void populateMemberTypes() {
+        jComboBox1.removeAllItems();
+        for (com.kelsz.esla.enums.MemberType type : com.kelsz.esla.enums.MemberType.values()) {
+            jComboBox1.addItem(type.getValue());
+        }
+    }
 
     private boolean validateForm() {
         if (this.name.getText().trim().isEmpty()) {

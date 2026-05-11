@@ -97,14 +97,14 @@ public class LoanService {
             ps.setInt(1, ledgerId);
             ps.setInt(2, memberId);
             ps.setInt(3, formNumber);
-            ps.setDate(4, date != null ? java.sql.Date.valueOf(date) : null);
+            ps.setString(4, date != null ? date.toString() : null);
             ps.setBigDecimal(5, principal);
             ps.setBigDecimal(6, serviceCharge); // Store calculated service charge amount
             ps.setBigDecimal(7, interest);
             ps.setBigDecimal(8, total);
             ps.setInt(9, noOfMonths);
             ps.setBigDecimal(10, cutoffsAmount);
-            ps.setDate(11, startDeductionDate != null ? java.sql.Date.valueOf(startDeductionDate) : null);
+            ps.setString(11, startDeductionDate != null ? startDeductionDate.toString() : null);
             ps.setBoolean(12, startDeductionOnLoanDate != null ? startDeductionOnLoanDate : false);
             // Set balances equal to initial values for new loans
             ps.setBigDecimal(13, serviceChargeBalance); // Store service_charge_balance rate (0.03)
@@ -293,8 +293,14 @@ public class LoanService {
             BigDecimal totalPayment = BigDecimal.ZERO;
 
             while (loanRs.next()) {
-                LocalDate loanDate = loanRs.getDate("date") != null ? loanRs.getDate("date").toLocalDate() : null;
-                LocalDate startDeductionDate = loanRs.getDate("start_deduction_date") != null ? loanRs.getDate("start_deduction_date").toLocalDate() : null;
+                String dateStr = loanRs.getString("date");
+                LocalDate loanDate = null;
+                loanDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
+
+                String sddStr = loanRs.getString("start_deduction_date");
+                LocalDate startDeductionDate = null;
+                startDeductionDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(sddStr);
+                
                 Boolean startDeductionOnLoanDate = loanRs.getBoolean("start_deduction_on_loan_date");
                 BigDecimal total = loanRs.getBigDecimal("total");
                 Integer cutoffs = loanRs.getInt("cutoffs");
@@ -428,8 +434,15 @@ public class LoanService {
 
             while (loanRs.next()) {
                 int formNumber = loanRs.getInt("form_number");
-                LocalDate loanDate = loanRs.getDate("date") != null ? loanRs.getDate("date").toLocalDate() : null;
-                LocalDate startDeductionDate = loanRs.getDate("start_deduction_date") != null ? loanRs.getDate("start_deduction_date").toLocalDate() : null;
+                
+                String dateStr = loanRs.getString("date");
+                LocalDate loanDate = null;
+                loanDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
+
+                String sddStr = loanRs.getString("start_deduction_date");
+                LocalDate startDeductionDate = null;
+                startDeductionDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(sddStr);
+
                 Boolean startDeductionOnLoanDate = loanRs.getBoolean("start_deduction_on_loan_date");
                 BigDecimal total = loanRs.getBigDecimal("total");
                 Integer cutoffs = loanRs.getInt("cutoffs");
@@ -559,14 +572,17 @@ public class LoanService {
             """;
             PreparedStatement ps = con.prepareStatement(sql);
             ps.setString(1, ledgerType);
-            ps.setDate(2, date != null ? java.sql.Date.valueOf(date) : null);
+            ps.setString(2, date != null ? date.toString() : null);
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
                 java.util.Map<String, Object> loanInfo = new java.util.HashMap<>();
                 loanInfo.put("id", rs.getInt("id"));
                 loanInfo.put("form_number", rs.getInt("form_number"));
-                loanInfo.put("date", rs.getDate("date"));
+                
+                String dateStr = rs.getString("date");
+                if (dateStr != null && dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
+                loanInfo.put("date", dateStr);
                 loanInfo.put("principal", rs.getBigDecimal("principal"));
                 loanInfo.put("service_charge", rs.getBigDecimal("service_charge"));
                 loanInfo.put("interest", rs.getBigDecimal("interest"));
@@ -668,8 +684,15 @@ public class LoanService {
 
             while (loanRs.next()) {
                 int loanId = loanRs.getInt("id");
-                LocalDate loanDate = loanRs.getDate("date") != null ? loanRs.getDate("date").toLocalDate() : null;
-                LocalDate startDeductionDate = loanRs.getDate("start_deduction_date") != null ? loanRs.getDate("start_deduction_date").toLocalDate() : null;
+                
+                String dateStr = loanRs.getString("date");
+                LocalDate loanDate = null;
+                loanDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
+
+                String sddStr = loanRs.getString("start_deduction_date");
+                LocalDate startDeductionDate = null;
+                startDeductionDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(sddStr);
+                
                 Boolean startDeductionOnLoanDate = loanRs.getBoolean("start_deduction_on_loan_date");
                 BigDecimal total = loanRs.getBigDecimal("total");
                 Integer cutoffs = loanRs.getInt("cutoffs");

@@ -652,36 +652,132 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
                 Workbook workbook = new XSSFWorkbook();
                 Sheet sheet = workbook.createSheet("Dashboard");
                 
-                // Create header row
-                Row headerRow = sheet.createRow(0);
+                // -- Styles --
+                // Title style
+                CellStyle titleStyle = workbook.createCellStyle();
+                Font titleFont = workbook.createFont();
+                titleFont.setBold(true);
+                titleFont.setFontHeightInPoints((short) 16);
+                titleStyle.setFont(titleFont);
+
+                // Header style (blue background, white bold text)
+                CellStyle headerStyle = workbook.createCellStyle();
+                Font headerFont = workbook.createFont();
+                headerFont.setBold(true);
+                headerFont.setColor(IndexedColors.WHITE.getIndex());
+                headerStyle.setFont(headerFont);
+                headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+                headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                headerStyle.setBorderBottom(BorderStyle.THIN);
+                headerStyle.setBorderTop(BorderStyle.THIN);
+                headerStyle.setBorderLeft(BorderStyle.THIN);
+                headerStyle.setBorderRight(BorderStyle.THIN);
+
+                // Group header style (bold, blue text, light gray background)
+                CellStyle groupHeaderStyle = workbook.createCellStyle();
+                Font groupHeaderFont = workbook.createFont();
+                groupHeaderFont.setBold(true);
+                groupHeaderFont.setColor(IndexedColors.DARK_BLUE.getIndex());
+                groupHeaderStyle.setFont(groupHeaderFont);
+                groupHeaderStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+                groupHeaderStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+                groupHeaderStyle.setBorderBottom(BorderStyle.THIN);
+                groupHeaderStyle.setBorderTop(BorderStyle.THIN);
+                groupHeaderStyle.setBorderLeft(BorderStyle.THIN);
+                groupHeaderStyle.setBorderRight(BorderStyle.THIN);
+
+                // Normal cell style
+                CellStyle normalStyle = workbook.createCellStyle();
+                normalStyle.setBorderBottom(BorderStyle.THIN);
+                normalStyle.setBorderTop(BorderStyle.THIN);
+                normalStyle.setBorderLeft(BorderStyle.THIN);
+                normalStyle.setBorderRight(BorderStyle.THIN);
+
+                // Number cell style (2 decimal places)
+                CellStyle numberStyle = workbook.createCellStyle();
+                numberStyle.setDataFormat(workbook.createDataFormat().getFormat("#,##0.00"));
+                numberStyle.setBorderBottom(BorderStyle.THIN);
+                numberStyle.setBorderTop(BorderStyle.THIN);
+                numberStyle.setBorderLeft(BorderStyle.THIN);
+                numberStyle.setBorderRight(BorderStyle.THIN);
+
+                int excelRow = 0;
+
+                // -- Title row with date --
+                Row titleRow = sheet.createRow(excelRow++);
+                Cell titleCell = titleRow.createCell(0);
+                String dateLabel = "";
+                if (chooseDate.getDate() != null) {
+                    LocalDate selectedDate = new java.sql.Date(chooseDate.getDate().getTime()).toLocalDate();
+                    dateLabel = " — " + selectedDate.toString();
+                }
+                titleCell.setCellValue("Dashboard Report" + dateLabel);
+                titleCell.setCellStyle(titleStyle);
+                excelRow++; // blank row after title
+
+                // -- Column headers --
                 String[] headers = {"Name", "Premium", "Loan", "Total"};
+                // Only export the 4 visible columns (indices 0-3), skip hidden MemberType (index 4)
+                int[] visibleCols = {0, 1, 2, 3};
+
+                Row headerRow = sheet.createRow(excelRow++);
                 for (int i = 0; i < headers.length; i++) {
                     Cell cell = headerRow.createCell(i);
                     cell.setCellValue(headers[i]);
+                    cell.setCellStyle(headerStyle);
                 }
-                
-                // Get table data
+
+                // -- Data rows (respect current filter/sorter) --
                 DefaultTableModel model = (DefaultTableModel) dashboardTable.getModel();
-                for (int row = 0; row < model.getRowCount(); row++) {
-                    Row excelRow = sheet.createRow(row + 1);
-                    for (int col = 0; col < model.getColumnCount(); col++) {
-                        Object value = model.getValueAt(row, col);
-                        Cell cell = excelRow.createCell(col);
-                        if (value instanceof BigDecimal) {
-                            cell.setCellValue(((BigDecimal) value).doubleValue());
-                        } else if (value instanceof String) {
-                            cell.setCellValue((String) value);
+                int viewRowCount = dashboardTable.getRowCount(); // filtered view count
+
+                for (int viewRow = 0; viewRow < viewRowCount; viewRow++) {
+                    int modelRow = dashboardTable.convertRowIndexToModel(viewRow);
+
+                    // Detect group header row (columns 1, 2, 3 are empty strings)
+                    Object col1 = model.getValueAt(modelRow, 1);
+                    Object col2 = model.getValueAt(modelRow, 2);
+                    Object col3 = model.getValueAt(modelRow, 3);
+                    boolean isGroupHeader = (col1 != null && col1.toString().isEmpty() &&
+                                            col2 != null && col2.toString().isEmpty() &&
+                                            col3 != null && col3.toString().isEmpty());
+
+                    Row dataRow = sheet.createRow(excelRow++);
+
+                    for (int i = 0; i < visibleCols.length; i++) {
+                        Object value = model.getValueAt(modelRow, visibleCols[i]);
+                        Cell cell = dataRow.createCell(i);
+
+                        if (isGroupHeader) {
+                            // Group header: bold text, spanning first column
+                            cell.setCellStyle(groupHeaderStyle);
+                            if (i == 0) {
+                                cell.setCellValue(value != null ? value.toString() : "");
+                            } else {
+                                cell.setCellValue("");
+                            }
                         } else {
-                            cell.setCellValue(value != null ? value.toString() : "");
+                            // Regular data row
+                            if (value instanceof BigDecimal) {
+                                cell.setCellValue(((BigDecimal) value).doubleValue());
+                                cell.setCellStyle(numberStyle);
+                            } else {
+                                cell.setCellValue(value != null ? value.toString() : "");
+                                cell.setCellStyle(normalStyle);
+                            }
                         }
                     }
                 }
-                
+
                 // Auto-size columns
                 for (int i = 0; i < headers.length; i++) {
                     sheet.autoSizeColumn(i);
+                    // Minimum width of 15 characters
+                    if (sheet.getColumnWidth(i) < 15 * 256) {
+                        sheet.setColumnWidth(i, 15 * 256);
+                    }
                 }
-                
+
                 // Write to file
                 try (FileOutputStream outputStream = new FileOutputStream(fileToSave)) {
                     workbook.write(outputStream);
@@ -707,141 +803,140 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
                 File fileToSave = fileChooser.getSelectedFile();
                 
                 PDDocument document = new PDDocument();
-                PDPage page = new PDPage();
-                document.addPage(page);
-                
-                PDPageContentStream contentStream = new PDPageContentStream(document, page);
                 
                 // Get table data
                 DefaultTableModel model = (DefaultTableModel) dashboardTable.getModel();
                 
+                // Only export the 4 visible columns (indices 0-3), skip hidden MemberType (index 4)
+                String[] headers = {"Name", "Premium", "Loan", "Total"};
+                int[] visibleCols = {0, 1, 2, 3};
+                
                 // Table configuration
                 float margin = 50;
                 float tableWidth = 500;
-                float yPosition = 700;
-                float rowHeight = 20;
-                float[] colWidths = {200, 100, 100, 100, 100}; // Name, Premium, Loan, Total, MemberType
+                float rowHeight = 18;
+                float[] colWidths = {200, 100, 100, 100}; // Only 4 visible columns
+                float titleY = 760;
+                float subtitleY = 742;
+                float tableStartY = 720;
+                
+                // Build date subtitle
+                String dateSubtitle = "";
+                if (chooseDate.getDate() != null) {
+                    LocalDate selectedDate = new java.sql.Date(chooseDate.getDate().getTime()).toLocalDate();
+                    dateSubtitle = "Date: " + selectedDate.toString();
+                }
+                
+                // Use filtered view row count
+                int viewRowCount = dashboardTable.getRowCount();
+                
+                // Track pages for proper border drawing
+                PDPage page = new PDPage();
+                document.addPage(page);
+                PDPageContentStream contentStream = new PDPageContentStream(document, page);
                 
                 // Draw title
                 contentStream.beginText();
                 contentStream.setFont(PDType1Font.HELVETICA_BOLD, 16);
-                contentStream.newLineAtOffset(margin, 750);
+                contentStream.newLineAtOffset(margin, titleY);
                 contentStream.showText("Dashboard Report");
                 contentStream.endText();
                 
-                // Draw table headers
-                contentStream.setLineWidth(1f);
-                contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
-                
-                float xPosition = margin;
-                String[] headers = {"Name", "Premium", "Loan", "Total"};
-                
-                // Draw header background
-                contentStream.setNonStrokingColor(21, 55, 143); // Blue background
-                contentStream.addRect(margin, yPosition - rowHeight, tableWidth, rowHeight);
-                contentStream.fill();
-                contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
-                
-                // Draw header text
-                contentStream.setNonStrokingColor(255, 255, 255); // White text
-                for (int i = 0; i < headers.length; i++) {
+                // Draw date subtitle
+                if (!dateSubtitle.isEmpty()) {
                     contentStream.beginText();
-                    contentStream.newLineAtOffset(xPosition + 5, yPosition - 7);
-                    contentStream.showText(headers[i]);
+                    contentStream.setFont(PDType1Font.HELVETICA, 10);
+                    contentStream.newLineAtOffset(margin, subtitleY);
+                    contentStream.showText(dateSubtitle);
                     contentStream.endText();
-                    xPosition += colWidths[i];
                 }
-                contentStream.setNonStrokingColor(0, 0, 0); // Reset to black
                 
-                yPosition -= rowHeight;
+                float yPosition = tableStartY;
+                float pageTableTopY = yPosition; // Track top of table on current page
+                
+                // Draw initial header
+                yPosition = drawPDFTableHeader(contentStream, headers, colWidths, margin, yPosition, tableWidth, rowHeight);
                 
                 // Draw data rows
-                for (int row = 0; row < model.getRowCount(); row++) {
+                for (int viewRow = 0; viewRow < viewRowCount; viewRow++) {
+                    int modelRow = dashboardTable.convertRowIndexToModel(viewRow);
+                    
                     if (yPosition < 50) {
-                        // Add new page if needed
+                        // Draw vertical column lines for current page
+                        drawPDFColumnLines(contentStream, margin, pageTableTopY, yPosition + rowHeight, colWidths);
+                        
                         contentStream.close();
                         page = new PDPage();
                         document.addPage(page);
                         contentStream = new PDPageContentStream(document, page);
-                        yPosition = 750;
+                        yPosition = 760;
+                        pageTableTopY = yPosition;
                         
                         // Redraw headers on new page
-                        contentStream.setLineWidth(1f);
-                        contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
-                        xPosition = margin;
-                        contentStream.setNonStrokingColor(21, 55, 143);
-                        contentStream.addRect(margin, yPosition - rowHeight, tableWidth, rowHeight);
-                        contentStream.fill();
-                        contentStream.setNonStrokingColor(255, 255, 255);
-                        for (int i = 0; i < headers.length; i++) {
-                            contentStream.beginText();
-                            contentStream.newLineAtOffset(xPosition + 5, yPosition - 7);
-                            contentStream.showText(headers[i]);
-                            contentStream.endText();
-                            xPosition += colWidths[i];
-                        }
-                        contentStream.setNonStrokingColor(0, 0, 0);
-                        yPosition -= rowHeight;
+                        yPosition = drawPDFTableHeader(contentStream, headers, colWidths, margin, yPosition, tableWidth, rowHeight);
                     }
                     
-                    // Check if this is a group header row
-                    Object col1 = model.getValueAt(row, 1);
-                    Object col2 = model.getValueAt(row, 2);
-                    Object col3 = model.getValueAt(row, 3);
-                    boolean isGroupHeader = (col1 != null && col1.toString().isEmpty() && 
-                                           col2 != null && col2.toString().isEmpty() && 
-                                           col3 != null && col3.toString().isEmpty());
+                    // Detect group header row
+                    Object col1 = model.getValueAt(modelRow, 1);
+                    Object col2 = model.getValueAt(modelRow, 2);
+                    Object col3 = model.getValueAt(modelRow, 3);
+                    boolean isGroupHeader = (col1 != null && col1.toString().isEmpty() &&
+                                            col2 != null && col2.toString().isEmpty() &&
+                                            col3 != null && col3.toString().isEmpty());
                     
                     if (isGroupHeader) {
-                        // Draw group header row
-                        contentStream.setNonStrokingColor(200, 200, 200); // Light gray
+                        // Draw group header background
+                        contentStream.setNonStrokingColor(220, 225, 235);
                         contentStream.addRect(margin, yPosition - rowHeight, tableWidth, rowHeight);
                         contentStream.fill();
-                        contentStream.setNonStrokingColor(0, 0, 0);
                         
-                        contentStream.setFont(PDType1Font.HELVETICA_BOLD, 12);
-                        xPosition = margin;
-                        for (int col = 0; col < model.getColumnCount(); col++) {
-                            Object value = model.getValueAt(row, col);
-                            String stringValue = value != null ? value.toString() : "";
-                            contentStream.beginText();
-                            contentStream.newLineAtOffset(xPosition + 5, yPosition - 7);
-                            contentStream.showText(stringValue.length() > 25 ? stringValue.substring(0, 25) : stringValue);
-                            contentStream.endText();
-                            xPosition += colWidths[col];
-                        }
+                        // Draw group header text (only the name in the first column)
+                        contentStream.setNonStrokingColor(21, 55, 143);
+                        contentStream.setFont(PDType1Font.HELVETICA_BOLD, 10);
+                        Object nameValue = model.getValueAt(modelRow, 0);
+                        String groupName = nameValue != null ? nameValue.toString() : "";
+                        contentStream.beginText();
+                        contentStream.newLineAtOffset(margin + 5, yPosition - rowHeight + 5);
+                        contentStream.showText(groupName.length() > 40 ? groupName.substring(0, 40) : groupName);
+                        contentStream.endText();
+                        contentStream.setNonStrokingColor(0, 0, 0);
                     } else {
                         // Draw regular data row
-                        contentStream.setFont(PDType1Font.HELVETICA, 10);
-                        xPosition = margin;
-                        for (int col = 0; col < model.getColumnCount(); col++) {
-                            Object value = model.getValueAt(row, col);
+                        contentStream.setFont(PDType1Font.HELVETICA, 9);
+                        float xPos = margin;
+                        for (int i = 0; i < visibleCols.length; i++) {
+                            Object value = model.getValueAt(modelRow, visibleCols[i]);
                             String stringValue = value != null ? value.toString() : "";
+                            // Truncate long names
+                            int maxChars = i == 0 ? 35 : 15;
+                            if (stringValue.length() > maxChars) {
+                                stringValue = stringValue.substring(0, maxChars) + "…";
+                            }
                             contentStream.beginText();
-                            contentStream.newLineAtOffset(xPosition + 5, yPosition - 7);
-                            contentStream.showText(stringValue.length() > 25 ? stringValue.substring(0, 25) : stringValue);
+                            contentStream.newLineAtOffset(xPos + 5, yPosition - rowHeight + 5);
+                            contentStream.showText(stringValue);
                             contentStream.endText();
-                            xPosition += colWidths[col];
+                            xPos += colWidths[i];
                         }
                     }
                     
-                    // Draw row border
-                    contentStream.setStrokingColor(0, 0, 0);
-                    contentStream.moveTo(margin, yPosition);
-                    contentStream.lineTo(margin + tableWidth, yPosition);
+                    // Draw row bottom border
+                    contentStream.setStrokingColor(200, 200, 200);
+                    contentStream.setLineWidth(0.5f);
+                    contentStream.moveTo(margin, yPosition - rowHeight);
+                    contentStream.lineTo(margin + tableWidth, yPosition - rowHeight);
                     contentStream.stroke();
                     
                     yPosition -= rowHeight;
                 }
                 
-                // Draw table border
-                contentStream.setStrokingColor(0, 0, 0);
+                // Draw vertical column lines for last page
+                drawPDFColumnLines(contentStream, margin, pageTableTopY, yPosition, colWidths);
+                
+                // Draw outer table border for last page
+                contentStream.setStrokingColor(100, 100, 100);
                 contentStream.setLineWidth(1f);
-                contentStream.moveTo(margin, 700);
-                contentStream.lineTo(margin, yPosition + rowHeight);
-                contentStream.lineTo(margin + tableWidth, yPosition + rowHeight);
-                contentStream.lineTo(margin + tableWidth, 700);
-                contentStream.lineTo(margin, 700);
+                contentStream.addRect(margin, yPosition, tableWidth, pageTableTopY - yPosition);
                 contentStream.stroke();
                 
                 contentStream.close();
@@ -854,6 +949,44 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
         } catch (Exception e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error exporting to PDF: " + e.getMessage());
+        }
+    }
+    
+    private float drawPDFTableHeader(PDPageContentStream contentStream, String[] headers, float[] colWidths,
+                                     float margin, float yPosition, float tableWidth, float rowHeight) throws java.io.IOException {
+        // Draw header background
+        contentStream.setNonStrokingColor(21, 55, 143);
+        contentStream.addRect(margin, yPosition - rowHeight, tableWidth, rowHeight);
+        contentStream.fill();
+        
+        // Draw header text
+        contentStream.setNonStrokingColor(255, 255, 255);
+        contentStream.setFont(PDType1Font.HELVETICA_BOLD, 10);
+        float xPos = margin;
+        for (int i = 0; i < headers.length; i++) {
+            contentStream.beginText();
+            contentStream.newLineAtOffset(xPos + 5, yPosition - rowHeight + 5);
+            contentStream.showText(headers[i]);
+            contentStream.endText();
+            xPos += colWidths[i];
+        }
+        contentStream.setNonStrokingColor(0, 0, 0);
+        
+        return yPosition - rowHeight;
+    }
+    
+    private void drawPDFColumnLines(PDPageContentStream contentStream, float margin, float topY, float bottomY,
+                                    float[] colWidths) throws java.io.IOException {
+        contentStream.setStrokingColor(200, 200, 200);
+        contentStream.setLineWidth(0.5f);
+        float xPos = margin;
+        for (int i = 0; i <= colWidths.length; i++) {
+            contentStream.moveTo(xPos, topY);
+            contentStream.lineTo(xPos, bottomY);
+            contentStream.stroke();
+            if (i < colWidths.length) {
+                xPos += colWidths[i];
+            }
         }
     }
 }

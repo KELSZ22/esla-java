@@ -10,11 +10,13 @@ import java.time.LocalDate;
  *
  * @author kelsz-dev
  */
-public class LoanForm extends javax.swing.JDialog {
+public class LoanForm extends javax.swing.JPanel {
 
     private int ledgerId;
     private int memberId;
     private String ledgerType;
+    private int loanRecordId = -1;
+    private boolean isEditMode = false;
 
     /**
      * Creates new form LoanForm as a modal dialog
@@ -23,25 +25,77 @@ public class LoanForm extends javax.swing.JDialog {
      * @param memberId The member ID
      * @param ledgerType The ledger type
      */
-    public LoanForm(java.awt.Frame parent, int ledgerId, int memberId, String ledgerType) {
-        super(parent, "Create Loan", true);
+    public LoanForm(int ledgerId, int memberId, String ledgerType) {
         this.ledgerId = ledgerId;
         this.memberId = memberId;
         this.ledgerType = ledgerType;
         initComponents();
         applyStyling();
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+    }
 
-        // Set default service charge to 0.03
-        serviceCharge.setText("0.03");
-
-        pack();
-        setLocationRelativeTo(parent);
+    public LoanForm(int ledgerId, int memberId, String ledgerType, int loanRecordId) {
+        this.ledgerId = ledgerId;
+        this.memberId = memberId;
+        this.ledgerType = ledgerType;
+        this.loanRecordId = loanRecordId;
+        this.isEditMode = true;
+        initComponents();
+        applyStyling();
+        jLabel1.setText("Edit Loan");
+        loadLoanData();
+    }
+    
+    private void loadLoanData() {
+        try {
+            java.sql.Connection con = com.kelsz.esla.Database.getConnection();
+            String sql = "SELECT * FROM loans WHERE id = ?";
+            java.sql.PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, loanRecordId);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                if (rs.getObject("form_number") != null) {
+                    formNo.setText(String.valueOf(rs.getInt("form_number")));
+                }
+                String dateStr = rs.getString("date");
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    if (dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
+                    jDateChooser2.setDate(java.sql.Date.valueOf(dateStr));
+                }
+                
+                String deductionDateStr = rs.getString("start_deduction_date");
+                if (deductionDateStr != null && !deductionDateStr.isEmpty()) {
+                    if (deductionDateStr.length() > 10) deductionDateStr = deductionDateStr.substring(0, 10);
+                    jDateChooser1.setDate(java.sql.Date.valueOf(deductionDateStr));
+                }
+                
+                if (rs.getBigDecimal("principal") != null) {
+                    jTextField1.setText(formatCurrency(rs.getBigDecimal("principal")));
+                }
+                if (rs.getBigDecimal("service_charge") != null) {
+                    serviceCharge.setText(formatCurrency(rs.getBigDecimal("service_charge")));
+                }
+                if (rs.getObject("cutoffs") != null) {
+                    no_of_months.setText(String.valueOf(rs.getInt("cutoffs")));
+                }
+                remarks.setText(rs.getString("remarks"));
+            }
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private String formatCurrency(java.math.BigDecimal value) {
+        if (value == null) return "0.00";
+        java.text.DecimalFormat currencyFormat = new java.text.DecimalFormat("#,##0.00");
+        return currencyFormat.format(value);
     }
 
     private void applyStyling() {
-        // Apply dialog content pane styling
-        getContentPane().setBackground(java.awt.Color.WHITE);
+        // Apply panel styling
+        setBackground(java.awt.Color.WHITE);
 
         // Apply text field styling
         style.applyTextField(formNo);
@@ -65,10 +119,19 @@ public class LoanForm extends javax.swing.JDialog {
         remarks.setWrapStyleWord(true);
 
         // Style date choosers
-        jDateChooser1.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
-        jDateChooser1.setBackground(java.awt.Color.WHITE);
-        jDateChooser2.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
-        jDateChooser2.setBackground(java.awt.Color.WHITE);
+        style.applyDateChooserStyle(jDateChooser1);
+        style.applyDateChooserStyle(jDateChooser2);
+        
+        style.applyModernLabel(jLabel1, true);
+        style.applyModernLabel(jLabel2, false);
+        style.applyModernLabel(jLabel3, false);
+        style.applyModernLabel(jLabel4, false);
+        style.applyModernLabel(jLabel5, false);
+        style.applyModernLabel(jLabel6, false);
+        style.applyModernLabel(jLabel7, false);
+        style.applyModernLabel(dateLabel, false);
+        
+        jLabel1.setVisible(false);
     }
 
     /**
@@ -135,81 +198,76 @@ public class LoanForm extends javax.swing.JDialog {
         jLabel7.setFont(new java.awt.Font("Dialog", 0, 15)); // NOI18N
         jLabel7.setText("Principal");
 
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-        getContentPane().setLayout(layout);
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
+        this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(16, 16, 16)
+                .addGap(20, 20, 20)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(loanCanvelButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(saveLoanButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addComponent(jScrollPane1)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(serviceCharge)
-                            .addComponent(jDateChooser1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 246, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jLabel2)
                             .addComponent(jLabel3)
                             .addComponent(jLabel5)
                             .addComponent(jLabel6)
-                            .addComponent(formNo, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                            .addComponent(formNo, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(serviceCharge, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(15, 15, 15)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(no_of_months)
-                            .addComponent(jTextField1)
+                            .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(dateLabel)
                             .addComponent(jLabel4)
                             .addComponent(jLabel7)
-                            .addComponent(jDateChooser2, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(loanCanvelButton)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(saveLoanButton)))
-                .addGap(16, 16, 16))
+                            .addComponent(jDateChooser2, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(no_of_months, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addGap(20, 20, 20))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(16, 16, 16)
+                .addGap(20, 20, 20)
                 .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(34, 34, 34)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(jLabel2)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(dateLabel)
-                        .addGap(12, 12, 12)))
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                    .addComponent(jDateChooser2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(formNo, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE))
+                .addGap(20, 20, 20)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel2)
+                    .addComponent(dateLabel))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel3)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(serviceCharge, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel4)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(no_of_months, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jDateChooser2, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                    .addComponent(formNo))
+                .addGap(15, 15, 15)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel3)
+                    .addComponent(jLabel4))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(serviceCharge, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(no_of_months, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(15, 15, 15)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(jLabel6)
                     .addComponent(jLabel7))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(jTextField1)
                     .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGap(15, 15, 15)
                 .addComponent(jLabel5)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 132, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
+                .addGap(30, 30, 30)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(saveLoanButton)
-                    .addComponent(loanCanvelButton))
-                .addGap(16, 16, 16))
+                    .addComponent(saveLoanButton, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(loanCanvelButton, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(20, 20, 20))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -252,24 +310,71 @@ public class LoanForm extends javax.swing.JDialog {
             Integer noOfMonths = no_of_months.getText().trim().isEmpty() ? null : Integer.parseInt(no_of_months.getText().trim());
             String remarks = this.remarks.getText();
 
-            // Create loan using LoanService
-            services.LoanService loanService = new services.LoanService();
-            int loanId = loanService.createLoan(
-                ledgerId, memberId, formNumber, loanDate,
-                principal, serviceChargeValue, noOfMonths, startDeductionDate, null, remarks
-            );
-
-            if (loanId > 0) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Loan created successfully!",
-                    "Success",
-                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                dispose();
+            if (isEditMode) {
+                // Calculate computed fields
+                java.math.BigDecimal p = principal != null ? principal : java.math.BigDecimal.ZERO;
+                int cutoffs = noOfMonths != null ? noOfMonths : 0;
+                
+                java.math.BigDecimal serviceChargeCalculated = p.multiply(new java.math.BigDecimal("0.03")).setScale(2, java.math.RoundingMode.HALF_UP);
+                java.math.BigDecimal interest = p.multiply(new java.math.BigDecimal("0.03")).multiply(java.math.BigDecimal.valueOf(cutoffs));
+                java.math.BigDecimal total = p.add(serviceChargeCalculated).add(interest);
+                
+                java.math.BigDecimal cutoffsAmount = java.math.BigDecimal.ZERO;
+                if (cutoffs > 0) {
+                    cutoffsAmount = total.divide(java.math.BigDecimal.valueOf(cutoffs * 2), 2, java.math.RoundingMode.HALF_UP);
+                }
+                
+                java.sql.Connection con = com.kelsz.esla.Database.getConnection();
+                String sql = "UPDATE loans SET form_number=?, date=?, start_deduction_date=?, principal=?, service_charge=?, interest=?, total=?, cutoffs=?, cutoffs_amount=?, remarks=? WHERE id=?";
+                java.sql.PreparedStatement ps = con.prepareStatement(sql);
+                ps.setObject(1, formNumber);
+                ps.setString(2, loanDate != null ? loanDate.toString() : null);
+                ps.setString(3, startDeductionDate != null ? startDeductionDate.toString() : null);
+                ps.setBigDecimal(4, p);
+                ps.setBigDecimal(5, serviceChargeCalculated);
+                ps.setBigDecimal(6, interest);
+                ps.setBigDecimal(7, total);
+                ps.setInt(8, cutoffs);
+                ps.setBigDecimal(9, cutoffsAmount);
+                ps.setString(10, remarks);
+                ps.setInt(11, loanRecordId);
+                
+                int rowsAffected = ps.executeUpdate();
+                ps.close();
+                con.close();
+                
+                if (rowsAffected > 0) {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Loan updated successfully!",
+                        "Success",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Failed to update loan. Please try again.",
+                        "Error",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
             } else {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Failed to create loan. Please try again.",
-                    "Error",
-                    javax.swing.JOptionPane.ERROR_MESSAGE);
+                // Create loan using LoanService
+                services.LoanService loanService = new services.LoanService();
+                int loanId = loanService.createLoan(
+                    ledgerId, memberId, formNumber, loanDate,
+                    principal, serviceChargeValue, noOfMonths, startDeductionDate, null, remarks
+                );
+
+                if (loanId > 0) {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Loan created successfully!",
+                        "Success",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Failed to create loan. Please try again.",
+                        "Error",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
             }
         } catch (NumberFormatException e) {
             e.printStackTrace();
@@ -287,7 +392,7 @@ public class LoanForm extends javax.swing.JDialog {
     }//GEN-LAST:event_saveLoanButtonActionPerformed
 
     private void loanCanvelButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loanCanvelButtonActionPerformed
-        dispose();
+        javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
     }//GEN-LAST:event_loanCanvelButtonActionPerformed
 
     /**

@@ -5,6 +5,7 @@
 package com.kelsz.esla;
 
 import features.dashboard;
+import features.dividend;
 import features.ledger;
 import features.member;
 import features.serviceCharge;
@@ -12,6 +13,7 @@ import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import javax.swing.JPanel;
 import ui.HeaderNav;
+import ui.style;
 
 /**
  *
@@ -38,11 +40,13 @@ public class MainFrame extends javax.swing.JFrame {
 
     cardLayout = new CardLayout();
     contentPanel = new JPanel(cardLayout);
+    style.applyPanel(contentPanel);
 
     contentPanel.add(new dashboard(), "dashboard");
     contentPanel.add(new ledger(), "ledger");
     contentPanel.add(new member(), "member");
     contentPanel.add(new serviceCharge(), "service");
+    contentPanel.add(new dividend(), "dividend");
 
     getContentPane().add(contentPanel, BorderLayout.CENTER);
 
@@ -50,9 +54,19 @@ public class MainFrame extends javax.swing.JFrame {
 }
 
     public void showPage(String name) {
-    System.out.println("Switching to: " + name);
-    cardLayout.show(contentPanel, name);
-}
+        System.out.println("Switching to: " + name);
+        cardLayout.show(contentPanel, name);
+    }
+
+    public void refreshActivePage() {
+        System.out.println("Refreshing active page...");
+        for (java.awt.Component comp : contentPanel.getComponents()) {
+            if (comp.isVisible() && comp instanceof ui.Refreshable) {
+                ((ui.Refreshable) comp).refresh();
+                break;
+            }
+        }
+    }
 
 
     /**
@@ -102,7 +116,7 @@ public class MainFrame extends javax.swing.JFrame {
         //</editor-fold>
 
         /* Create and display the form */
-        java.awt.EventQueue.invokeLater(() -> new MainFrame().setVisible(true));
+        java.awt.EventQueue.invokeLater(() -> com.kelsz.esla.Esla.main(args));
     }
 
  

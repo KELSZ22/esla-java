@@ -25,10 +25,47 @@ public class LedgerForm extends javax.swing.JPanel {
      */
     private Runnable callback;
 
+    private int ledgerId = -1;
+
     public LedgerForm() {
         initComponents();
         applyStyles();
         populateMemberTypes();
+    }
+
+    public LedgerForm(int id) {
+        this.ledgerId = id;
+        initComponents();
+        applyStyles();
+        populateMemberTypes();
+        loadLedgerData();
+        jLabel1.setText("Edit Ledger");
+        jLabel1.setVisible(true);
+    }
+
+    private void loadLedgerData() {
+        try {
+            Connection con = Database.getConnection();
+            String sql = "SELECT * FROM ledgers WHERE id = ?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, ledgerId);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                description.setText(rs.getString("description"));
+                selectTypeField.setSelectedItem(rs.getString("type"));
+                String dateStr = rs.getString("date");
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    ledgerDate.setDate(new SimpleDateFormat("yyyy-MM-dd").parse(dateStr));
+                }
+            }
+
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void setCallback(Runnable callback) {
@@ -81,43 +118,43 @@ public class LedgerForm extends javax.swing.JPanel {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(16, 16, 16)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                .addGap(20, 20, 20)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(jLabel4)
+                    .addComponent(jLabel3)
+                    .addComponent(jLabel2)
+                    .addComponent(description, javax.swing.GroupLayout.DEFAULT_SIZE, 335, Short.MAX_VALUE)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 246, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(selectTypeField, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(ledgerDate, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(ledgerCancelButton)
+                        .addComponent(ledgerCancelButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(saveLedgerButton))
-                    .addComponent(jLabel4, javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel3, javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jLabel2, javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(description, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 335, Short.MAX_VALUE)
-                    .addComponent(jLabel1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 246, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(selectTypeField, javax.swing.GroupLayout.Alignment.LEADING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(ledgerDate, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addContainerGap(16, Short.MAX_VALUE))
+                        .addComponent(saveLedgerButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGap(20, 20, 20))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(16, 16, 16)
-                .addComponent(jLabel1)
-                .addGap(34, 34, 34)
+                .addGap(20, 20, 20)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20)
                 .addComponent(jLabel2)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(description, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGap(15, 15, 15)
                 .addComponent(jLabel3)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(selectTypeField, javax.swing.GroupLayout.PREFERRED_SIZE, 46, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGap(15, 15, 15)
                 .addComponent(jLabel4)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(ledgerDate, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(28, 28, 28)
+                .addGap(30, 30, 30)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(saveLedgerButton)
-                    .addComponent(ledgerCancelButton))
-                .addContainerGap(16, Short.MAX_VALUE))
+                    .addComponent(saveLedgerButton, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(ledgerCancelButton, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(20, 20, 20))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -149,36 +186,50 @@ public class LedgerForm extends javax.swing.JPanel {
         style.applyButton(saveLedgerButton);
         style.applySecondaryButton(ledgerCancelButton);
 
-        jLabel1.setFont(new Font("Dialog", Font.BOLD, 28));
-        jLabel1.setForeground(style.PRIMARY);
+        style.applyModernLabel(jLabel1, true);
+        style.applyModernLabel(jLabel2, false);
+        style.applyModernLabel(jLabel3, false);
+        style.applyModernLabel(jLabel4, false);
 
-        jLabel2.setFont(new Font("Dialog", Font.PLAIN, 15));
-        jLabel2.setForeground(Color.DARK_GRAY);
+        style.applyDateChooserStyle(ledgerDate);
+        jLabel1.setVisible(false);
 
-        jLabel3.setFont(new Font("Dialog", Font.PLAIN, 15));
-        jLabel3.setForeground(Color.DARK_GRAY);
-
-        jLabel4.setFont(new Font("Dialog", Font.PLAIN, 15));
-        jLabel4.setForeground(Color.DARK_GRAY);
-
-        ledgerDate.setFont(new Font("Ubuntu", Font.PLAIN, 15));
-        ledgerDate.setDateFormatString("yyyy-MM-dd");
+        // Ensure save button listener is attached if not already
+        if (saveLedgerButton.getActionListeners().length == 0) {
+            saveLedgerButton.addActionListener(e -> saveLedger());
+        }
     }
 
     // =========================
     // POPULATE MEMBER TYPES
     // =========================
     private void populateMemberTypes() {
+        selectTypeField.removeAllItems();
+        for (com.kelsz.esla.enums.MemberType type : com.kelsz.esla.enums.MemberType.values()) {
+            selectTypeField.addItem(type.getValue());
+        }
+        
         try {
             Connection con = Database.getConnection();
             String sql = "SELECT DISTINCT type FROM ledgers ORDER BY type";
             PreparedStatement ps = con.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
 
-            selectTypeField.removeAllItems();
-
             while (rs.next()) {
-                selectTypeField.addItem(rs.getString("type"));
+                String type = rs.getString("type");
+                if (type != null && !type.isEmpty()) {
+                    // Only add if not already in the list
+                    boolean exists = false;
+                    for (int i = 0; i < selectTypeField.getItemCount(); i++) {
+                        if (selectTypeField.getItemAt(i).equals(type)) {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists) {
+                        selectTypeField.addItem(type);
+                    }
+                }
             }
 
             rs.close();
@@ -217,18 +268,27 @@ public class LedgerForm extends javax.swing.JPanel {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
             String dateStr = sdf.format(date);
 
-            String sql = "INSERT INTO ledgers (description, type, date) VALUES (?, ?, ?)";
+            String sql;
+            if (ledgerId == -1) {
+                sql = "INSERT INTO ledgers (description, type, date) VALUES (?, ?, ?)";
+            } else {
+                sql = "UPDATE ledgers SET description = ?, type = ?, date = ? WHERE id = ?";
+            }
+            
             PreparedStatement ps = con.prepareStatement(sql);
             ps.setString(1, desc);
             ps.setString(2, type);
             ps.setString(3, dateStr);
+            if (ledgerId != -1) {
+                ps.setInt(4, ledgerId);
+            }
 
             ps.executeUpdate();
 
             ps.close();
             con.close();
 
-            JOptionPane.showMessageDialog(this, "Ledger added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Ledger " + (ledgerId == -1 ? "added" : "updated") + " successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
 
             // Clear form
             description.setText("");

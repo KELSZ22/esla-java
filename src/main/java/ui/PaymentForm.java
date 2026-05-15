@@ -4,13 +4,14 @@
  */
 package ui;
 
+import java.awt.Color;
 import java.time.LocalDate;
 
 /**
  *
  * @author kelsz-dev
  */
-public class PaymentForm extends javax.swing.JDialog {
+public class PaymentForm extends javax.swing.JPanel {
 
     private int ledgerId;
     private int memberId;
@@ -18,6 +19,50 @@ public class PaymentForm extends javax.swing.JDialog {
     private boolean isEditMode = false;
     private java.math.BigDecimal scheduledPaymentForDate;
     private java.math.BigDecimal shouldBePaidForDate;
+    private int paymentRecordId = -1;
+
+    public PaymentForm(int ledgerId, int memberId, String ledgerType, int paymentRecordId) {
+        this.ledgerId = ledgerId;
+        this.memberId = memberId;
+        this.ledgerType = ledgerType;
+        this.paymentRecordId = paymentRecordId;
+        this.isEditMode = true;
+        initComponents();
+        applyStyling();
+        jLabel1.setText("Edit Payment");
+        loadPaymentData();
+        addDateChangeListener();
+    }
+    
+    private void loadPaymentData() {
+        try {
+            java.sql.Connection con = com.kelsz.esla.Database.getConnection();
+            String sql = "SELECT * FROM form_data WHERE id = ?";
+            java.sql.PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, paymentRecordId);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                String dateStr = rs.getString("date");
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    if (dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
+                    date.setDate(java.sql.Date.valueOf(dateStr));
+                }
+                scheduledPayment.setText(formatCurrency(rs.getBigDecimal("scheduled_payment")));
+                shouldBePaid.setText(formatCurrency(rs.getBigDecimal("should_be_paid")));
+                actualPayment.setText(formatCurrency(rs.getBigDecimal("actual_payment")));
+                premium.setText(formatCurrency(rs.getBigDecimal("premium")));
+                remarks.setText(rs.getString("remarks"));
+                
+                scheduledPaymentForDate = rs.getBigDecimal("scheduled_payment");
+                shouldBePaidForDate = rs.getBigDecimal("should_be_paid");
+            }
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * Creates new form PaymentForm as a modal dialog
@@ -26,14 +71,12 @@ public class PaymentForm extends javax.swing.JDialog {
      * @param memberId The member ID
      * @param ledgerType The ledger type
      */
-    public PaymentForm(java.awt.Frame parent, int ledgerId, int memberId, String ledgerType) {
-        super(parent, "Create Payment", true);
+    public PaymentForm(int ledgerId, int memberId, String ledgerType) {
         this.ledgerId = ledgerId;
         this.memberId = memberId;
         this.ledgerType = ledgerType;
         initComponents();
         applyStyling();
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         
         // Add date change listener for real-time computation
         addDateChangeListener();
@@ -43,9 +86,6 @@ public class PaymentForm extends javax.swing.JDialog {
         
         // Auto-fill premium from member data
         autoFillPremium();
-
-        pack();
-        setLocationRelativeTo(parent);
     }
 
     /**
@@ -54,18 +94,14 @@ public class PaymentForm extends javax.swing.JDialog {
      * @deprecated Use the constructor with ledgerId, memberId, and ledgerType parameters
      */
     @Deprecated
-    public PaymentForm(java.awt.Frame parent) {
-        super(parent, "Create Payment", true);
+    public PaymentForm() {
         initComponents();
         applyStyling();
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        pack();
-        setLocationRelativeTo(parent);
     }
 
     private void applyStyling() {
-        // Apply dialog content pane styling
-        getContentPane().setBackground(java.awt.Color.WHITE);
+        // Apply panel styling
+        setBackground(java.awt.Color.WHITE);
 
         // Apply text field styling
         style.applyTextField(scheduledPayment);
@@ -73,10 +109,10 @@ public class PaymentForm extends javax.swing.JDialog {
         style.applyTextField(actualPayment);
         style.applyTextField(premium);
 
-        // Make read-only fields visually distinct with light gray background
-        scheduledPayment.setBackground(new java.awt.Color(240, 240, 240));
+        // Make read-only fields visually distinct
+        scheduledPayment.setBackground(new java.awt.Color(245, 245, 250));
         scheduledPayment.setEditable(false);
-        shouldBePaid.setBackground(new java.awt.Color(240, 240, 240));
+        shouldBePaid.setBackground(new java.awt.Color(245, 245, 250));
         shouldBePaid.setEditable(false);
 
         // Apply button styling
@@ -84,19 +120,30 @@ public class PaymentForm extends javax.swing.JDialog {
         style.applySecondaryButton(Cancel);
 
         // Style remarks text area
-        remarks.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
+        remarks.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 15));
         remarks.setBackground(java.awt.Color.WHITE);
         remarks.setForeground(new java.awt.Color(40, 40, 40));
         remarks.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-            new javax.swing.border.LineBorder(style.PRIMARY, 1, true),
-            javax.swing.BorderFactory.createEmptyBorder(8, 12, 8, 12)
+            new javax.swing.border.LineBorder(new java.awt.Color(200, 200, 210), 1, true),
+            javax.swing.BorderFactory.createEmptyBorder(10, 14, 10, 14)
         ));
         remarks.setLineWrap(true);
         remarks.setWrapStyleWord(true);
 
+        // Modernize labels
+        style.applyModernLabel(jLabel1, true);
+        style.applyModernLabel(jLabel3, false);
+        style.applyModernLabel(jLabel4, false);
+        style.applyModernLabel(jLabel5, false);
+        style.applyModernLabel(jLabel6, false);
+        style.applyModernLabel(jLabel7, false);
+        style.applyModernLabel(jLabel8, false);
+
         // Style date chooser
-        date.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
-        date.setBackground(java.awt.Color.WHITE);
+        style.applyDateChooserStyle(date);
+
+        // Hide internal title to prevent duplication with modern dialog
+        jLabel1.setVisible(false);
     }
 
     /**
@@ -382,90 +429,70 @@ public class PaymentForm extends javax.swing.JDialog {
         Cancel.setText("Cancel");
         Cancel.addActionListener(this::CancelActionPerformed);
 
-        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
-        getContentPane().setLayout(layout);
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
+        this.setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(jLabel2)
+                .addGap(20, 20, 20)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(16, 16, 16)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(jLabel1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 203, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, layout.createSequentialGroup()
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                    .addComponent(date, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 335, Short.MAX_VALUE)
-                                    .addComponent(jLabel6, javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jLabel3, javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(shouldBePaid, javax.swing.GroupLayout.Alignment.LEADING))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                    .addComponent(jLabel4, javax.swing.GroupLayout.PREFERRED_SIZE, 166, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(jLabel7)
-                                    .addComponent(actualPayment, javax.swing.GroupLayout.DEFAULT_SIZE, 335, Short.MAX_VALUE)
-                                    .addComponent(scheduledPayment))))
-                        .addGap(0, 0, Short.MAX_VALUE))
+                        .addComponent(Cancel, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(saveButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jScrollPane1)
                     .addGroup(layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jScrollPane1)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(jLabel5)
-                                    .addComponent(premium, javax.swing.GroupLayout.PREFERRED_SIZE, 333, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(jLabel8))
-                                .addGap(0, 353, Short.MAX_VALUE))
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(Cancel)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(saveButton)))))
-                .addGap(16, 16, 16))
+                            .addComponent(jLabel3)
+                            .addComponent(date, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel6)
+                            .addComponent(shouldBePaid, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(15, 15, 15)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel4)
+                            .addComponent(scheduledPayment, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel7)
+                            .addComponent(actualPayment, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 308, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel5)
+                    .addComponent(premium, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel8))
+                .addGap(20, 20, 20))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addGap(20, 20, 20)
-                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 30, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(40, 40, 40)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(jLabel3)
-                                .addGap(9, 9, 9)
-                                .addComponent(date, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(jLabel4)
-                                .addGap(7, 7, 7)
-                                .addComponent(scheduledPayment, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(jLabel6)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(shouldBePaid, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel7)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(actualPayment, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(7, 7, 7)
-                        .addComponent(jLabel2, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(jLabel5)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(premium, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(18, 18, 18)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel3)
+                    .addComponent(jLabel4))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(date, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                    .addComponent(scheduledPayment))
+                .addGap(15, 15, 15)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel6)
+                    .addComponent(jLabel7))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(shouldBePaid, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(actualPayment, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(15, 15, 15)
+                .addComponent(jLabel5)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(premium, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(15, 15, 15)
                 .addComponent(jLabel8)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(29, 29, 29)
+                .addGap(30, 30, 30)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(Cancel)
-                    .addComponent(saveButton))
-                .addContainerGap(16, Short.MAX_VALUE))
+                    .addComponent(Cancel, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(saveButton, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(20, 20, 20))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -499,24 +526,103 @@ public class PaymentForm extends javax.swing.JDialog {
             java.math.BigDecimal actualPayment = parseDecimal(this.actualPayment.getText());
             String remarks = this.remarks.getText();
 
-            // Create payment using PaymentService
-            services.PaymentService paymentService = new services.PaymentService();
-            int recordId = paymentService.processPayment(
-                ledgerId, memberId, ledgerType, paymentDate,
-                scheduledPayment, premium, actualPayment, remarks
-            );
-
-            if (recordId > 0) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Payment created successfully!",
-                    "Success",
-                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                dispose();
+            if (isEditMode) {
+                try {
+                    java.sql.Connection con = com.kelsz.esla.Database.getConnection();
+                    // Get previous entry
+                    String prevSql = "SELECT fd.id, fd.balance, fd.under_paid, fd.premium_total FROM form_data fd INNER JOIN ledgers l ON fd.ledger_id = l.id WHERE l.type = ? AND fd.member_id = ? AND fd.id != ? AND fd.date <= ? ORDER BY fd.date DESC LIMIT 1";
+                    java.sql.PreparedStatement prevPs = con.prepareStatement(prevSql);
+                    prevPs.setString(1, ledgerType);
+                    prevPs.setInt(2, memberId);
+                    prevPs.setInt(3, paymentRecordId);
+                    prevPs.setString(4, paymentDate.toString());
+                    java.sql.ResultSet prevRs = prevPs.executeQuery();
+                    
+                    java.math.BigDecimal prevBalance = java.math.BigDecimal.ZERO;
+                    java.math.BigDecimal prevUnderPaid = java.math.BigDecimal.ZERO;
+                    java.math.BigDecimal prevPremiumTotal = java.math.BigDecimal.ZERO;
+                    
+                    if (prevRs.next()) {
+                        prevBalance = prevRs.getBigDecimal("balance");
+                        if (prevBalance == null) prevBalance = java.math.BigDecimal.ZERO;
+                        prevUnderPaid = prevRs.getBigDecimal("under_paid");
+                        if (prevUnderPaid == null) prevUnderPaid = java.math.BigDecimal.ZERO;
+                        prevPremiumTotal = prevRs.getBigDecimal("premium_total");
+                        if (prevPremiumTotal == null) prevPremiumTotal = java.math.BigDecimal.ZERO;
+                    }
+                    prevRs.close();
+                    prevPs.close();
+                    
+                    // Get loan total
+                    java.math.BigDecimal loanTotal = java.math.BigDecimal.ZERO;
+                    String loanSql = "SELECT l.total FROM loans l INNER JOIN ledgers led ON l.ledger_id = led.id WHERE led.type = ? AND l.member_id = ? AND l.date = ? LIMIT 1";
+                    java.sql.PreparedStatement loanPs = con.prepareStatement(loanSql);
+                    loanPs.setString(1, ledgerType);
+                    loanPs.setInt(2, memberId);
+                    loanPs.setString(3, paymentDate.toString());
+                    java.sql.ResultSet loanRs = loanPs.executeQuery();
+                    if (loanRs.next()) {
+                        loanTotal = loanRs.getBigDecimal("total");
+                        if (loanTotal == null) loanTotal = java.math.BigDecimal.ZERO;
+                    }
+                    loanRs.close();
+                    loanPs.close();
+                    
+                    // Calculate
+                    java.math.BigDecimal calculatedShouldBePaid = prevUnderPaid.add(scheduledPayment);
+                    java.math.BigDecimal balance = prevBalance.subtract(actualPayment).add(loanTotal);
+                    java.math.BigDecimal underPaid = actualPayment.compareTo(calculatedShouldBePaid) < 0 ? calculatedShouldBePaid.subtract(actualPayment) : java.math.BigDecimal.ZERO;
+                    java.math.BigDecimal premiumTotal = prevPremiumTotal.add(premium);
+                    java.math.BigDecimal actualPayroll = actualPayment.add(premium);
+                                   // Update
+                    String updateSql = "UPDATE form_data SET date=?, scheduled_payment=?, actual_payment=?, premium=?, remarks=?, should_be_paid=?, balance=?, under_paid=?, premium_total=?, actual_payroll=? WHERE id=?";
+                    java.sql.PreparedStatement updatePs = con.prepareStatement(updateSql);
+                    updatePs.setString(1, paymentDate.toString());
+                    updatePs.setBigDecimal(2, scheduledPayment);
+                    updatePs.setBigDecimal(3, actualPayment);
+                    updatePs.setBigDecimal(4, premium);
+                    updatePs.setString(5, remarks);
+                    updatePs.setBigDecimal(6, calculatedShouldBePaid);
+                    updatePs.setBigDecimal(7, balance);
+                    updatePs.setBigDecimal(8, underPaid);
+                    updatePs.setBigDecimal(9, premiumTotal);
+                    updatePs.setBigDecimal(10, actualPayroll);
+                    updatePs.setInt(11, paymentRecordId);
+                    
+                    int rowsAffected = updatePs.executeUpdate();
+                    updatePs.close();
+                    con.close();
+                    
+                    if (rowsAffected > 0) {
+                        javax.swing.JOptionPane.showMessageDialog(this, "Payment updated successfully!", "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                        javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                    } else {
+                        javax.swing.JOptionPane.showMessageDialog(this, "Failed to update payment.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    javax.swing.JOptionPane.showMessageDialog(this, "Error updating payment: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
             } else {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Failed to create payment. Please try again.",
-                    "Error",
-                    javax.swing.JOptionPane.ERROR_MESSAGE);
+                // Create payment using PaymentService
+                services.PaymentService paymentService = new services.PaymentService();
+                int recordId = paymentService.processPayment(
+                    ledgerId, memberId, ledgerType, paymentDate,
+                    scheduledPayment, premium, actualPayment, remarks
+                );
+
+                if (recordId > 0) {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Payment created successfully!",
+                        "Success",
+                        javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                } else {
+                    javax.swing.JOptionPane.showMessageDialog(this,
+                        "Failed to create payment. Please try again.",
+                        "Error",
+                        javax.swing.JOptionPane.ERROR_MESSAGE);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -581,7 +687,7 @@ public class PaymentForm extends javax.swing.JDialog {
     }//GEN-LAST:event_premiumActionPerformed
 
     private void CancelActionPerformed(java.awt.event.ActionEvent evt) {
-        dispose();
+        javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
     }
 
 

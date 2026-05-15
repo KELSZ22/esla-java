@@ -22,6 +22,11 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellEditor;
 import javax.swing.AbstractCellEditor;
 import javax.swing.JTable;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import com.kelsz.esla.util.ReportExporter;
+import java.time.LocalDate;
 import java.awt.Component;
 import java.util.Date;
 import com.toedter.calendar.JDateChooser;
@@ -41,6 +46,9 @@ public class manageLedger extends javax.swing.JPanel {
     private javax.swing.JButton deletePaymentButton;
     private javax.swing.JButton deleteLoanButton;
 
+    private javax.swing.JButton exportPdfButton;
+    private javax.swing.JButton exportExcelButton;
+
     /**
      * Custom table model for payment table with inline editing
      * Editable columns: Date (1), Actual Payment (3), Premium (8)
@@ -52,7 +60,7 @@ public class manageLedger extends javax.swing.JPanel {
         public boolean isCellEditable(int row, int column) {
             // Only allow editing for Date (1), Actual Payment (3), and Premium (8)
             // ID column (0) is not editable
-            return column == 1 || column == 3 || column == 8;
+            return false;
         }
 
         @Override
@@ -92,37 +100,19 @@ public class manageLedger extends javax.swing.JPanel {
         }
     }
 
-    /**
-     * Custom table header renderer (no sorting)
-     */
-    class SortIconHeaderRenderer implements javax.swing.table.TableCellRenderer {
-        private javax.swing.table.DefaultTableCellRenderer defaultRenderer;
 
-        public SortIconHeaderRenderer() {
-            defaultRenderer = new javax.swing.table.DefaultTableCellRenderer();
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                boolean isSelected, boolean hasFocus, int row, int column) {
-            Component comp = defaultRenderer.getTableCellRendererComponent(
-                table, value, isSelected, hasFocus, row, column);
-            return comp;
-        }
-    }
 
     /**
      * Custom table model for loan table with inline editing
-     * Editable columns: Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
-     * Computed/read-only columns: Service Charge (4), Interest (5), Total (6), Cutoff Amount (8)
+     * Editable columns: Form Number (1), Date (2), Deduction Date (3), Principal (4), No. of Months (8), Remarks (10)
+     * Computed/read-only columns: Service Charge (5), Interest (6), Total (7), Cutoff Amount (9)
      * ID column (0) is hidden from view
      */
     class LoanTableModel extends DefaultTableModel {
         @Override
         public boolean isCellEditable(int row, int column) {
-            // Only allow editing for Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
-            // ID column (0), Service Charge (4), Interest (5), Total (6), and Cutoff Amount (8) are not editable (computed fields)
-            return column == 1 || column == 2 || column == 3 || column == 7 || column == 9;
+            // Only allow editing for Date (1), Deduction Date (2), Principal (3), No. of Months (7), Remarks (9)
+            return false;
         }
 
         @Override
@@ -130,9 +120,9 @@ public class manageLedger extends javax.swing.JPanel {
             if (columnIndex == 0) {
                 return Integer.class; // ID
             } else if (columnIndex == 1) {
-                return Integer.class; // Form Number
-            } else if (columnIndex == 2) {
                 return Date.class; // Date
+            } else if (columnIndex == 2) {
+                return Date.class; // Deduction Date
             } else if (columnIndex == 7) {
                 return Integer.class; // No. of Months
             }
@@ -146,14 +136,20 @@ public class manageLedger extends javax.swing.JPanel {
     public manageLedger() {
         initComponents();
         setBackground(Color.WHITE);
-        style.applyTableStyle(paymentTable, 15, 14);
-        style.applyTableStyle(loanTable, 15, 14);
+        
+        // Fix title
+        jLabel1.setText("FORM DATA");
+        style.applyModernLabel(jLabel1, true);
+        
+        style.applyTableStyle(paymentTable, 14, 14);
+        style.applyTableStyle(loanTable, 14, 14);
 
         // Style back button
         style.applyBackButton(backButton);
+        backButton.addActionListener(this::backButtonActionPerformed);
 
         style.applyButton(paymentLoanButton);
-
+        paymentLoanButton.addActionListener(this::paymentLoanButtonActionPerformed);
 
         // Set initial icon and text for paymentLoanButton
         updateButtonAndForm();
@@ -169,40 +165,12 @@ public class manageLedger extends javax.swing.JPanel {
 
         
         // Style search field
-        formSearchPanel.removeAll();
-        formSearchPanel.setLayout(new java.awt.BorderLayout());
-        
-        java.net.URL searchUrl = getClass().getResource("/images/search.png");
-        Icon searchIcon;
-        if (searchUrl != null) {
-            searchIcon = new ImageIcon(
-                    new ImageIcon(searchUrl).getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH)
-            );
-        } else {
-            searchIcon = null;
-        }
-        
-        javax.swing.JPanel searchBar = style.createSearchBar(formSearch, searchIcon);
-        formSearchPanel.add(searchBar, java.awt.BorderLayout.CENTER);
-        formSearchPanel.revalidate();
-        formSearchPanel.repaint();
+        style.applySearchField(formSearch);
+        style.applyStandardSizes(formSearch, null);
         
         // Style member list
-        memberList.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
-        memberList.setBackground(Color.WHITE);
-        memberList.setForeground(new java.awt.Color(40, 40, 40));
-        memberList.setSelectionBackground(new java.awt.Color(220, 235, 255));
-        memberList.setSelectionForeground(new java.awt.Color(21, 55, 143));
-        memberList.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        // Style scroll pane for member list
-        jScrollPane3.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-            javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200), 1),
-            javax.swing.BorderFactory.createEmptyBorder(5, 5, 5, 5)
-        ));
-        jScrollPane3.setBackground(Color.WHITE);
-        jScrollPane3.getVerticalScrollBar().setUnitIncrement(16);
-        jScrollPane3.getVerticalScrollBar().setPreferredSize(new java.awt.Dimension(8, 8));
+        style.applyListStyle(memberList);
+        style.applyScrollStyle(jScrollPane3);
 
         // Add mouse listener to memberList
         memberList.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -240,47 +208,160 @@ public class manageLedger extends javax.swing.JPanel {
         
         // Style tabbed pane with transparent design
         style.applyTransparentTabbedPane(paymentTab);
+        
+        setupExportButtons();
+        // Add tab change listener to update button when switching tabs
+    paymentTab.addChangeListener(e -> {
+            updateButtonAndForm();
+        });
+
+        // Apply additional styles
+        style.applyScrollStyle(jScrollPane1);
+        style.applyScrollStyle(jScrollPane2);
+        style.applyModernLabel(jLabel1, true);
 
         // Initialize delete buttons
-        deletePaymentButton = new javax.swing.JButton("Delete");
-        deleteLoanButton = new javax.swing.JButton("Delete");
-        deletePaymentButton.addActionListener(this::deletePaymentButtonActionPerformed);
-        deleteLoanButton.addActionListener(this::deleteLoanButtonActionPerformed);
-
-        // Add delete buttons to the button panel (next to paymentLoanButton)
-        javax.swing.JPanel buttonPanel = (javax.swing.JPanel) paymentLoanButton.getParent();
-        if (buttonPanel != null) {
-            buttonPanel.add(deletePaymentButton);
-            buttonPanel.add(deleteLoanButton);
-            buttonPanel.revalidate();
-            buttonPanel.repaint();
-        }
+        
 
         // Add mouse listener to paymentTable for double-click editing
-        paymentTable.addMouseListener(new java.awt.event.MouseAdapter() {
+                paymentTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 int row = paymentTable.rowAtPoint(evt.getPoint());
                 int col = paymentTable.columnAtPoint(evt.getPoint());
-                if (row >= 0 && col >= 0 && evt.getClickCount() == 2) {
-                    paymentTable.editCellAt(row, col);
-                    if (paymentTable.getEditorComponent() != null) {
-                        paymentTable.getEditorComponent().requestFocus();
+                if (row >= 0 && col >= 0) {
+                    int recordId = (Integer) paymentTable.getModel().getValueAt(row, 0);
+                    if (col == 11) { // Edit
+                        java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(manageLedger.this);
+                        ui.PaymentForm form = new ui.PaymentForm(ledgerId, memberIds.get(memberList.getSelectedIndex()), ledgerType, recordId);
+                        javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Edit Payment", true);
+                        style.applyModernDialog(dialog, form, "Edit Payment");
+                        dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+                        dialog.pack();
+                        dialog.setLocationRelativeTo(parentFrame);
+                        dialog.setVisible(true);
+                        
+                        int selectedMemberIndex = memberList.getSelectedIndex();
+                        if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                            loadFormDataByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                        } else {
+                            loadFormDataByLedger(ledgerId, null);
+                        }
+                    } else if (col == 12) { // Delete
+                        int confirm = javax.swing.JOptionPane.showConfirmDialog(
+                            manageLedger.this,
+                            "Are you sure you want to delete this payment record?",
+                            "Confirm Delete",
+                            javax.swing.JOptionPane.YES_NO_OPTION
+                        );
+                        if (confirm == javax.swing.JOptionPane.YES_OPTION) {
+                            try {
+                                java.sql.Connection con = com.kelsz.esla.Database.getConnection();
+                                java.sql.PreparedStatement ps = con.prepareStatement("DELETE FROM form_data WHERE id = ?");
+                                ps.setInt(1, recordId);
+                                ps.executeUpdate();
+                                ps.close();
+                                con.close();
+                                
+                                int selectedMemberIndex = memberList.getSelectedIndex();
+                                if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                                    loadFormDataByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                                } else {
+                                    loadFormDataByLedger(ledgerId, null);
+                                }
+                                javax.swing.JOptionPane.showMessageDialog(manageLedger.this, "Payment deleted successfully!");
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    } else if (evt.getClickCount() == 2) {
+                        java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(manageLedger.this);
+                        ui.PaymentForm form = new ui.PaymentForm(ledgerId, memberIds.get(memberList.getSelectedIndex()), ledgerType, recordId);
+                        javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Edit Payment", true);
+                        style.applyModernDialog(dialog, form, "Edit Payment");
+                        dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+                        dialog.pack();
+                        dialog.setLocationRelativeTo(parentFrame);
+                        dialog.setVisible(true);
+                        
+                        int selectedMemberIndex = memberList.getSelectedIndex();
+                        if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                            loadFormDataByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                        } else {
+                            loadFormDataByLedger(ledgerId, null);
+                        }
                     }
                 }
             }
         });
 
         // Add mouse listener to loanTable for double-click editing
-        loanTable.addMouseListener(new java.awt.event.MouseAdapter() {
+                loanTable.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 int row = loanTable.rowAtPoint(evt.getPoint());
                 int col = loanTable.columnAtPoint(evt.getPoint());
-                if (row >= 0 && col >= 0 && evt.getClickCount() == 2) {
-                    loanTable.editCellAt(row, col);
-                    if (loanTable.getEditorComponent() != null) {
-                        loanTable.getEditorComponent().requestFocus();
+                if (row >= 0 && col >= 0) {
+                    int recordId = (Integer) loanTable.getModel().getValueAt(row, 0);
+                    if (col == 10) { // Edit
+                        java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(manageLedger.this);
+                        ui.LoanForm form = new ui.LoanForm(ledgerId, memberIds.get(memberList.getSelectedIndex()), ledgerType, recordId);
+                        javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Edit Loan", true);
+                        style.applyModernDialog(dialog, form, "Edit Loan");
+                        dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+                        dialog.pack();
+                        dialog.setLocationRelativeTo(parentFrame);
+                        dialog.setVisible(true);
+                        
+                        int selectedMemberIndex = memberList.getSelectedIndex();
+                        if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                            loadLoansByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                        } else {
+                            loadLoansByLedger(ledgerId, null);
+                        }
+                    } else if (col == 11) { // Delete
+                        int confirm = javax.swing.JOptionPane.showConfirmDialog(
+                            manageLedger.this,
+                            "Are you sure you want to delete this loan record?",
+                            "Confirm Delete",
+                            javax.swing.JOptionPane.YES_NO_OPTION
+                        );
+                        if (confirm == javax.swing.JOptionPane.YES_OPTION) {
+                            try {
+                                java.sql.Connection con = com.kelsz.esla.Database.getConnection();
+                                java.sql.PreparedStatement ps = con.prepareStatement("DELETE FROM loans WHERE id = ?");
+                                ps.setInt(1, recordId);
+                                ps.executeUpdate();
+                                ps.close();
+                                con.close();
+                                
+                                int selectedMemberIndex = memberList.getSelectedIndex();
+                                if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                                    loadLoansByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                                } else {
+                                    loadLoansByLedger(ledgerId, null);
+                                }
+                                javax.swing.JOptionPane.showMessageDialog(manageLedger.this, "Loan deleted successfully!");
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    } else if (evt.getClickCount() == 2) {
+                        java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(manageLedger.this);
+                        ui.LoanForm form = new ui.LoanForm(ledgerId, memberIds.get(memberList.getSelectedIndex()), ledgerType, recordId);
+                        javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Edit Loan", true);
+                        style.applyModernDialog(dialog, form, "Edit Loan");
+                        dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+                        dialog.pack();
+                        dialog.setLocationRelativeTo(parentFrame);
+                        dialog.setVisible(true);
+                        
+                        int selectedMemberIndex = memberList.getSelectedIndex();
+                        if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                            loadLoansByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                        } else {
+                            loadLoansByLedger(ledgerId, null);
+                        }
                     }
                 }
             }
@@ -309,7 +390,7 @@ public class manageLedger extends javax.swing.JPanel {
         try {
             LoanTableModel model = (LoanTableModel) loanTable.getModel();
             
-            // Only update editable columns: Form Number (1), Date (2), Principal (3), No. of Months (7), Remarks (9)
+            // Only update editable columns: Date (1), Deduction Date (2), Principal (3), No. of Months (7), Remarks (9)
             if (column != 1 && column != 2 && column != 3 && column != 7 && column != 9) {
                 return;
             }
@@ -354,20 +435,23 @@ public class manageLedger extends javax.swing.JPanel {
             Object dbValue;
             
             if (column == 1) {
-                // Form Number column
-                dbColumn = "form_number";
-                try {
-                    dbValue = Integer.parseInt(value != null ? value.toString() : "0");
-                } catch (NumberFormatException e) {
-                    dbValue = 0;
-                }
-            } else if (column == 2) {
                 // Date column
                 dbColumn = "date";
                 if (value instanceof Date) {
                     dbValue = new java.sql.Date(((Date) value).getTime());
                 } else {
                     System.out.println("Invalid date value");
+                    return;
+                }
+            } else if (column == 2) {
+                // Deduction Date column
+                dbColumn = "start_deduction_date";
+                if (value instanceof Date) {
+                    dbValue = new java.sql.Date(((Date) value).getTime());
+                } else if (value == null) {
+                    dbValue = null;
+                } else {
+                    System.out.println("Invalid deduction date value");
                     return;
                 }
             } else if (column == 3) {
@@ -423,21 +507,21 @@ public class manageLedger extends javax.swing.JPanel {
                 }
                 
                 // Update all fields including computed ones
-                sql = "UPDATE loans SET form_number = ?, date = ?, principal = ?, service_charge = ?, interest = ?, total = ?, cutoffs = ?, cutoffs_amount = ?, remarks = ? WHERE id = ?";
+                sql = "UPDATE loans SET date = ?, start_deduction_date = ?, principal = ?, service_charge = ?, interest = ?, total = ?, cutoffs = ?, cutoffs_amount = ?, remarks = ? WHERE id = ?";
                 ps = con.prepareStatement(sql);
                 
                 // Get other column values
-                Object formNumberObj = model.getValueAt(row, 1);
-                Integer formNumber = formNumberObj instanceof Integer ? (Integer) formNumberObj : Integer.parseInt(formNumberObj != null ? formNumberObj.toString() : "0");
-                
-                Object dateObj = model.getValueAt(row, 2);
+                Object dateObj = model.getValueAt(row, 1);
                 java.sql.Date date = (dateObj instanceof Date) ? new java.sql.Date(((Date) dateObj).getTime()) : null;
+                
+                Object deductionDateObj = model.getValueAt(row, 2);
+                java.sql.Date deductionDate = (deductionDateObj instanceof Date) ? new java.sql.Date(((Date) deductionDateObj).getTime()) : null;
                 
                 Object remarksObj = model.getValueAt(row, 9);
                 String remarks = remarksObj != null ? remarksObj.toString() : "";
                 
-                ps.setInt(1, formNumber);
-                ps.setDate(2, date);
+                ps.setString(1, date != null ? date.toString() : null);
+                ps.setString(2, deductionDate != null ? deductionDate.toString() : null);
                 ps.setBigDecimal(3, principal);
                 ps.setBigDecimal(4, serviceCharge);
                 ps.setBigDecimal(5, interest);
@@ -446,6 +530,11 @@ public class manageLedger extends javax.swing.JPanel {
                 ps.setBigDecimal(8, cutoffsAmount);
                 ps.setString(9, remarks);
                 ps.setInt(10, recordId);
+                ps.setBigDecimal(7, total);
+                ps.setInt(8, cutoffs);
+                ps.setBigDecimal(9, cutoffsAmount);
+                ps.setString(10, remarks);
+                ps.setInt(11, recordId);
             } else {
                 // For other columns, just update the single column
                 sql = "UPDATE loans SET " + dbColumn + " = ? WHERE id = ?";
@@ -863,41 +952,68 @@ public class manageLedger extends javax.swing.JPanel {
      */
     private void loadFormDataByLedger(int ledgerId, Integer memberId) {
         PaymentTableModel model = new PaymentTableModel();
-        model.setRowCount(0); // Clear existing data
+        model.setRowCount(0);
 
         model.setColumnIdentifiers(new Object[]{
             "ID", "Date", "Should Be Paid", "Actual Payment",
             "Balance", "Under Paid", "Scheduled Payment", "Premium Total",
-            "Premium", "Actual Payroll", "Remarks"
+            "Premium", "Actual Payroll", "Remarks", "", ""
         });
 
         paymentTable.setModel(model);
 
-        // Hide the ID column (column 0) from view
         paymentTable.getColumnModel().getColumn(0).setMinWidth(0);
         paymentTable.getColumnModel().getColumn(0).setMaxWidth(0);
         paymentTable.getColumnModel().getColumn(0).setPreferredWidth(0);
 
-        // Prevent single-click editing - only allow double-click
         paymentTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
-        // Apply custom cell editor to date column (column 1)
-        paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
+        // Edit column
+        paymentTable.getColumnModel().getColumn(11).setPreferredWidth(30);
+        paymentTable.getColumnModel().getColumn(11).setMinWidth(30);
+        paymentTable.getColumnModel().getColumn(11).setMaxWidth(30);
+        
+        // Delete column
+        paymentTable.getColumnModel().getColumn(12).setPreferredWidth(30);
+        paymentTable.getColumnModel().getColumn(12).setMinWidth(30);
+        paymentTable.getColumnModel().getColumn(12).setMaxWidth(30);
 
-        // Apply custom header renderer for sort icon
-        paymentTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
-
-        // Add table model listener for inline editing updates
-        model.addTableModelListener(new javax.swing.event.TableModelListener() {
-            @Override
-            public void tableChanged(javax.swing.event.TableModelEvent e) {
-                if (e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
-                    int row = e.getFirstRow();
-                    int column = e.getColumn();
-                    if (row >= 0 && column >= 0) {
-                        updatePaymentRecord(row, column);
-                    }
+        // Icons
+        paymentTable.getColumnModel().getColumn(11).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            private javax.swing.Icon editIcon;
+            {
+                java.net.URL iconUrl = getClass().getResource("/images/square-pen.png");
+                if (iconUrl != null) {
+                    editIcon = new javax.swing.ImageIcon(new javax.swing.ImageIcon(iconUrl).getImage().getScaledInstance(16, 16, java.awt.Image.SCALE_SMOOTH));
                 }
+            }
+            @Override
+            public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                javax.swing.JLabel label = (javax.swing.JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                label.setIcon(editIcon);
+                label.setText("");
+                label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                label.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+                return label;
+            }
+        });
+
+        paymentTable.getColumnModel().getColumn(12).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            private javax.swing.Icon deleteIcon;
+            {
+                java.net.URL iconUrl = getClass().getResource("/images/trash-2.png");
+                if (iconUrl != null) {
+                    deleteIcon = new javax.swing.ImageIcon(new javax.swing.ImageIcon(iconUrl).getImage().getScaledInstance(16, 16, java.awt.Image.SCALE_SMOOTH));
+                }
+            }
+            @Override
+            public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                javax.swing.JLabel label = (javax.swing.JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                label.setIcon(deleteIcon);
+                label.setText("");
+                label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                label.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+                return label;
             }
         });
 
@@ -935,9 +1051,24 @@ public class manageLedger extends javax.swing.JPanel {
 
             int rowCount = 0;
             while (rs.next()) {
+                String dateStr = rs.getString("date");
+                java.util.Date dateVal = null;
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    try {
+                        if (dateStr.matches("\\d+")) {
+                            dateVal = new java.sql.Date(Long.parseLong(dateStr));
+                        } else {
+                            if (dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
+                            dateVal = java.sql.Date.valueOf(dateStr);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Failed to parse date: " + dateStr);
+                    }
+                }
+                
                 model.addRow(new Object[]{
                     rs.getInt("id"),
-                    rs.getDate("date"),
+                    dateVal,
                     formatCurrency(rs.getBigDecimal("should_be_paid")),
                     formatCurrency(rs.getBigDecimal("actual_payment")),
                     formatCurrency(rs.getBigDecimal("balance")),
@@ -946,7 +1077,7 @@ public class manageLedger extends javax.swing.JPanel {
                     formatCurrency(rs.getBigDecimal("premium_total")),
                     formatCurrency(rs.getBigDecimal("premium")),
                     formatCurrency(rs.getBigDecimal("actual_payroll")),
-                    rs.getString("remarks")
+                    rs.getString("remarks"), "", ""
                 });
                 rowCount++;
             }
@@ -983,49 +1114,67 @@ public class manageLedger extends javax.swing.JPanel {
      */
     private void loadLoansByLedger(int ledgerId, Integer memberId) {
         LoanTableModel model = new LoanTableModel();
-        model.setRowCount(0); // Clear existing data
+        model.setRowCount(0);
 
-        // Update date column header
         model.setColumnIdentifiers(new Object[]{
-            "ID", "Form Number", "Date", "Principal", "Service Charge",
-            "Interest", "Total", "No. of Months", "Cutoff Amount", "Remarks"
+            "ID", "Date", "Deduction Date", "Principal", "Service Charge",
+            "Interest", "Total", "No. of Months", "Cutoff Amount", "Remarks", "", ""
         });
 
         loanTable.setModel(model);
 
-        // Hide the ID column (column 0) from view
         loanTable.getColumnModel().getColumn(0).setMinWidth(0);
         loanTable.getColumnModel().getColumn(0).setMaxWidth(0);
         loanTable.getColumnModel().getColumn(0).setPreferredWidth(0);
 
-        // Prevent single-click editing - only allow double-click
         loanTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
-        // Apply custom cell editor to date column (column 2)
-        loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
+        // Edit column
+        loanTable.getColumnModel().getColumn(10).setPreferredWidth(30);
+        loanTable.getColumnModel().getColumn(10).setMinWidth(30);
+        loanTable.getColumnModel().getColumn(10).setMaxWidth(30);
+        
+        // Delete column
+        loanTable.getColumnModel().getColumn(11).setPreferredWidth(30);
+        loanTable.getColumnModel().getColumn(11).setMinWidth(30);
+        loanTable.getColumnModel().getColumn(11).setMaxWidth(30);
 
-        // Align form column (column 1) to the left
-        javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
-        leftRenderer.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
-        loanTable.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
-
-        // Align No. of Months column (column 7) to the left
-        loanTable.getColumnModel().getColumn(7).setCellRenderer(leftRenderer);
-
-        // Apply custom header renderer for sort icon
-        loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
-
-        // Add table model listener for inline editing updates
-        model.addTableModelListener(new javax.swing.event.TableModelListener() {
-            @Override
-            public void tableChanged(javax.swing.event.TableModelEvent e) {
-                if (e.getType() == javax.swing.event.TableModelEvent.UPDATE) {
-                    int row = e.getFirstRow();
-                    int column = e.getColumn();
-                    if (row >= 0 && column >= 0) {
-                        updateLoanRecord(row, column);
-                    }
+        // Icons
+        loanTable.getColumnModel().getColumn(10).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            private javax.swing.Icon editIcon;
+            {
+                java.net.URL iconUrl = getClass().getResource("/images/square-pen.png");
+                if (iconUrl != null) {
+                    editIcon = new javax.swing.ImageIcon(new javax.swing.ImageIcon(iconUrl).getImage().getScaledInstance(16, 16, java.awt.Image.SCALE_SMOOTH));
                 }
+            }
+            @Override
+            public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                javax.swing.JLabel label = (javax.swing.JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                label.setIcon(editIcon);
+                label.setText("");
+                label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                label.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+                return label;
+            }
+        });
+
+        loanTable.getColumnModel().getColumn(11).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            private javax.swing.Icon deleteIcon;
+            {
+                java.net.URL iconUrl = getClass().getResource("/images/trash-2.png");
+                if (iconUrl != null) {
+                    deleteIcon = new javax.swing.ImageIcon(new javax.swing.ImageIcon(iconUrl).getImage().getScaledInstance(16, 16, java.awt.Image.SCALE_SMOOTH));
+                }
+            }
+            @Override
+            public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                javax.swing.JLabel label = (javax.swing.JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                label.setIcon(deleteIcon);
+                label.setText("");
+                label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+                label.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+                return label;
             }
         });
 
@@ -1036,7 +1185,7 @@ public class manageLedger extends javax.swing.JPanel {
 
             if (memberId != null) {
                 sql = """
-                    SELECT l.id, l.form_number, l.date, l.principal, l.service_charge,
+                    SELECT l.id, l.form_number, l.date, l.start_deduction_date, l.principal, l.service_charge,
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
@@ -1046,7 +1195,7 @@ public class manageLedger extends javax.swing.JPanel {
                 ps.setInt(2, memberId);
             } else {
                 sql = """
-                    SELECT l.id, l.form_number, l.date, l.principal, l.service_charge,
+                    SELECT l.id, l.form_number, l.date, l.start_deduction_date, l.principal, l.service_charge,
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
@@ -1059,17 +1208,47 @@ public class manageLedger extends javax.swing.JPanel {
 
             int rowCount = 0;
             while (rs.next()) {
+                String dateStr = rs.getString("date");
+                java.util.Date dateVal = null;
+                if (dateStr != null && !dateStr.isEmpty()) {
+                    try {
+                        if (dateStr.matches("\\d+")) {
+                            dateVal = new java.sql.Date(Long.parseLong(dateStr));
+                        } else {
+                            if (dateStr.length() > 10) dateStr = dateStr.substring(0, 10);
+                            dateVal = java.sql.Date.valueOf(dateStr);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Failed to parse date: " + dateStr);
+                    }
+                }
+
+                String sddStr = rs.getString("start_deduction_date");
+                java.util.Date sddVal = null;
+                if (sddStr != null && !sddStr.isEmpty()) {
+                    try {
+                        if (sddStr.matches("\\d+")) {
+                            sddVal = new java.sql.Date(Long.parseLong(sddStr));
+                        } else {
+                            if (sddStr.length() > 10) sddStr = sddStr.substring(0, 10);
+                            sddVal = java.sql.Date.valueOf(sddStr);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("Failed to parse start_deduction_date: " + sddStr);
+                    }
+                }
+
                 model.addRow(new Object[]{
                     rs.getInt("id"),
-                    rs.getInt("form_number"),
-                    rs.getDate("date"),
+                    dateVal,
+                    sddVal,
                     formatCurrency(rs.getBigDecimal("principal")),
                     formatCurrency(rs.getBigDecimal("service_charge")),
                     formatCurrency(rs.getBigDecimal("interest")),
                     formatCurrency(rs.getBigDecimal("total")),
                     rs.getInt("cutoffs"),
                     formatCurrency(rs.getBigDecimal("cutoffs_amount")),
-                    rs.getString("remarks")
+                    rs.getString("remarks"), "", ""
                 });
                 rowCount++;
             }
@@ -1118,13 +1297,12 @@ public class manageLedger extends javax.swing.JPanel {
         formSearchPanel = new javax.swing.JPanel();
         formSearch = new javax.swing.JTextField();
         paymentLoanButton = new javax.swing.JButton();
-        rightPanel = new javax.swing.JPanel();
         backButton = new javax.swing.JButton();
 
         setBackground(new java.awt.Color(255, 255, 255));
 
-        jLabel1.setFont(new java.awt.Font("Dialog", 1, 36)); // NOI18N
-        jLabel1.setText(" FORM DATA");
+        jLabel1.setFont(new java.awt.Font("Ubuntu", 1, 24)); // NOI18N
+        jLabel1.setText("Form Data");
 
         jPanel1.setBackground(new java.awt.Color(255, 255, 255));
 
@@ -1180,30 +1358,11 @@ public class manageLedger extends javax.swing.JPanel {
         formSearchPanelLayout.setVerticalGroup(
             formSearchPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, formSearchPanelLayout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(formSearch, javax.swing.GroupLayout.DEFAULT_SIZE, 29, Short.MAX_VALUE)
+                .addComponent(formSearch, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
                 .addContainerGap())
         );
 
         paymentLoanButton.setText("Add Payment");
-        paymentLoanButton.addActionListener(this::paymentLoanButtonActionPerformed);
-
-        rightPanel.setBackground(new java.awt.Color(240, 240, 240));
-        rightPanel.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(200, 200, 200), 1));
-        rightPanel.setVisible(false);
-
-        rightPanel.setLayout(new java.awt.GridBagLayout());
-        java.awt.GridBagConstraints gbc = new java.awt.GridBagConstraints();
-        gbc.insets = new java.awt.Insets(5, 5, 5, 5);
-        gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
-        gbc.anchor = java.awt.GridBagConstraints.WEST;
-
-        paymentTab.addChangeListener(new javax.swing.event.ChangeListener() {
-            @Override
-            public void stateChanged(javax.swing.event.ChangeEvent e) {
-                updateButtonAndForm();
-            }
-        });
 
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
@@ -1215,11 +1374,9 @@ public class manageLedger extends javax.swing.JPanel {
                     .addGroup(jPanel1Layout.createSequentialGroup()
                         .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 214, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 568, Short.MAX_VALUE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(rightPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 350, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 918, Short.MAX_VALUE))
                     .addGroup(jPanel1Layout.createSequentialGroup()
-                        .addComponent(formSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(formSearch, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(paymentLoanButton)))
                 .addContainerGap())
@@ -1229,18 +1386,15 @@ public class manageLedger extends javax.swing.JPanel {
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(formSearchPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(formSearch, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
                     .addComponent(paymentLoanButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane3)
-                    .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(rightPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                    .addComponent(paymentTab, javax.swing.GroupLayout.DEFAULT_SIZE, 454, Short.MAX_VALUE)))
         );
 
         backButton.setText("Back");
-        backButton.addActionListener(this::backButtonActionPerformed);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -1249,8 +1403,10 @@ public class manageLedger extends javax.swing.JPanel {
             .addGroup(layout.createSequentialGroup()
                 .addGap(40, 40, 40)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 350, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(0, 0, Short.MAX_VALUE))
                     .addComponent(backButton, javax.swing.GroupLayout.PREFERRED_SIZE, 124, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 245, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(40, 40, 40))
         );
@@ -1259,11 +1415,11 @@ public class manageLedger extends javax.swing.JPanel {
             .addGroup(layout.createSequentialGroup()
                 .addGap(20, 20, 20)
                 .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(17, 17, 17)
-                .addComponent(backButton)
-                .addGap(18, 18, 18)
+                .addGap(20, 20, 20)
+                .addComponent(backButton, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(15, 15, 15)
                 .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGap(31, 31, 31))
+                .addGap(20, 20, 20))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -1353,7 +1509,7 @@ public class manageLedger extends javax.swing.JPanel {
         paymentTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
 
         // Apply custom header renderer for sort icon
-        paymentTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
+        // Removed custom header renderer to match service charge style
 
         // Add table model listener for inline editing updates
         filteredModel.addTableModelListener(new javax.swing.event.TableModelListener() {
@@ -1412,19 +1568,17 @@ public class manageLedger extends javax.swing.JPanel {
         // Prevent single-click editing - only allow double-click
         loanTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
 
-        // Apply custom cell editor to date column (column 2)
+        // Apply custom cell editor to date columns (column 1 for Date, column 2 for Deduction Date)
+        loanTable.getColumnModel().getColumn(1).setCellEditor(new DateCellEditor());
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
 
-        // Align form column (column 1) to the left
+        // Align No. of Months column (column 7) to the left
         javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
         leftRenderer.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
-        loanTable.getColumnModel().getColumn(1).setCellRenderer(leftRenderer);
-
-        // Align No. of Months column (column 7) to the left
         loanTable.getColumnModel().getColumn(7).setCellRenderer(leftRenderer);
 
         // Apply custom header renderer for sort icon
-        loanTable.getTableHeader().setDefaultRenderer(new SortIconHeaderRenderer());
+        // Removed custom header renderer to match service charge style
 
         // Add table model listener for inline editing updates
         filteredModel.addTableModelListener(new javax.swing.event.TableModelListener() {
@@ -1447,50 +1601,44 @@ public class manageLedger extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_backButtonActionPerformed
 
-    private void paymentLoanButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_paymentLoanButtonActionPerformed
+    private void paymentLoanButtonActionPerformed(java.awt.event.ActionEvent evt) {
         int selectedIndex = paymentTab.getSelectedIndex();
+        int selectedMemberIndex = memberList.getSelectedIndex();
+        
+        if (selectedMemberIndex < 0) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Please select a member first", "Info", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        
+        int memberId = memberIds.get(selectedMemberIndex);
+        java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
+
         if (selectedIndex == 0) {
-            // Check if a member is selected
-            int selectedMemberIndex = memberList.getSelectedIndex();
-            if (selectedMemberIndex < 0 || selectedMemberIndex >= memberIds.size()) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Please select a member first",
-                    "Info",
-                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-
-            int memberId = memberIds.get(selectedMemberIndex);
-
-            // Show PaymentForm as modal dialog with required parameters
-            java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
-            ui.PaymentForm paymentForm = new ui.PaymentForm(parentFrame, ledgerId, memberId, ledgerType);
-            paymentForm.setVisible(true);
-
-            // Reload data after payment form closes
+            // Payment tab
+            ui.PaymentForm paymentForm = new ui.PaymentForm(ledgerId, memberId, ledgerType);
+            javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Add Payment", true);
+            style.applyModernDialog(dialog, paymentForm, "Add Payment");
+            dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+            dialog.pack();
+            dialog.setLocationRelativeTo(this);
+            dialog.setVisible(true);
+            
+            // Refresh data
             loadFormDataByLedger(ledgerId, memberId);
         } else {
-            // Check if a member is selected
-            int selectedMemberIndex = memberList.getSelectedIndex();
-            if (selectedMemberIndex < 0 || selectedMemberIndex >= memberIds.size()) {
-                javax.swing.JOptionPane.showMessageDialog(this,
-                    "Please select a member first",
-                    "Info",
-                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                return;
-            }
-
-            int memberId = memberIds.get(selectedMemberIndex);
-
-            // Show LoanForm as modal dialog with required parameters
-            java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
-            ui.LoanForm loanForm = new ui.LoanForm(parentFrame, ledgerId, memberId, ledgerType);
-            loanForm.setVisible(true);
-
-            // Reload data after loan form closes
+            // Loan tab
+            ui.LoanForm loanForm = new ui.LoanForm(ledgerId, memberId, ledgerType);
+            javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Add Loan", true);
+            style.applyModernDialog(dialog, loanForm, "Add Loan");
+            dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+            dialog.pack();
+            dialog.setLocationRelativeTo(this);
+            dialog.setVisible(true);
+            
+            // Refresh data
             loadLoansByLedger(ledgerId, memberId);
         }
-    }//GEN-LAST:event_paymentLoanButtonActionPerformed
+    }
 
     private void updateButtonAndForm() {
         int selectedIndex = paymentTab.getSelectedIndex();
@@ -1676,6 +1824,64 @@ public class manageLedger extends javax.swing.JPanel {
     }
 
 
+    private void setupExportButtons() {
+        exportPdfButton = new javax.swing.JButton("Export PDF");
+        exportExcelButton = new javax.swing.JButton("Export Excel");
+        
+        style.applyButton(exportPdfButton);
+        style.applyButton(exportExcelButton);
+        
+        // Refactor jPanel1 to use BorderLayout for better control over dynamic components
+        jPanel1.setLayout(new java.awt.BorderLayout(10, 10));
+        jPanel1.removeAll();
+        
+        JPanel headerArea = new JPanel(new java.awt.BorderLayout());
+        headerArea.setBackground(java.awt.Color.WHITE);
+        
+        JPanel leftHeader = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 0));
+        leftHeader.setBackground(java.awt.Color.WHITE);
+        leftHeader.add(formSearch);
+        leftHeader.add(exportPdfButton);
+        leftHeader.add(exportExcelButton);
+        
+        JPanel rightHeader = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 10, 0));
+        rightHeader.setBackground(java.awt.Color.WHITE);
+        rightHeader.add(paymentLoanButton);
+        
+        headerArea.add(leftHeader, java.awt.BorderLayout.WEST);
+        headerArea.add(rightHeader, java.awt.BorderLayout.EAST);
+        
+        JPanel contentArea = new JPanel(new java.awt.BorderLayout(10, 0));
+        contentArea.setBackground(java.awt.Color.WHITE);
+        contentArea.add(jScrollPane3, java.awt.BorderLayout.WEST);
+        contentArea.add(paymentTab, java.awt.BorderLayout.CENTER);
+        
+        jPanel1.add(headerArea, java.awt.BorderLayout.NORTH);
+        jPanel1.add(contentArea, java.awt.BorderLayout.CENTER);
+        
+        exportPdfButton.addActionListener(e -> exportToPDF());
+        exportExcelButton.addActionListener(e -> exportToExcel());
+        
+        jPanel1.revalidate();
+        jPanel1.repaint();
+    }
+
+    private void exportToExcel() {
+        if (paymentTab.getSelectedIndex() == 0) {
+            ReportExporter.exportToExcel(paymentTable, "Payment Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        } else {
+            ReportExporter.exportToExcel(loanTable, "Loan Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9});
+        }
+    }
+
+    private void exportToPDF() {
+        if (paymentTab.getSelectedIndex() == 0) {
+            ReportExporter.exportToPDF(paymentTable, "Payment Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+        } else {
+            ReportExporter.exportToPDF(loanTable, "Loan Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9});
+        }
+    }
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton backButton;
     private javax.swing.JTextField formSearch;
@@ -1685,11 +1891,10 @@ public class manageLedger extends javax.swing.JPanel {
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
+    private javax.swing.JTable loanTable;
     private javax.swing.JList<String> memberList;
     private javax.swing.JButton paymentLoanButton;
     private javax.swing.JTabbedPane paymentTab;
     private javax.swing.JTable paymentTable;
-    private javax.swing.JTable loanTable;
-    private javax.swing.JPanel rightPanel;
     // End of variables declaration//GEN-END:variables
 }

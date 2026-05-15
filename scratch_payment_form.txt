@@ -1,0 +1,42 @@
+    private int paymentRecordId = -1;
+
+    public PaymentForm(int ledgerId, int memberId, String ledgerType, int paymentRecordId) {
+        this.ledgerId = ledgerId;
+        this.memberId = memberId;
+        this.ledgerType = ledgerType;
+        this.paymentRecordId = paymentRecordId;
+        this.isEditMode = true;
+        initComponents();
+        applyStyling();
+        jLabel1.setText("Edit Payment");
+        loadPaymentData();
+    }
+    
+    private void loadPaymentData() {
+        try {
+            java.sql.Connection con = com.kelsz.esla.Database.getConnection();
+            String sql = "SELECT * FROM form_data WHERE id = ?";
+            java.sql.PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, paymentRecordId);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                java.sql.Date sqlDate = rs.getDate("date");
+                if (sqlDate != null) {
+                    date.setDate(new java.util.Date(sqlDate.getTime()));
+                }
+                scheduledPayment.setText(formatCurrency(rs.getBigDecimal("scheduled_payment")));
+                shouldBePaid.setText(formatCurrency(rs.getBigDecimal("should_be_paid")));
+                actualPayment.setText(formatCurrency(rs.getBigDecimal("actual_payment")));
+                premium.setText(formatCurrency(rs.getBigDecimal("premium")));
+                remarks.setText(rs.getString("remarks"));
+                
+                scheduledPaymentForDate = rs.getBigDecimal("scheduled_payment");
+                shouldBePaidForDate = rs.getBigDecimal("should_be_paid");
+            }
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }

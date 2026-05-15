@@ -5,6 +5,7 @@
 package ui;
 
 import com.kelsz.esla.Database;
+import java.awt.Color;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.time.LocalDate;
@@ -17,12 +18,57 @@ import javax.swing.JOptionPane;
  */
 public class MemberForm extends javax.swing.JPanel {
 
+    private int memberId = -1;
+    private boolean isEditMode = false;
+
     /**
      * Creates new form MemberForm
      */
     public MemberForm() {
         initComponents();
+        populateMemberTypes();
         applyStyles();
+    }
+
+    /**
+     * Creates new form MemberForm for editing
+     */
+    public MemberForm(int memberId) {
+        this.memberId = memberId;
+        this.isEditMode = true;
+        initComponents();
+        populateMemberTypes();
+        applyStyles();
+        jLabel1.setText("Edit Member");
+        loadMemberData();
+    }
+
+    private void loadMemberData() {
+        try {
+            Connection con = Database.getConnection();
+            String sql = "SELECT * FROM members WHERE id = ?";
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setInt(1, memberId);
+            java.sql.ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                name.setText(rs.getString("name"));
+                email.setText(rs.getString("email"));
+                phone.setText(rs.getString("phone"));
+                formNo3.setText(rs.getString("address"));
+                jComboBox1.setSelectedItem(rs.getString("member_type"));
+                formNo5.setText(String.valueOf(rs.getInt("premium")));
+                String msStr = rs.getString("member_since");
+                if (msStr != null && !msStr.isEmpty()) {
+                    if (msStr.length() > 10) msStr = msStr.substring(0, 10);
+                    memberSince.setDate(java.sql.Date.valueOf(msStr));
+                }
+            }
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -99,87 +145,79 @@ public class MemberForm extends javax.swing.JPanel {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(16, 16, 16)
+                .addGap(20, 20, 20)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(Cancel)
+                        .addComponent(Cancel, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addComponent(saveButton))
+                        .addComponent(saveButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 246, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel2)
                             .addComponent(name, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGap(15, 15, 15)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(dateLabel)
                             .addComponent(memberSince, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 246, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel3)
                             .addComponent(email, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGap(15, 15, 15)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel4)
                             .addComponent(phone, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel6)
-                            .addComponent(jLabel5)
                             .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addGap(15, 15, 15)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(jLabel7)
                             .addComponent(formNo5, javax.swing.GroupLayout.PREFERRED_SIZE, 335, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addComponent(jLabel5)
                     .addComponent(formNo3))
-                .addContainerGap(22, Short.MAX_VALUE))
+                .addGap(20, 20, 20))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(16, 16, 16)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel7)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(formNo5, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(7, 7, 7))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(jLabel4)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(phone, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(40, 40, 40)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                                        .addComponent(jLabel2)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addComponent(dateLabel)
-                                        .addGap(12, 12, 12)))
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                    .addComponent(memberSince, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(name, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(jLabel3)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(email, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(jLabel6)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)))
+                .addGap(20, 20, 20)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel2)
+                    .addComponent(dateLabel))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(memberSince, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                    .addComponent(name))
+                .addGap(15, 15, 15)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel3)
+                    .addComponent(jLabel4))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(email, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(phone, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(15, 15, 15)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel6)
+                    .addComponent(jLabel7))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(formNo5, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(15, 15, 15)
                 .addComponent(jLabel5)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(formNo3, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 29, Short.MAX_VALUE)
+                .addGap(30, 30, 30)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(Cancel)
-                    .addComponent(saveButton))
-                .addGap(16, 16, 16))
+                    .addComponent(Cancel, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(saveButton, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(20, 20, 20))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -206,7 +244,13 @@ public class MemberForm extends javax.swing.JPanel {
 
     private void formNo5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_formNo5ActionPerformed
         // TODO add your handling code here:
-    }//GEN-LAST:event_formNo5ActionPerformed
+    }
+    private void populateMemberTypes() {
+        jComboBox1.removeAllItems();
+        for (com.kelsz.esla.enums.MemberType type : com.kelsz.esla.enums.MemberType.values()) {
+            jComboBox1.addItem(type.getValue());
+        }
+    }
 
     private boolean validateForm() {
         if (this.name.getText().trim().isEmpty()) {
@@ -246,7 +290,19 @@ public class MemberForm extends javax.swing.JPanel {
         style.applyTextField(formNo3);
         style.applyTextField(formNo5);
         style.applyComboBox(jComboBox1);
-        setBackground(style.BACKGROUND);
+        style.applyDateChooserStyle(memberSince);
+        
+        style.applyModernLabel(jLabel2, false);
+        style.applyModernLabel(jLabel3, false);
+        style.applyModernLabel(jLabel4, false);
+        style.applyModernLabel(jLabel5, false);
+        style.applyModernLabel(jLabel6, false);
+        style.applyModernLabel(jLabel7, false);
+        style.applyModernLabel(dateLabel, false);
+        
+        style.applyModernLabel(jLabel1, true);
+        jLabel1.setVisible(false);
+        setBackground(Color.WHITE);
     }
 
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveButtonActionPerformed
@@ -279,34 +335,66 @@ public class MemberForm extends javax.swing.JPanel {
 
             int premium = premiumText.isEmpty() ? 0 : Integer.parseInt(premiumText);
 
-            // Insert member into database
+            // Insert or update member in database
             Connection con = Database.getConnection();
-            String sql = "INSERT INTO members (name, email, phone, address, member_type, member_since, premium) VALUES (?, ?, ?, ?, ?, ?, ?)";
-            PreparedStatement ps = con.prepareStatement(sql);
             
-            ps.setString(1, nameText);
-            ps.setString(2, emailText);
-            ps.setString(3, phoneText);
-            ps.setString(4, addressText);
-            ps.setString(5, memberType);
-            ps.setString(6, memberSinceDate.toString());
-            ps.setInt(7, premium);
-            
-            int rowsAffected = ps.executeUpdate();
-            ps.close();
-            con.close();
+            if (isEditMode) {
+                String sql = "UPDATE members SET name=?, email=?, phone=?, address=?, member_type=?, member_since=?, premium=? WHERE id=?";
+                PreparedStatement ps = con.prepareStatement(sql);
+                
+                ps.setString(1, nameText);
+                ps.setString(2, emailText);
+                ps.setString(3, phoneText);
+                ps.setString(4, addressText);
+                ps.setString(5, memberType);
+                ps.setString(6, memberSinceDate.toString());
+                ps.setInt(7, premium);
+                ps.setInt(8, memberId);
+                
+                int rowsAffected = ps.executeUpdate();
+                ps.close();
+                con.close();
 
-            if (rowsAffected > 0) {
-                JOptionPane.showMessageDialog(this,
-                    "Member created successfully!",
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
-                javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                if (rowsAffected > 0) {
+                    JOptionPane.showMessageDialog(this,
+                        "Member updated successfully!",
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                        "Failed to update member. Please try again.",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                }
             } else {
-                JOptionPane.showMessageDialog(this,
-                    "Failed to create member. Please try again.",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
+                String sql = "INSERT INTO members (name, email, phone, address, member_type, member_since, premium) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                PreparedStatement ps = con.prepareStatement(sql);
+                
+                ps.setString(1, nameText);
+                ps.setString(2, emailText);
+                ps.setString(3, phoneText);
+                ps.setString(4, addressText);
+                ps.setString(5, memberType);
+                ps.setString(6, memberSinceDate.toString());
+                ps.setInt(7, premium);
+                
+                int rowsAffected = ps.executeUpdate();
+                ps.close();
+                con.close();
+
+                if (rowsAffected > 0) {
+                    JOptionPane.showMessageDialog(this,
+                        "Member created successfully!",
+                        "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                    javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
+                } else {
+                    JOptionPane.showMessageDialog(this,
+                        "Failed to create member. Please try again.",
+                        "Error",
+                        JOptionPane.ERROR_MESSAGE);
+                }
             }
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(this,

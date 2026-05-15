@@ -39,10 +39,16 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class member extends javax.swing.JPanel {
+public class member extends javax.swing.JPanel implements ui.Refreshable {
+    
+    @Override
+    public void refresh() {
+        setupTable();
+        populateMemberTypes();
+    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton AddMember;
+    private javax.swing.JButton addMemberButton;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JTextField memberSearchField;
@@ -134,7 +140,9 @@ public class member extends javax.swing.JPanel {
 
         public TypeCellEditor() {
             comboBox = new javax.swing.JComboBox<>();
-            comboBox.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "channel 3", "resort", "executive", "consultant", "other" }));
+            for (com.kelsz.esla.enums.MemberType type : com.kelsz.esla.enums.MemberType.values()) {
+                comboBox.addItem(type.getValue());
+            }
             style.applyComboBox(comboBox);
         }
 
@@ -178,15 +186,17 @@ public class member extends javax.swing.JPanel {
     public member() {
         initComponents();
         setBackground(Color.WHITE);
-        style.applyTableStyle(memberTable, 15, 18);
+        style.applyTableStyle(memberTable, 14, 14);
+        style.applyScrollStyle(jScrollPane1);
+        style.applyModernLabel(jLabel1, true);
         style.applyComboBox(selectField);
-        style.applyButton(AddMember);
-        style.applyTextField(memberSearchField);
+        style.applyButton(addMemberButton);
+        style.applySearchField(memberSearchField);
         setupTable();
         populateMemberTypes();
         setupFilters();
         
-        AddMember.addActionListener(this::AddMemberActionPerformed);
+        addMemberButton.addActionListener(this::AddMemberActionPerformed);
 
         // Add plus icon to AddMember button
         java.net.URL plusUrl = getClass().getResource("/images/plus.png");
@@ -194,34 +204,13 @@ public class member extends javax.swing.JPanel {
             ImageIcon plusIcon = new ImageIcon(
                     new ImageIcon(plusUrl).getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH)
             );
-            AddMember.setIcon(plusIcon);
-            AddMember.setText(" Member");
+            addMemberButton.setIcon(plusIcon);
+            addMemberButton.setText(" Member");
         }
 
-        memberSearchPanel.removeAll();
-        memberSearchPanel.setLayout(new BorderLayout());
-
-        java.net.URL searchUrl = getClass().getResource("/images/search.png");
-        Icon searchIcon;
-        if (searchUrl != null) {
-            searchIcon = new ImageIcon(
-                    new ImageIcon(searchUrl).getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH)
-            );
-        } else {
-            searchIcon = null;
-        }
-
-        JPanel searchBar = style.createSearchBar(memberSearchField, searchIcon);
-
-        // Create a panel to hold both search bar and selectField
-        JPanel searchAndFilterPanel = new JPanel(new BorderLayout());
-        searchAndFilterPanel.add(searchBar, BorderLayout.CENTER);
-        searchAndFilterPanel.add(selectField, BorderLayout.EAST);
-
-        memberSearchPanel.add(searchAndFilterPanel, BorderLayout.LINE_START);
-
-        memberSearchPanel.revalidate();
-        memberSearchPanel.repaint();
+        // Apply standard styling and sizes
+        style.applyComboBox(selectField);
+        style.applyStandardSizes(memberSearchField, selectField);
     }
 
     // =========================
@@ -304,8 +293,7 @@ public class member extends javax.swing.JPanel {
         DefaultTableModel model = new DefaultTableModel() {
             @Override
             public boolean isCellEditable(int row, int column) {
-                // Delete = 7 (non-editable), others editable
-                return column != 7;
+                return false;
             }
         };
 
@@ -316,6 +304,7 @@ public class member extends javax.swing.JPanel {
         model.addColumn("Member Type");
         model.addColumn("Premium");
         model.addColumn("Member Since");
+        model.addColumn("Edit");
         model.addColumn("Delete");
 
         try {
@@ -343,8 +332,11 @@ public class member extends javax.swing.JPanel {
                 String address = rs.getString("address");
                 String memberType = rs.getString("member_type");
                 int premium = rs.getInt("premium");
-                java.sql.Date sqlDate = rs.getDate("member_since");
-                String memberSince = sqlDate != null ? sqlDate.toString() : "";
+                String msStr = rs.getString("member_since");
+                if (msStr != null && msStr.length() > 10) {
+                    msStr = msStr.substring(0, 10);
+                }
+                String memberSince = msStr != null ? msStr : "";
 
                 // Store all data for filtering
                 allMemberData.add(new Object[]{id, name, email, phone, address, memberType, premium, memberSince});
@@ -369,6 +361,7 @@ public class member extends javax.swing.JPanel {
                         memberType,
                         premium,
                         memberSince,
+                        "Edit",
                         "Delete"
                     });
                 }
@@ -384,7 +377,7 @@ public class member extends javax.swing.JPanel {
         }
 
         // Set column identifiers before setting model
-        model.setColumnIdentifiers(new Object[]{"Name", "Email", "Phone", "Address", "Member Type", "Premium", "Member Since", ""});
+        model.setColumnIdentifiers(new Object[]{"Name", "Email", "Phone", "Address", "Member Type", "Premium", "Member Since", "", ""});
 
         memberTable.setModel(model);
 
@@ -400,24 +393,56 @@ public class member extends javax.swing.JPanel {
         // Set custom type renderer for Member Type column (column 4)
         memberTable.getColumnModel().getColumn(4).setCellRenderer(new TypeCellRenderer());
 
-        // Minimize Delete column width and remove header label
+        // Minimize Edit column width and remove header label
         memberTable.getColumnModel().getColumn(7).setPreferredWidth(30);
         memberTable.getColumnModel().getColumn(7).setMinWidth(30);
         memberTable.getColumnModel().getColumn(7).setMaxWidth(30);
 
-        // Load trash icon
-        java.net.URL trashUrl = getClass().getResource("/images/trash-2.png");
-        ImageIcon trashIcon;
-        if (trashUrl != null) {
-            trashIcon = new ImageIcon(
-                    new ImageIcon(trashUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
-            );
-        } else {
-            trashIcon = null;
-        }
+        // Minimize Delete column width and remove header label
+        memberTable.getColumnModel().getColumn(8).setPreferredWidth(30);
+        memberTable.getColumnModel().getColumn(8).setMinWidth(30);
+        memberTable.getColumnModel().getColumn(8).setMaxWidth(30);
+
+        // Custom renderer for Edit column with hover effect
+        memberTable.getColumnModel().getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
+            private ImageIcon editIcon;
+            {
+                java.net.URL editUrl = getClass().getResource("/images/square-pen.png");
+                if (editUrl != null) {
+                    editIcon = new ImageIcon(
+                            new ImageIcon(editUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
+                    );
+                }
+            }
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                label.setIcon(editIcon);
+                label.setText("");
+                label.setHorizontalAlignment(JLabel.CENTER);
+                label.setOpaque(true);
+
+                if (isSelected) {
+                    label.setBackground(new Color(200, 200, 255));
+                } else {
+                    label.setBackground(table.getBackground());
+                }
+
+                return label;
+            }
+        });
 
         // Custom renderer for Delete column with hover effect
-        memberTable.getColumnModel().getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
+        memberTable.getColumnModel().getColumn(8).setCellRenderer(new DefaultTableCellRenderer() {
+            private ImageIcon trashIcon;
+            {
+                java.net.URL trashUrl = getClass().getResource("/images/trash-2.png");
+                if (trashUrl != null) {
+                    trashIcon = new ImageIcon(
+                            new ImageIcon(trashUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
+                    );
+                }
+            }
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 JLabel label = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
@@ -455,80 +480,10 @@ public class member extends javax.swing.JPanel {
         // Prevent single-click editing - only allow double-click
         memberTable.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
         
-        model.addTableModelListener(e -> {
-
-            if (e.getType() != javax.swing.event.TableModelEvent.UPDATE) return;
-
-            int row = e.getFirstRow();
-            int col = e.getColumn();
-
-            if (col < 0) return;
-
-            try {
-                int id = rowIds.get(row);
-
-                String columnName = switch (col) {
-                    case 0 -> "name";
-                    case 1 -> "email";
-                    case 2 -> "phone";
-                    case 3 -> "address";
-                    case 4 -> "member_type";
-                    case 5 -> "premium";
-                    case 6 -> "member_since";
-                    default -> null;
-                };
-
-                if (columnName == null) return;
-
-                // Prevent duplicate confirmations for the same cell
-                if (row == lastEditedRow && col == lastEditedCol) {
-                    lastEditedRow = -1;
-                    lastEditedCol = -1;
-                    return;
-                }
-
-                // Mark this cell as being edited before showing confirmation
-                lastEditedRow = row;
-                lastEditedCol = col;
-
-                // Show confirmation dialog before updating
-                Object newValue = model.getValueAt(row, col);
-                int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
-                    "Are you sure you want to update " + columnName + " to: " + (newValue != null ? newValue.toString() : "") + "?",
-                    "Confirm Update",
-                    javax.swing.JOptionPane.YES_NO_OPTION,
-                    javax.swing.JOptionPane.QUESTION_MESSAGE);
-
-                if (confirm != javax.swing.JOptionPane.YES_OPTION) {
-                    // Reload data to revert the change
-                    applyFilters();
-                    lastEditedRow = -1;
-                    lastEditedCol = -1;
-                    return;
-                }
-
-                Connection con = Database.getConnection();
-
-                String sql = "UPDATE members SET " + columnName + " = ? WHERE id = ?";
-                PreparedStatement ps = con.prepareStatement(sql);
-
-                ps.setObject(1, newValue);
-                ps.setInt(2, id);
-
-                ps.executeUpdate();
-
-                ps.close();
-                con.close();
-
-                System.out.println("Auto-saved row ID: " + id);
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
+        // Removed auto-save table model listener
 
         // UI tweaks
-        memberTable.setRowHeight(30);
+        memberTable.setRowHeight(35);
         memberTable.getTableHeader().setReorderingAllowed(false);
     }
 
@@ -537,16 +492,17 @@ public class member extends javax.swing.JPanel {
      * WARNING: Do NOT modify this code. The content of this method is always
      * regenerated by the Form Editor.
      */
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
         jLabel1 = new javax.swing.JLabel();
         jScrollPane1 = new javax.swing.JScrollPane();
         memberTable = new javax.swing.JTable();
         selectField = new javax.swing.JComboBox<>();
-        AddMember = new javax.swing.JButton();
+        addMemberButton = new javax.swing.JButton();
         memberSearchField = new javax.swing.JTextField();
         memberSearchPanel = new javax.swing.JPanel();
+
+        setBackground(new java.awt.Color(255, 255, 255));
 
         jLabel1.setFont(new java.awt.Font("Dialog", 1, 36)); // NOI18N
         jLabel1.setText("MEMBER");
@@ -571,10 +527,11 @@ public class member extends javax.swing.JPanel {
 
         selectField.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Item 1", "Item 2", "Item 3", "Item 4" }));
 
-        AddMember.setText("Member");
+        addMemberButton.setText("Member");
 
-        memberSearchField.setText("jTextField1");
         memberSearchField.addActionListener(this::memberSearchFieldActionPerformed);
+
+        memberSearchPanel.setBackground(new java.awt.Color(255, 255, 255));
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -583,30 +540,30 @@ public class member extends javax.swing.JPanel {
             .addGroup(layout.createSequentialGroup()
                 .addGap(40, 40, 40)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 308, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(layout.createSequentialGroup()
-                        .addComponent(memberSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 259, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(memberSearchField, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 159, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 620, Short.MAX_VALUE)
-                        .addComponent(AddMember, javax.swing.GroupLayout.PREFERRED_SIZE, 176, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(jLabel1)
-                    .addComponent(jScrollPane1))
+                        .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(addMemberButton, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(40, 40, 40))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(25, 25, 25)
-                .addComponent(jLabel1)
-                .addGap(59, 59, 59)
+                .addGap(20, 20, 20)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(AddMember, javax.swing.GroupLayout.Alignment.TRAILING)
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                        .addComponent(memberSearchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 36, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(memberSearchField, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(selectField, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(addMemberButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(15, 15, 15)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 695, Short.MAX_VALUE)
-                .addGap(31, 31, 31))
+                .addGap(20, 20, 20))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -617,8 +574,24 @@ public class member extends javax.swing.JPanel {
 
         if (row < 0 || col < 0) return;
 
-        // Handle Delete column click
+        // Handle Edit column click
         if (col == 7) {
+            int id = rowIds.get(row);
+            java.awt.Frame parentFrame = (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(this);
+            ui.MemberForm memberFormPanel = new ui.MemberForm(id);
+            javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Edit Member", true);
+            style.applyModernDialog(dialog, memberFormPanel, "Edit Member");
+            dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+            dialog.pack();
+            dialog.setLocationRelativeTo(parentFrame);
+            dialog.setVisible(true);
+            setupTable();
+            populateMemberTypes();
+            return;
+        }
+
+        // Handle Delete column click
+        if (col == 8) {
             int id = rowIds.get(row);
             int confirm = JOptionPane.showConfirmDialog(
                 this,
@@ -630,7 +603,7 @@ public class member extends javax.swing.JPanel {
             if (confirm == JOptionPane.YES_OPTION) {
                 try {
                     Connection con = Database.getConnection();
-                    String sql = "UPDATE members SET deleted_at = NOW() WHERE id = ?";
+                    String sql = "UPDATE members SET deleted_at = datetime('now') WHERE id = ?";
                     PreparedStatement ps = con.prepareStatement(sql);
                     ps.setInt(1, id);
                     ps.executeUpdate();
@@ -648,14 +621,7 @@ public class member extends javax.swing.JPanel {
             return;
         }
 
-        // Prevent editing Delete column
-        if (col == 7) return;
 
-        // Only trigger edit on double-click
-        if (evt.getClickCount() == 2) {
-            memberTable.editCellAt(row, col);
-            memberTable.getEditorComponent().requestFocus();
-        }
 
     }//GEN-LAST:event_memberTableMouseClicked
 
@@ -670,9 +636,9 @@ public class member extends javax.swing.JPanel {
         // Create the MemberForm panel
         ui.MemberForm memberFormPanel = new ui.MemberForm();
         
-        // Wrap it in a JDialog
+        // Wrap it in a modern dialog
         javax.swing.JDialog dialog = new javax.swing.JDialog(parentFrame, "Create Member", true);
-        dialog.setContentPane(memberFormPanel);
+        style.applyModernDialog(dialog, memberFormPanel, "Create Member");
         dialog.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         dialog.pack();
         dialog.setLocationRelativeTo(parentFrame);

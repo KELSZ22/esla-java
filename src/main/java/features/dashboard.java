@@ -5,8 +5,11 @@
 package features;
 
 import com.kelsz.esla.Database;
+import com.kelsz.esla.util.ReportExporter;
 import java.awt.BorderLayout;
 import java.awt.Image;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -14,6 +17,8 @@ import java.sql.ResultSet;
 import java.time.LocalDate;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -22,20 +27,39 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import ui.style;
 
 /**
  *
  * @author kelsz-dev
  */
-public class dashboard extends javax.swing.JPanel {
+public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
+    
+    @Override
+    public void refresh() {
+        if (chooseDate.getDate() != null) {
+            LocalDate selectedDate = new java.sql.Date(chooseDate.getDate().getTime()).toLocalDate();
+            setupTable(selectedDate);
+            populateMemberTypes();
+        }
+    }
 
     /**
      * Creates new form dashboard
      */
     public dashboard() {
     initComponents();   // 👈 KEEP THIS (NetBeans GUI)
-    style.applyTableStyle(dashboardTable, 18,18);
+    style.applyTableStyle(dashboardTable, 14, 14);
+    style.applyScrollStyle(jScrollPane1);
+    style.applyModernLabel(jLabel1, true);
+    style.applyDateChooserStyle(chooseDate);
+    style.applySearchField(searchField);
 
     // Set default date to latest cutoff date
     LocalDate latestDate = getLatestCutoffDate();
@@ -43,23 +67,11 @@ public class dashboard extends javax.swing.JPanel {
 
     setupTable(latestDate);
 
-    searchPanel.removeAll();
-    searchPanel.setLayout(new BorderLayout());
-
-    Icon searchIcon = new ImageIcon(
-            new ImageIcon(getClass().getResource("/images/search.png"))
-                    .getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH)
-    );
-
-    JPanel searchBar = style.createSearchBar(searchField, searchIcon);
-
-    searchPanel.add(searchBar, BorderLayout.CENTER);
-
-    searchPanel.revalidate();
-    searchPanel.repaint();
-
-    // Initialize member type filter
+    // Apply standard styling and sizes
     style.applyComboBox(memberTypeField);
+    style.applyStandardSizes(searchField, memberTypeField);
+
+    // Initialize member type filter data
     populateMemberTypes();
 
     // Add member type filter listener
@@ -90,6 +102,33 @@ public class dashboard extends javax.swing.JPanel {
             filterTable();
         }
     });
+
+    // Initialize export buttons
+    exportPdfButton = new JButton("Export PDF");
+    exportExcelButton = new JButton("Export Excel");
+    style.applySecondaryButton(exportPdfButton);
+    style.applySecondaryButton(exportExcelButton);
+
+    // Add export button listeners
+    exportPdfButton.addActionListener(evt -> exportToPDF());
+    exportExcelButton.addActionListener(evt -> exportToExcel());
+
+    // Initialize seed button
+    seedButton = new JButton("Seed Data");
+    style.applySecondaryButton(seedButton);
+    seedButton.addActionListener(evt -> {
+        int confirm = JOptionPane.showConfirmDialog(this, 
+            "This will clear all existing data and populate the database with sample data. Continue?", 
+            "Confirm Seeding", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            com.kelsz.esla.DatabaseSeeder.seed();
+            JOptionPane.showMessageDialog(this, "Database seeded successfully!");
+            refresh();
+        }
+    });
+
+    // Add export and seed buttons to the panel
+    addControlButtonsToLayout();
 
     }
 
@@ -131,9 +170,8 @@ public class dashboard extends javax.swing.JPanel {
 
             LocalDate latestDate = null;
             if (rs.next()) {
-                if (rs.getDate("latest_date") != null) {
-                    latestDate = rs.getDate("latest_date").toLocalDate();
-                }
+                String dateStr = rs.getString("latest_date");
+                latestDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
             }
 
             rs.close();
@@ -192,8 +230,13 @@ public class dashboard extends javax.swing.JPanel {
 
             while (rs.next()) {
                 int memberId = rs.getInt("member_id");
-                LocalDate loanDate = rs.getDate("date") != null ? rs.getDate("date").toLocalDate() : null;
-                LocalDate startDeductionDate = rs.getDate("start_deduction_date") != null ? rs.getDate("start_deduction_date").toLocalDate() : null;
+                
+                String dateStr = rs.getString("date");
+                LocalDate loanDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(dateStr);
+
+                String sddStr = rs.getString("start_deduction_date");
+                LocalDate startDeductionDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(sddStr);
+                
                 Boolean startDeductionOnLoanDate = rs.getBoolean("start_deduction_on_loan_date");
                 BigDecimal total = rs.getBigDecimal("total");
                 Integer cutoffs = rs.getInt("cutoffs");
@@ -506,34 +549,31 @@ public class dashboard extends javax.swing.JPanel {
             .addGroup(layout.createSequentialGroup()
                 .addGap(40, 40, 40)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jLabel1)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 1255, Short.MAX_VALUE)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(searchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(memberTypeField, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(chooseDate, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(36, 36, 36))))
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 308, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(layout.createSequentialGroup()
+                            .addComponent(searchField, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(memberTypeField, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(chooseDate, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addGap(40, 40, 40))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(25, 25, 25)
-                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(59, 59, 59)
+                .addGap(20, 20, 20)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(searchPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(searchField, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                         .addComponent(memberTypeField, javax.swing.GroupLayout.Alignment.TRAILING)
-                        .addComponent(chooseDate, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 34, Short.MAX_VALUE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(chooseDate, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)))
+                .addGap(15, 15, 15)
                 .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 520, Short.MAX_VALUE)
-                .addGap(31, 31, 31))
+                .addGap(20, 20, 20))
         );
     }// </editor-fold>//GEN-END:initComponents
 
@@ -546,5 +586,81 @@ public class dashboard extends javax.swing.JPanel {
     private javax.swing.JComboBox<String> memberTypeField;
     private javax.swing.JTextField searchField;
     private javax.swing.JPanel searchPanel;
+    private javax.swing.JButton exportPdfButton;
+    private javax.swing.JButton exportExcelButton;
+    private javax.swing.JButton seedButton;
     // End of variables declaration//GEN-END:variables
+
+    // =========================
+    // EXPORT METHODS
+    // =========================
+    private void addControlButtonsToLayout() {
+        // Remove existing layout and recreate with export and seed buttons
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
+        this.setLayout(layout);
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(40, 40, 40)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 308, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(layout.createSequentialGroup()
+                            .addComponent(searchField, javax.swing.GroupLayout.PREFERRED_SIZE, 300, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(memberTypeField, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(exportPdfButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(exportExcelButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                            .addComponent(seedButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(chooseDate, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addGap(40, 40, 40))
+        );
+        layout.setVerticalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addGap(20, 20, 20)
+                .addComponent(jLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, 51, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(searchField, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                        .addComponent(memberTypeField, javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addComponent(exportPdfButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                        .addComponent(exportExcelButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                        .addComponent(seedButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
+                        .addComponent(chooseDate, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)))
+                .addGap(15, 15, 15)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 520, Short.MAX_VALUE)
+                .addGap(20, 20, 20))
+        );
+    }
+
+    private void exportToExcel() {
+                CellStyle normalStyle = workbook.createCellStyle();
+                normalStyle.setBorderBottom(BorderStyle.THIN);
+                normalStyle.setBorderTop(BorderStyle.THIN);
+                normalStyle.setBorderLeft(BorderStyle.THIN);
+                normalStyle.setBorderRight(BorderStyle.THIN);
+
+                // Number cell style (2 decimal places)
+                CellStyle numberStyle = workbook.createCellStyle();
+                numberStyle.setDataFormat(workbook.createDataFormat().getFormat("#,##0.00"));
+                numberStyle.setBorderBottom(BorderStyle.THIN);
+                numberStyle.setBorderTop(BorderStyle.THIN);
+                numberStyle.setBorderLeft(BorderStyle.THIN);
+                numberStyle.setBorderRight(BorderStyle.THIN);
+
+                int excelRow = 0;
+
+        ReportExporter.exportToExcel(dashboardTable, "Dashboard Report", "Generated on: " + java.time.LocalDate.now(), new int[]{0, 1, 2, 3});
+    }
+
+    private void exportToPDF() {
+        ReportExporter.exportToPDF(dashboardTable, "Dashboard Report", "Generated on: " + java.time.LocalDate.now(), new int[]{0, 1, 2, 3});
+    }
 }

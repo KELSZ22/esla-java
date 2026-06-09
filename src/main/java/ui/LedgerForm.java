@@ -5,7 +5,6 @@
 package ui;
 
 import com.kelsz.esla.Database;
-import java.awt.Color;
 import java.awt.Font;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -180,8 +179,9 @@ public class LedgerForm extends javax.swing.JPanel {
     // APPLY STYLES
     // =========================
     private void applyStyles() {
-        style.applyPanel(this);
+        style.applyFormPanel(this);
         style.applyTextField(description);
+        style.applyPlaceholder(description, "Enter ledger description");
         style.applyComboBox(selectTypeField);
         style.applyButton(saveLedgerButton);
         style.applySecondaryButton(ledgerCancelButton);
@@ -244,22 +244,27 @@ public class LedgerForm extends javax.swing.JPanel {
     // SAVE LEDGER
     // =========================
     private void saveLedger() {
-        String desc = description.getText().trim();
+        style.clearFieldError(description);
+        style.clearFieldError(ledgerDate);
+
+        String desc = style.getFieldText(description);
         String type = (String) selectTypeField.getSelectedItem();
         Date date = ledgerDate.getDate();
 
         if (desc.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter a description", "Error", JOptionPane.ERROR_MESSAGE);
+            style.showFieldError(description);
+            style.showMessageDialog(this, "Please enter a description", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         if (type == null || type.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please select a type", "Error", JOptionPane.ERROR_MESSAGE);
+            style.showMessageDialog(this, "Please select a type", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         if (date == null) {
-            JOptionPane.showMessageDialog(this, "Please select a date", "Error", JOptionPane.ERROR_MESSAGE);
+            style.showFieldError(ledgerDate);
+            style.showMessageDialog(this, "Please select a date", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -288,7 +293,7 @@ public class LedgerForm extends javax.swing.JPanel {
             ps.close();
             con.close();
 
-            JOptionPane.showMessageDialog(this, "Ledger " + (ledgerId == -1 ? "added" : "updated") + " successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            style.showMessageDialog(this, "Ledger " + (ledgerId == -1 ? "added" : "updated") + " successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
 
             // Clear form
             description.setText("");
@@ -300,7 +305,7 @@ public class LedgerForm extends javax.swing.JPanel {
 
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error saving ledger: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            style.showMessageDialog(this, "Error saving ledger: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 

@@ -8,8 +8,7 @@ import com.kelsz.esla.Database;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import javax.swing.ImageIcon;
-import javax.swing.JOptionPane;
+import javax.swing.JComponent;
 import org.mindrot.jbcrypt.BCrypt;
 import ui.style;
 
@@ -21,21 +20,77 @@ import ui.style;
 public class Login extends javax.swing.JFrame {
     
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(Login.class.getName());
+    private static final java.util.regex.Pattern EMAIL_PATTERN = java.util.regex.Pattern.compile(
+            "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+    );
 
-    /** 
+    /**
      * Creates new form Login
      */
     public Login() {
+        setUndecorated(true);
         initComponents();
-            //center frame
-            this.setLocationRelativeTo(null);
+            this.setTitle("ESLA Login");
+            this.setResizable(false);
  
             //styles
             style.applyButton(loginButton);
             style.applyPanel(loginPanel);
             style.applyTextField(emailField);
             style.applyTextField(passwordField);
+            style.applyPasswordToggle(passwordField);
+            setupPlaceholders();
+
+            getContentPane().removeAll();
+            getContentPane().setLayout(new java.awt.BorderLayout());
+            getContentPane().add(style.createFrameTitleBar(this, "Login", false), java.awt.BorderLayout.NORTH);
+            getContentPane().add(loginPanel, java.awt.BorderLayout.CENTER);
+            pack();
+            this.setLocationRelativeTo(null);
         }
+
+    private void setupPlaceholders() {
+        style.applyPlaceholder(emailField, "Enter your email");
+        style.applyPlaceholder(passwordField, "Enter your password");
+    }
+
+    private String getEmailInput() {
+        return style.getFieldText(emailField);
+    }
+
+    private String getPasswordInput() {
+        return style.getFieldText(passwordField);
+    }
+
+    private boolean validateLoginFields() {
+        style.clearFieldError(emailField);
+        style.clearFieldError(passwordField);
+
+        String email = getEmailInput();
+        String password = getPasswordInput();
+
+        if (email.isEmpty()) {
+            showValidationError(emailField, "Email is required.");
+            return false;
+        }
+
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            showValidationError(emailField, "Please enter a valid email address.");
+            return false;
+        }
+
+        if (password.trim().isEmpty()) {
+            showValidationError(passwordField, "Password is required.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void showValidationError(JComponent field, String message) {
+        style.showFieldError(field);
+        style.showWarningMessage(this, message);
+    }
 
     /**
      * This method is called from within the constructor to initialize the form.
@@ -157,8 +212,13 @@ public class Login extends javax.swing.JFrame {
     }//GEN-LAST:event_passwordFieldActionPerformed
 
     private void loginButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginButtonActionPerformed
-  String email = emailField.getText().trim();
-String password = new String(passwordField.getPassword());
+if (!validateLoginFields()) {
+    return;
+}
+
+String email = getEmailInput();
+String password = getPasswordInput();
+boolean loginSuccessful = false;
 
 String sql = "SELECT * FROM users WHERE email = ?";
 
@@ -171,29 +231,29 @@ try (Connection conn = Database.getConnection();
     if (rs.next()) {
         String hashedPassword = rs.getString("password");
 
-        System.out.println("HASH FROM DB: " + hashedPassword);
-
         if (hashedPassword != null && BCrypt.checkpw(password, hashedPassword)) {
             String name = rs.getString("name");
             com.kelsz.esla.UserSession.getInstance().setUser(name, email);
             
-            JOptionPane.showMessageDialog(this, "Login Successful 🎉");
-
-    this.dispose(); // close login
-
-    new com.kelsz.esla.MainFrame().setVisible(true); // open main app
+            style.showSuccessMessage(this, "Login successful.");
+            loginSuccessful = true;
 
         } else {
-    JOptionPane.showMessageDialog(this, "Invalid password ❌");
+    style.showErrorMessage(this, "Invalid password.");
         }
 
     } else {
-        JOptionPane.showMessageDialog(this, "User not found ❌");
+        style.showErrorMessage(this, "User not found.");
     }
 
 } catch (Exception ex) {
     ex.printStackTrace();
-    JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+    style.showErrorMessage(this, "Error: " + ex.getMessage());
+}
+
+if (loginSuccessful) {
+    this.dispose();
+    java.awt.EventQueue.invokeLater(() -> new com.kelsz.esla.MainFrame().setVisible(true));
 }
     }//GEN-LAST:event_loginButtonActionPerformed
 
@@ -213,6 +273,7 @@ try (Connection conn = Database.getConnection();
                     break;
                 }
             }
+            style.applyGlobalDialogStyle();
         } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ex) {
             logger.log(java.util.logging.Level.SEVERE, null, ex);
         }

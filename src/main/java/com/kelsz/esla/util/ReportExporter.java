@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.Date;
+import ui.style;
 
 public class ReportExporter {
 
@@ -105,11 +106,11 @@ public class ReportExporter {
 
                 try (FileOutputStream fileOut = new FileOutputStream(fileChooser.getSelectedFile())) {
                     workbook.write(fileOut);
-                    JOptionPane.showMessageDialog(null, "Excel report generated successfully!");
+                    style.showMessageDialog(null, "Excel report generated successfully!");
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Error generating Excel: " + e.getMessage());
+                style.showMessageDialog(null, "Error generating Excel: " + e.getMessage());
             }
         }
     }
@@ -301,10 +302,10 @@ public class ReportExporter {
 
                 contentStream.close();
                 document.save(fileChooser.getSelectedFile());
-                JOptionPane.showMessageDialog(null, "PDF report generated successfully!");
+                style.showMessageDialog(null, "PDF report generated successfully!");
             } catch (Exception e) {
                 e.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Error generating PDF: " + e.getMessage());
+                style.showMessageDialog(null, "Error generating PDF: " + e.getMessage());
             }
         }
     }

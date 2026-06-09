@@ -12,6 +12,7 @@ import features.serviceCharge;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import javax.swing.JPanel;
+import ui.Exportable;
 import ui.HeaderNav;
 import ui.style;
 
@@ -30,13 +31,22 @@ public class MainFrame extends javax.swing.JFrame {
     private CardLayout cardLayout;
 
     public MainFrame() {
-     initComponents();
+    setUndecorated(true);
+    initComponents();
 
-    setLocationRelativeTo(null);
+    setTitle("ESLA");
+    setMinimumSize(new java.awt.Dimension(1100, 700));
+    setSize(new java.awt.Dimension(1332, 731));
+    getContentPane().removeAll();
     getContentPane().setLayout(new BorderLayout());
+    getContentPane().setBackground(style.BACKGROUND);
 
     HeaderNav nav = new HeaderNav(this);
-    getContentPane().add(nav, BorderLayout.NORTH);
+    JPanel topPanel = new JPanel(new BorderLayout());
+    topPanel.setOpaque(false);
+    topPanel.add(style.createFrameTitleBar(this, "Main", true), BorderLayout.NORTH);
+    topPanel.add(nav, BorderLayout.CENTER);
+    getContentPane().add(topPanel, BorderLayout.NORTH);
 
     cardLayout = new CardLayout();
     contentPanel = new JPanel(cardLayout);
@@ -51,6 +61,7 @@ public class MainFrame extends javax.swing.JFrame {
     getContentPane().add(contentPanel, BorderLayout.CENTER);
 
     cardLayout.show(contentPanel, "dashboard");
+    setLocationRelativeTo(null);
 }
 
     public void showPage(String name) {
@@ -66,6 +77,20 @@ public class MainFrame extends javax.swing.JFrame {
                 break;
             }
         }
+    }
+
+    public void exportActivePage(String format) {
+        for (java.awt.Component comp : contentPanel.getComponents()) {
+            if (comp.isVisible() && comp instanceof Exportable exportable) {
+                if ("pdf".equalsIgnoreCase(format)) {
+                    exportable.exportToPDF();
+                } else if ("excel".equalsIgnoreCase(format)) {
+                    exportable.exportToExcel();
+                }
+                return;
+            }
+        }
+        style.showMessageDialog(this, "Export is not available for this module.");
     }
 
 
@@ -110,6 +135,7 @@ public class MainFrame extends javax.swing.JFrame {
                     break;
                 }
             }
+            style.applyGlobalDialogStyle();
         } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException ex) {
             logger.log(java.util.logging.Level.SEVERE, null, ex);
         }

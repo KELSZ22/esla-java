@@ -5,7 +5,6 @@
 package ui;
 
 import com.kelsz.esla.Database;
-import java.awt.Color;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.time.LocalDate;
@@ -253,30 +252,57 @@ public class MemberForm extends javax.swing.JPanel {
     }
 
     private boolean validateForm() {
-        if (this.name.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Name is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
-            this.name.requestFocus();
+        style.clearFieldError(name);
+        style.clearFieldError(email);
+        style.clearFieldError(phone);
+        style.clearFieldError(formNo3);
+        style.clearFieldError(formNo5);
+        style.clearFieldError(memberSince);
+
+        if (style.getFieldText(this.name).isEmpty()) {
+            style.showFieldError(this.name);
+            style.showMessageDialog(this, "Name is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
-        if (this.email.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Email is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
-            this.email.requestFocus();
+        if (style.getFieldText(this.email).isEmpty()) {
+            style.showFieldError(this.email);
+            style.showMessageDialog(this, "Email is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
-        if (this.phone.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Phone is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
-            this.phone.requestFocus();
+        if (!style.getFieldText(this.email).matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            style.showFieldError(this.email);
+            style.showMessageDialog(this, "Please enter a valid email address", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
-        if (this.formNo3.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Address is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
-            this.formNo3.requestFocus();
+        if (style.getFieldText(this.phone).isEmpty()) {
+            style.showFieldError(this.phone);
+            style.showMessageDialog(this, "Phone is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        if (style.getFieldText(this.formNo3).isEmpty()) {
+            style.showFieldError(this.formNo3);
+            style.showMessageDialog(this, "Address is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return false;
         }
         if (this.jComboBox1.getSelectedItem() == null) {
-            JOptionPane.showMessageDialog(this, "Member type is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            style.showMessageDialog(this, "Member type is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
             this.jComboBox1.requestFocus();
             return false;
+        }
+        if (this.memberSince.getDate() == null) {
+            style.showFieldError(this.memberSince);
+            style.showMessageDialog(this, "Member since date is required", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        String premiumText = style.getFieldText(this.formNo5);
+        if (!premiumText.isEmpty()) {
+            try {
+                Integer.parseInt(premiumText);
+            } catch (NumberFormatException e) {
+                style.showFieldError(this.formNo5);
+                style.showMessageDialog(this, "Premium must be a valid number", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
         }
         return true;
     }
@@ -289,6 +315,11 @@ public class MemberForm extends javax.swing.JPanel {
         style.applyTextField(phone);
         style.applyTextField(formNo3);
         style.applyTextField(formNo5);
+        style.applyPlaceholder(name, "Enter member name");
+        style.applyPlaceholder(email, "Enter email address");
+        style.applyPlaceholder(phone, "Enter phone number");
+        style.applyPlaceholder(formNo3, "Enter address");
+        style.applyPlaceholder(formNo5, "Enter premium amount");
         style.applyComboBox(jComboBox1);
         style.applyDateChooserStyle(memberSince);
         
@@ -302,7 +333,7 @@ public class MemberForm extends javax.swing.JPanel {
         
         style.applyModernLabel(jLabel1, true);
         jLabel1.setVisible(false);
-        setBackground(Color.WHITE);
+        style.applyFormPanel(this);
     }
 
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveButtonActionPerformed
@@ -313,16 +344,16 @@ public class MemberForm extends javax.swing.JPanel {
 
         try {
             // Parse form inputs
-            String nameText = this.name.getText().trim();
-            String emailText = this.email.getText().trim();
-            String phoneText = this.phone.getText().trim();
-            String addressText = this.formNo3.getText().trim();
+            String nameText = style.getFieldText(this.name);
+            String emailText = style.getFieldText(this.email);
+            String phoneText = style.getFieldText(this.phone);
+            String addressText = style.getFieldText(this.formNo3);
             String memberType = (String) this.jComboBox1.getSelectedItem();
-            String premiumText = this.formNo5.getText().trim();
+            String premiumText = style.getFieldText(this.formNo5);
             
             java.util.Date selectedDate = this.memberSince.getDate();
             if (selectedDate == null) {
-                JOptionPane.showMessageDialog(this,
+                style.showMessageDialog(this,
                     "Please select a member since date",
                     "Validation Error",
                     JOptionPane.ERROR_MESSAGE);
@@ -356,13 +387,13 @@ public class MemberForm extends javax.swing.JPanel {
                 con.close();
 
                 if (rowsAffected > 0) {
-                    JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Member updated successfully!",
                         "Success",
                         JOptionPane.INFORMATION_MESSAGE);
                     javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
                 } else {
-                    JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Failed to update member. Please try again.",
                         "Error",
                         JOptionPane.ERROR_MESSAGE);
@@ -384,26 +415,26 @@ public class MemberForm extends javax.swing.JPanel {
                 con.close();
 
                 if (rowsAffected > 0) {
-                    JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Member created successfully!",
                         "Success",
                         JOptionPane.INFORMATION_MESSAGE);
                     javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
                 } else {
-                    JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Failed to create member. Please try again.",
                         "Error",
                         JOptionPane.ERROR_MESSAGE);
                 }
             }
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Premium must be a valid number",
                 "Validation Error",
                 JOptionPane.ERROR_MESSAGE);
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Error creating member: " + e.getMessage(),
                 "Error",
                 JOptionPane.ERROR_MESSAGE);

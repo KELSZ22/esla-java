@@ -39,7 +39,7 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
+public class dashboard extends javax.swing.JPanel implements ui.Refreshable, ui.Exportable {
     
     @Override
     public void refresh() {
@@ -55,11 +55,13 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
      */
     public dashboard() {
     initComponents();   // 👈 KEEP THIS (NetBeans GUI)
+    style.applyModulePanel(this);
     style.applyTableStyle(dashboardTable, 14, 14);
-    style.applyScrollStyle(jScrollPane1);
+    style.applyTableContainer(jScrollPane1);
     style.applyModernLabel(jLabel1, true);
     style.applyDateChooserStyle(chooseDate);
     style.applySearchField(searchField);
+    style.applyPlaceholder(searchField, "Search members");
 
     // Set default date to latest cutoff date
     LocalDate latestDate = getLatestCutoffDate();
@@ -103,26 +105,16 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
         }
     });
 
-    // Initialize export buttons
-    exportPdfButton = new JButton("Export PDF");
-    exportExcelButton = new JButton("Export Excel");
-    style.applySecondaryButton(exportPdfButton);
-    style.applySecondaryButton(exportExcelButton);
-
-    // Add export button listeners
-    exportPdfButton.addActionListener(evt -> exportToPDF());
-    exportExcelButton.addActionListener(evt -> exportToExcel());
-
     // Initialize seed button
     seedButton = new JButton("Seed Data");
     style.applySecondaryButton(seedButton);
     seedButton.addActionListener(evt -> {
-        int confirm = JOptionPane.showConfirmDialog(this, 
+        int confirm = style.showConfirmDialog(this, 
             "This will clear all existing data and populate the database with sample data. Continue?", 
             "Confirm Seeding", JOptionPane.YES_NO_OPTION);
         if (confirm == JOptionPane.YES_OPTION) {
             com.kelsz.esla.DatabaseSeeder.seed();
-            JOptionPane.showMessageDialog(this, "Database seeded successfully!");
+            style.showMessageDialog(this, "Database seeded successfully!");
             refresh();
         }
     });
@@ -343,7 +335,7 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
     }
 
     private void filterTable() {
-        String searchText = searchField.getText().toLowerCase();
+        String searchText = style.getFieldText(searchField).toLowerCase();
         String selectedMemberType = (String) memberTypeField.getSelectedItem();
         DefaultTableModel model = (DefaultTableModel) dashboardTable.getModel();
         TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
@@ -457,7 +449,7 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
 
     } catch (Exception e) {
         e.printStackTrace();
-        JOptionPane.showMessageDialog(null, "Error loading members: " + e.getMessage());
+        style.showMessageDialog(null, "Error loading members: " + e.getMessage());
     }
 
     dashboardTable.setModel(model);
@@ -474,6 +466,9 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
         @Override
         public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            if (c instanceof javax.swing.JLabel label) {
+                style.applyTableCellPadding(label);
+            }
 
             // Check if this is a group header row (empty columns 1, 2, 3)
             if (column == 0 && table.getValueAt(row, 1) == "" && table.getValueAt(row, 2) == "" && table.getValueAt(row, 3) == "") {
@@ -595,6 +590,7 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
     // EXPORT METHODS
     // =========================
     private void addControlButtonsToLayout() {
+        style.applyToolbarPanel(searchPanel);
         // Remove existing layout and recreate with export and seed buttons
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
         this.setLayout(layout);
@@ -611,10 +607,6 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                             .addComponent(memberTypeField, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                            .addComponent(exportPdfButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                            .addComponent(exportExcelButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                             .addComponent(seedButton, javax.swing.GroupLayout.PREFERRED_SIZE, 120, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(chooseDate, javax.swing.GroupLayout.PREFERRED_SIZE, 169, javax.swing.GroupLayout.PREFERRED_SIZE))))
@@ -630,8 +622,6 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
                     .addComponent(searchField, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                         .addComponent(memberTypeField, javax.swing.GroupLayout.Alignment.TRAILING)
-                        .addComponent(exportPdfButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
-                        .addComponent(exportExcelButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
                         .addComponent(seedButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)
                         .addComponent(chooseDate, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 40, Short.MAX_VALUE)))
                 .addGap(15, 15, 15)
@@ -640,27 +630,13 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable {
         );
     }
 
-    private void exportToExcel() {
-                CellStyle normalStyle = workbook.createCellStyle();
-                normalStyle.setBorderBottom(BorderStyle.THIN);
-                normalStyle.setBorderTop(BorderStyle.THIN);
-                normalStyle.setBorderLeft(BorderStyle.THIN);
-                normalStyle.setBorderRight(BorderStyle.THIN);
-
-                // Number cell style (2 decimal places)
-                CellStyle numberStyle = workbook.createCellStyle();
-                numberStyle.setDataFormat(workbook.createDataFormat().getFormat("#,##0.00"));
-                numberStyle.setBorderBottom(BorderStyle.THIN);
-                numberStyle.setBorderTop(BorderStyle.THIN);
-                numberStyle.setBorderLeft(BorderStyle.THIN);
-                numberStyle.setBorderRight(BorderStyle.THIN);
-
-                int excelRow = 0;
-
+    @Override
+    public void exportToExcel() {
         ReportExporter.exportToExcel(dashboardTable, "Dashboard Report", "Generated on: " + java.time.LocalDate.now(), new int[]{0, 1, 2, 3});
     }
 
-    private void exportToPDF() {
+    @Override
+    public void exportToPDF() {
         ReportExporter.exportToPDF(dashboardTable, "Dashboard Report", "Generated on: " + java.time.LocalDate.now(), new int[]{0, 1, 2, 3});
     }
 }

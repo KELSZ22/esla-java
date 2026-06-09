@@ -1,6 +1,5 @@
 package ui;
 
-import java.awt.Color;
 import java.math.BigDecimal;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -18,10 +17,11 @@ public class CollectedInterestForm extends javax.swing.JPanel {
     }
 
     private void applyStyling() {
-        setBackground(Color.WHITE);
+        style.applyFormPanel(this);
         style.applyModernLabel(jLabel1, true);
         style.applyModernLabel(jLabel2, false);
         style.applyTextField(collectedInterestField);
+        style.applyPlaceholder(collectedInterestField, "Enter collected interest");
         style.applyButton(saveButton);
         style.applySecondaryButton(cancelButton);
         
@@ -94,9 +94,12 @@ public class CollectedInterestForm extends javax.swing.JPanel {
     }
 
     private void saveButtonActionPerformed(java.awt.event.ActionEvent evt) {
-        String valStr = collectedInterestField.getText().trim();
+        style.clearFieldError(collectedInterestField);
+
+        String valStr = style.getFieldText(collectedInterestField);
         if (valStr.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter a value", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            style.showFieldError(collectedInterestField);
+            style.showMessageDialog(this, "Please enter a value", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -106,13 +109,14 @@ public class CollectedInterestForm extends javax.swing.JPanel {
             boolean success = service.updateCollectedInterest(formId, newValue);
             
             if (success) {
-                JOptionPane.showMessageDialog(this, "Collected interest updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                style.showMessageDialog(this, "Collected interest updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                 SwingUtilities.getWindowAncestor(this).dispose();
             } else {
-                JOptionPane.showMessageDialog(this, "Failed to update collected interest.", "Error", JOptionPane.ERROR_MESSAGE);
+                style.showMessageDialog(this, "Failed to update collected interest.", "Error", JOptionPane.ERROR_MESSAGE);
             }
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Please enter a valid numeric value.", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            style.showFieldError(collectedInterestField);
+            style.showMessageDialog(this, "Please enter a valid numeric value.", "Validation Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 

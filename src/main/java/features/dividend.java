@@ -24,7 +24,7 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class dividend extends javax.swing.JPanel implements ui.Refreshable {
+public class dividend extends javax.swing.JPanel implements ui.Refreshable, ui.Exportable {
     
     @Override
     public void refresh() {
@@ -47,6 +47,7 @@ public class dividend extends javax.swing.JPanel implements ui.Refreshable {
     public dividend() {
         dividendService = new DividendService();
         initComponents();
+        style.applyModulePanel(this);
         setupStyles();
 
         // Setup debounced search
@@ -63,6 +64,7 @@ public class dividend extends javax.swing.JPanel implements ui.Refreshable {
     private void setupStyles() {
         style.applyModernLabel(jLabel1, true);
         style.applySearchField(dividendSearchField);
+        style.applyPlaceholder(dividendSearchField, "Search members");
         style.applyComboBox(selectServiceCharge);
         style.applyModernLabel(dateLabel, false);
         
@@ -88,36 +90,29 @@ public class dividend extends javax.swing.JPanel implements ui.Refreshable {
         style.applyModernLabel(valTotalDividend, true);
 
         style.applyTableStyle(dividendTable, 14, 14);
-        style.applyScrollStyle(jScrollPane1);
+        style.applyTableContainer(jScrollPane1);
         
         setupExportButtons();
         style.applyStandardSizes(dividendSearchField, selectServiceCharge);
     }
 
     private void setupExportButtons() {
-        exportPdfButton = new javax.swing.JButton("Export PDF");
-        exportExcelButton = new javax.swing.JButton("Export Excel");
-        
-        style.applyButton(exportPdfButton);
-        style.applyButton(exportExcelButton);
-        
         // Ensure buttons are visible by setting FlowLayout (GroupLayout can be restrictive for dynamic additions)
         jPanel1.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 0));
+        jPanel1.removeAll();
+        style.applyToolbarPanel(jPanel1);
         jPanel1.add(dividendSearchField);
         jPanel1.add(selectServiceCharge);
         jPanel1.add(dateLabel);
-        jPanel1.add(exportPdfButton);
-        jPanel1.add(exportExcelButton);
-        
-        exportPdfButton.addActionListener(e -> exportToPDF());
-        exportExcelButton.addActionListener(e -> exportToExcel());
     }
 
-    private void exportToExcel() {
+    @Override
+    public void exportToExcel() {
         ReportExporter.exportToExcel(dividendTable, "Dividend Report", "Service Charge: " + selectServiceCharge.getSelectedItem(), new int[]{0, 1, 2, 3, 4, 5, 6, 7});
     }
 
-    private void exportToPDF() {
+    @Override
+    public void exportToPDF() {
         ReportExporter.exportToPDF(dividendTable, "Dividend Report", "Service Charge: " + selectServiceCharge.getSelectedItem(), new int[]{0, 1, 2, 3, 4, 5, 6, 7});
     }
 
@@ -156,7 +151,7 @@ public class dividend extends javax.swing.JPanel implements ui.Refreshable {
     }
 
     private void loadDividendData() {
-        String name = dividendSearchField.getText().trim();
+        String name = style.getFieldText(dividendSearchField);
         String serviceCharge = selectServiceCharge.getSelectedItem() != null ? selectServiceCharge.getSelectedItem().toString() : "All Service Charges";
         if (serviceCharge.equals("All Service Charges")) {
             serviceCharge = null;

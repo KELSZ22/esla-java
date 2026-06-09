@@ -5,6 +5,7 @@
 package features;
 
 import com.kelsz.esla.Database;
+import com.kelsz.esla.util.ReportExporter;
 import com.toedter.calendar.JDateChooser;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -39,7 +40,7 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class member extends javax.swing.JPanel implements ui.Refreshable {
+public class member extends javax.swing.JPanel implements ui.Refreshable, ui.Exportable {
     
     @Override
     public void refresh() {
@@ -118,6 +119,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            style.applyTableCellPadding(this);
 
             if (value != null && !value.toString().isEmpty()) {
                 try {
@@ -165,6 +167,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            style.applyTableCellPadding(this);
 
             if (value != null && !value.toString().isEmpty()) {
                 String text = value.toString();
@@ -185,13 +188,15 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
      */
     public member() {
         initComponents();
-        setBackground(Color.WHITE);
+        style.applyModulePanel(this);
+        style.applyToolbarPanel(memberSearchPanel);
         style.applyTableStyle(memberTable, 14, 14);
-        style.applyScrollStyle(jScrollPane1);
+        style.applyTableContainer(jScrollPane1);
         style.applyModernLabel(jLabel1, true);
         style.applyComboBox(selectField);
         style.applyButton(addMemberButton);
         style.applySearchField(memberSearchField);
+        style.applyPlaceholder(memberSearchField, "Search members");
         setupTable();
         populateMemberTypes();
         setupFilters();
@@ -273,7 +278,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
     // APPLY FILTERS
     // =========================
     private void applyFilters() {
-        String searchText = memberSearchField.getText();
+        String searchText = style.getFieldText(memberSearchField);
         String memberType = (String) selectField.getSelectedItem();
         if (memberType == null) {
             memberType = "All";
@@ -373,7 +378,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
 
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(null, "Error loading members: " + e.getMessage());
+            style.showMessageDialog(null, "Error loading members: " + e.getMessage());
         }
 
         // Set column identifiers before setting model
@@ -402,6 +407,10 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         memberTable.getColumnModel().getColumn(8).setPreferredWidth(30);
         memberTable.getColumnModel().getColumn(8).setMinWidth(30);
         memberTable.getColumnModel().getColumn(8).setMaxWidth(30);
+        style.applyTableActionTooltips(memberTable, java.util.Map.of(
+                7, "Edit member",
+                8, "Delete member"
+        ));
 
         // Custom renderer for Edit column with hover effect
         memberTable.getColumnModel().getColumn(7).setCellRenderer(new DefaultTableCellRenderer() {
@@ -593,7 +602,7 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         // Handle Delete column click
         if (col == 8) {
             int id = rowIds.get(row);
-            int confirm = JOptionPane.showConfirmDialog(
+            int confirm = style.showConfirmDialog(
                 this,
                 "Are you sure you want to delete this member?",
                 "Confirm Delete",
@@ -612,10 +621,10 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
 
                     // Refresh table
                     setupTable();
-                    JOptionPane.showMessageDialog(null, "Member deleted successfully!");
+                    style.showMessageDialog(null, "Member deleted successfully!");
                 } catch (Exception e) {
                     e.printStackTrace();
-                    JOptionPane.showMessageDialog(null, "Error deleting member: " + e.getMessage());
+                    style.showMessageDialog(null, "Error deleting member: " + e.getMessage());
                 }
             }
             return;
@@ -648,5 +657,15 @@ public class member extends javax.swing.JPanel implements ui.Refreshable {
         setupTable();
         populateMemberTypes();
     }//GEN-LAST:event_AddMemberActionPerformed
+
+    @Override
+    public void exportToPDF() {
+        ReportExporter.exportToPDF(memberTable, "Members Report", "Generated on: " + java.time.LocalDate.now(), new int[]{0, 1, 2, 3, 4, 5, 6});
+    }
+
+    @Override
+    public void exportToExcel() {
+        ReportExporter.exportToExcel(memberTable, "Members Report", "Generated on: " + java.time.LocalDate.now(), new int[]{0, 1, 2, 3, 4, 5, 6});
+    }
 
 }

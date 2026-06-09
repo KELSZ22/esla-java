@@ -10,6 +10,7 @@ package com.kelsz.esla;
  */
 import com.formdev.flatlaf.FlatLightLaf;
 import com.kelsz.esla.features.auth.Login;
+import ui.style;
 
 public class Esla {
 
@@ -17,6 +18,7 @@ public class Esla {
 
         try {
             FlatLightLaf.setup(); // 🌟 global theme
+            style.applyGlobalDialogStyle();
         } catch (Exception e) {
             e.printStackTrace();
         }

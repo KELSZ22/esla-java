@@ -19,6 +19,216 @@ import java.util.Map;
  */
 public class MemberServiceChargeRefundFormService {
 
+    public List<Map<String, Object>> getComputedLoanRows(Integer memberId, LocalDate dateFrom, LocalDate dateTo) {
+        List<Map<String, Object>> rows = new ArrayList<>();
+
+        if (dateFrom == null || dateTo == null) {
+            return rows;
+        }
+
+        try (Connection con = Database.getConnection()) {
+            java.util.Map<String, java.util.List<LocalDate>> paymentDateCache = new java.util.HashMap<>();
+            String sql = """
+                SELECT m.name AS member_name, l.id AS loan_id, l.member_id, led.type AS ledger_type,
+                       l.form_number, l.date, l.start_deduction_date, l.start_deduction_on_loan_date,
+                       l.principal, l.interest, l.service_charge, l.total, l.cutoffs, l.remarks
+                FROM loans l
+                INNER JOIN members m ON l.member_id = m.id
+                INNER JOIN ledgers led ON l.ledger_id = led.id
+                WHERE l.deleted_at IS NULL
+                  AND m.deleted_at IS NULL
+                  AND date(l.date) BETWEEN date(?) AND date(?)
+                """ + (memberId != null ? " AND l.member_id = ? " : "") + """
+                ORDER BY m.name ASC, date(l.date) ASC, l.form_number ASC, l.id ASC
+                """;
+
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setString(1, dateFrom.toString());
+                ps.setString(2, dateTo.toString());
+                if (memberId != null) {
+                    ps.setInt(3, memberId);
+                }
+
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        rows.add(computeLoanRow(con, rs, dateFrom, dateTo, paymentDateCache));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return rows;
+    }
+
+    private Map<String, Object> computeLoanRow(
+            Connection con,
+            ResultSet loanRs,
+            LocalDate dateFrom,
+            LocalDate dateTo,
+            java.util.Map<String, java.util.List<LocalDate>> paymentDateCache) throws SQLException {
+
+        int memberId = loanRs.getInt("member_id");
+        String ledgerType = loanRs.getString("ledger_type");
+        String loanDateStr = loanRs.getString("date");
+        LocalDate loanDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(loanDateStr);
+        String sddStr = loanRs.getString("start_deduction_date");
+        LocalDate startDeductionDate = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(sddStr);
+        boolean startDeductionOnLoanDate = loanRs.getBoolean("start_deduction_on_loan_date");
+
+        BigDecimal principal = loanRs.getBigDecimal("principal");
+        BigDecimal interest = loanRs.getBigDecimal("interest");
+        BigDecimal serviceCharge = loanRs.getBigDecimal("service_charge");
+        BigDecimal total = loanRs.getBigDecimal("total");
+        Integer cutoffs = loanRs.getObject("cutoffs") == null ? null : loanRs.getInt("cutoffs");
+        String loanRemarks = loanRs.getString("remarks");
+
+        BigDecimal noOfMonths = BigDecimal.valueOf(Math.max(0.5, cutoffs != null ? cutoffs.doubleValue() : 0.5));
+
+        if (total == null) {
+            total = BigDecimal.ZERO;
+            if (principal != null) total = total.add(principal);
+            if (interest != null) total = total.add(interest);
+            if (serviceCharge != null) total = total.add(serviceCharge);
+        }
+
+        java.util.List<LocalDate> paymentDates = paymentDateCache.computeIfAbsent(
+                memberId + "|" + ledgerType,
+                key -> getPaymentDates(con, memberId, ledgerType)
+        );
+
+        BigDecimal collectedInterest = calculateCollectedInterest(
+                paymentDates,
+                loanDate,
+                startDeductionDate,
+                startDeductionOnLoanDate,
+                cutoffs,
+                dateFrom,
+                dateTo
+        );
+
+        BigDecimal totalInterest = BigDecimal.ZERO;
+        if (noOfMonths.compareTo(BigDecimal.ZERO) > 0 && interest != null) {
+            totalInterest = interest.divide(noOfMonths, 2, RoundingMode.HALF_UP)
+                    .multiply(collectedInterest)
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal refund60 = totalInterest.multiply(new BigDecimal("0.60")).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal refund40 = totalInterest.multiply(new BigDecimal("0.40")).setScale(2, RoundingMode.HALF_UP);
+
+        double remainingMonths = Math.max(0.0, noOfMonths.doubleValue() - collectedInterest.doubleValue());
+        boolean hasBalance = remainingMonths > 0.0;
+
+        StringBuilder remarks = new StringBuilder();
+        if (loanRemarks != null && !loanRemarks.trim().isEmpty()) {
+            remarks.append(loanRemarks.trim()).append(" ");
+        }
+        remarks.append(hasBalance ? "Balance " + String.format("%.1f", remainingMonths) : "Fully collected");
+
+        Map<String, Object> row = new java.util.HashMap<>();
+        row.put("id", null);
+        row.put("loan_id", loanRs.getInt("loan_id"));
+        row.put("member_id", memberId);
+        row.put("member_name", loanRs.getString("member_name"));
+        row.put("form_number", loanRs.getInt("form_number"));
+        row.put("date_loan", loanDate != null ? java.sql.Date.valueOf(loanDate) : null);
+        row.put("principal", principal);
+        row.put("interest", interest);
+        row.put("service_charge", serviceCharge);
+        row.put("total", total);
+        row.put("no_of_months", noOfMonths);
+        row.put("collected_interest", collectedInterest);
+        row.put("total_interest", totalInterest);
+        row.put("refund_60", refund60);
+        row.put("refund_40", refund40);
+        row.put("remarks", remarks.toString());
+        row.put("has_balance", hasBalance);
+        return row;
+    }
+
+    private java.util.List<LocalDate> getPaymentDates(Connection con, int memberId, String ledgerType) {
+        java.util.List<LocalDate> dates = new ArrayList<>();
+        String sql = """
+            SELECT fd.date
+            FROM form_data fd
+            INNER JOIN ledgers led ON fd.ledger_id = led.id
+            WHERE fd.member_id = ?
+              AND led.type = ?
+              AND fd.deleted_at IS NULL
+            ORDER BY fd.date ASC
+            """;
+
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, memberId);
+            ps.setString(2, ledgerType);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    LocalDate parsed = com.kelsz.esla.util.DateUtils.parseLocalDateSafely(rs.getString("date"));
+                    if (parsed != null) {
+                        dates.add(parsed);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return dates;
+    }
+
+    private BigDecimal calculateCollectedInterest(
+            java.util.List<LocalDate> paymentDates,
+            LocalDate loanDate,
+            LocalDate startDeductionDate,
+            boolean startDeductionOnLoanDate,
+            Integer cutoffs,
+            LocalDate dateFrom,
+            LocalDate dateTo) {
+
+        if (cutoffs == null || cutoffs <= 0 || dateFrom == null || dateTo == null) {
+            return BigDecimal.ZERO;
+        }
+
+        int rangeStart;
+        if (startDeductionOnLoanDate) {
+            rangeStart = 1;
+        } else if (startDeductionDate != null) {
+            int countBeforeOrOn = 0;
+            for (LocalDate date : paymentDates) {
+                if (!date.isAfter(startDeductionDate)) {
+                    countBeforeOrOn++;
+                }
+            }
+            rangeStart = countBeforeOrOn + 1;
+        } else {
+            int countBefore = 0;
+            if (loanDate != null) {
+                for (LocalDate date : paymentDates) {
+                    if (date.isBefore(loanDate)) {
+                        countBefore++;
+                    }
+                }
+            }
+            rangeStart = countBefore + 2;
+        }
+
+        int rangeEnd = rangeStart + (cutoffs * 2) - 1;
+        int collectedCutoffs = 0;
+        for (int i = 0; i < paymentDates.size(); i++) {
+            int position = i + 1;
+            LocalDate paymentDate = paymentDates.get(i);
+            if (position >= rangeStart
+                    && position <= rangeEnd
+                    && !paymentDate.isBefore(dateFrom)
+                    && !paymentDate.isAfter(dateTo)) {
+                collectedCutoffs++;
+            }
+        }
+
+        return BigDecimal.valueOf(collectedCutoffs).multiply(new BigDecimal("0.5"));
+    }
+
 
 
     /**
@@ -77,10 +287,13 @@ public class MemberServiceChargeRefundFormService {
                 FROM loans l
                 JOIN ledgers led ON l.ledger_id = led.id
                 WHERE l.member_id = ? AND l.deleted_at IS NULL
+                  AND date(l.date) BETWEEN date(?) AND date(?)
                 ORDER BY l.id ASC
             """;
             PreparedStatement loanPs = con.prepareStatement(loanSql);
             loanPs.setInt(1, memberId);
+            loanPs.setString(2, dateFrom != null ? dateFrom.toString() : null);
+            loanPs.setString(3, dateTo != null ? dateTo.toString() : null);
             ResultSet loanRs = loanPs.executeQuery();
 
             // Prepare insert statement for refund forms

@@ -36,7 +36,7 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class manageLedger extends javax.swing.JPanel {
+public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
 
     private Runnable backButtonCallback;
     private int ledgerId;
@@ -135,7 +135,8 @@ public class manageLedger extends javax.swing.JPanel {
      */
     public manageLedger() {
         initComponents();
-        setBackground(Color.WHITE);
+        style.applyModulePanel(this);
+        style.applyToolbarPanel(jPanel1);
         
         // Fix title
         jLabel1.setText("FORM DATA");
@@ -158,19 +159,27 @@ public class manageLedger extends javax.swing.JPanel {
         java.net.URL arrowUrl = getClass().getResource("/images/arrow-left.png");
         if (arrowUrl != null) {
             Icon arrowIcon = new ImageIcon(
-                    new ImageIcon(arrowUrl).getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH)
+                    new ImageIcon(arrowUrl).getImage().getScaledInstance(18, 18, Image.SCALE_SMOOTH)
             );
             backButton.setIcon(arrowIcon);
         }
+        backButton.setText("");
+        backButton.setToolTipText("Back to ledgers");
+        backButton.setPreferredSize(new java.awt.Dimension(34, 34));
+        backButton.setMinimumSize(new java.awt.Dimension(34, 34));
+        backButton.setMaximumSize(new java.awt.Dimension(34, 34));
 
         
         // Style search field
         style.applySearchField(formSearch);
+        style.applyPlaceholder(formSearch, "Search members");
         style.applyStandardSizes(formSearch, null);
         
         // Style member list
         style.applyListStyle(memberList);
         style.applyScrollStyle(jScrollPane3);
+        jScrollPane3.setPreferredSize(new java.awt.Dimension(214, 0));
+        jScrollPane3.setMinimumSize(new java.awt.Dimension(214, 120));
 
         // Add mouse listener to memberList
         memberList.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -216,8 +225,8 @@ public class manageLedger extends javax.swing.JPanel {
         });
 
         // Apply additional styles
-        style.applyScrollStyle(jScrollPane1);
-        style.applyScrollStyle(jScrollPane2);
+        style.applyTableContainer(jScrollPane1);
+        style.applyTableContainer(jScrollPane2);
         style.applyModernLabel(jLabel1, true);
 
         // Initialize delete buttons
@@ -248,7 +257,7 @@ public class manageLedger extends javax.swing.JPanel {
                             loadFormDataByLedger(ledgerId, null);
                         }
                     } else if (col == 12) { // Delete
-                        int confirm = javax.swing.JOptionPane.showConfirmDialog(
+                        int confirm = style.showConfirmDialog(
                             manageLedger.this,
                             "Are you sure you want to delete this payment record?",
                             "Confirm Delete",
@@ -269,7 +278,7 @@ public class manageLedger extends javax.swing.JPanel {
                                 } else {
                                     loadFormDataByLedger(ledgerId, null);
                                 }
-                                javax.swing.JOptionPane.showMessageDialog(manageLedger.this, "Payment deleted successfully!");
+                                style.showMessageDialog(manageLedger.this, "Payment deleted successfully!");
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -320,7 +329,7 @@ public class manageLedger extends javax.swing.JPanel {
                             loadLoansByLedger(ledgerId, null);
                         }
                     } else if (col == 11) { // Delete
-                        int confirm = javax.swing.JOptionPane.showConfirmDialog(
+                        int confirm = style.showConfirmDialog(
                             manageLedger.this,
                             "Are you sure you want to delete this loan record?",
                             "Confirm Delete",
@@ -341,7 +350,7 @@ public class manageLedger extends javax.swing.JPanel {
                                 } else {
                                     loadLoansByLedger(ledgerId, null);
                                 }
-                                javax.swing.JOptionPane.showMessageDialog(manageLedger.this, "Loan deleted successfully!");
+                                style.showMessageDialog(manageLedger.this, "Loan deleted successfully!");
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -407,7 +416,7 @@ public class manageLedger extends javax.swing.JPanel {
             String columnName = model.getColumnName(column);
             
             // Show confirmation dialog before updating
-            int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
+            int confirm = style.showConfirmDialog(this,
                 "Are you sure you want to update " + columnName + " to: " + (value != null ? value.toString() : "") + "?",
                 "Confirm Update",
                 javax.swing.JOptionPane.YES_NO_OPTION,
@@ -415,7 +424,7 @@ public class manageLedger extends javax.swing.JPanel {
             
             if (confirm != javax.swing.JOptionPane.YES_OPTION) {
                 // Reload data to revert the change
-                String searchText = formSearch.getText().toLowerCase().trim();
+                String searchText = style.getFieldText(formSearch).toLowerCase();
                 if (!searchText.isEmpty()) {
                     filterLoanTable(searchText);
                 } else {
@@ -559,7 +568,7 @@ public class manageLedger extends javax.swing.JPanel {
             if (rowsAffected > 0) {
                 System.out.println("Successfully updated " + columnName + " for loan record ID " + recordId);
                 // Check if search filter is active
-                String searchText = formSearch.getText().toLowerCase().trim();
+                String searchText = style.getFieldText(formSearch).toLowerCase();
                 if (!searchText.isEmpty()) {
                     // Reapply the filter to preserve search state
                     filterLoanTable(searchText);
@@ -579,7 +588,7 @@ public class manageLedger extends javax.swing.JPanel {
             
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Error updating loan record: " + e.getMessage(),
                 "Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -612,7 +621,7 @@ public class manageLedger extends javax.swing.JPanel {
             String columnName = model.getColumnName(column);
             
             // Show confirmation dialog before updating
-            int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
+            int confirm = style.showConfirmDialog(this,
                 "Are you sure you want to update " + columnName + " to: " + (value != null ? value.toString() : "") + "?",
                 "Confirm Update",
                 javax.swing.JOptionPane.YES_NO_OPTION,
@@ -620,7 +629,7 @@ public class manageLedger extends javax.swing.JPanel {
             
             if (confirm != javax.swing.JOptionPane.YES_OPTION) {
                 // Reload data to revert the change
-                String searchText = formSearch.getText().toLowerCase().trim();
+                String searchText = style.getFieldText(formSearch).toLowerCase();
                 if (!searchText.isEmpty()) {
                     filterPaymentTable(searchText);
                 } else {
@@ -823,7 +832,7 @@ public class manageLedger extends javax.swing.JPanel {
             if (rowsAffected > 0) {
                 System.out.println("Successfully updated " + columnName + " for record ID " + recordId);
                 // Check if search filter is active
-                String searchText = formSearch.getText().toLowerCase().trim();
+                String searchText = style.getFieldText(formSearch).toLowerCase();
                 if (!searchText.isEmpty()) {
                     // Reapply the filter to preserve search state
                     filterPaymentTable(searchText);
@@ -843,7 +852,7 @@ public class manageLedger extends javax.swing.JPanel {
             
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Error updating payment record: " + e.getMessage(),
                 "Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -919,7 +928,7 @@ public class manageLedger extends javax.swing.JPanel {
             memberList.setListData(memberNames);
 
             if (memberNames.isEmpty()) {
-                javax.swing.JOptionPane.showMessageDialog(this,
+                style.showMessageDialog(this,
                     "No members found for ledger type: " + ledgerType,
                     "Info",
                     javax.swing.JOptionPane.INFORMATION_MESSAGE);
@@ -930,7 +939,7 @@ public class manageLedger extends javax.swing.JPanel {
             con.close();
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Error loading members: " + e.getMessage(),
                 "Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -977,6 +986,10 @@ public class manageLedger extends javax.swing.JPanel {
         paymentTable.getColumnModel().getColumn(12).setPreferredWidth(30);
         paymentTable.getColumnModel().getColumn(12).setMinWidth(30);
         paymentTable.getColumnModel().getColumn(12).setMaxWidth(30);
+        style.applyTableActionTooltips(paymentTable, java.util.Map.of(
+                11, "Edit payment",
+                12, "Delete payment"
+        ));
 
         // Icons
         paymentTable.getColumnModel().getColumn(11).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
@@ -1092,7 +1105,7 @@ public class manageLedger extends javax.swing.JPanel {
             con.close();
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Error loading form data: " + e.getMessage(),
                 "Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -1138,6 +1151,10 @@ public class manageLedger extends javax.swing.JPanel {
         loanTable.getColumnModel().getColumn(11).setPreferredWidth(30);
         loanTable.getColumnModel().getColumn(11).setMinWidth(30);
         loanTable.getColumnModel().getColumn(11).setMaxWidth(30);
+        style.applyTableActionTooltips(loanTable, java.util.Map.of(
+                10, "Edit loan",
+                11, "Delete loan"
+        ));
 
         // Icons
         loanTable.getColumnModel().getColumn(10).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
@@ -1263,7 +1280,7 @@ public class manageLedger extends javax.swing.JPanel {
             con.close();
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Error loading loans: " + e.getMessage(),
                 "Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -1431,7 +1448,7 @@ public class manageLedger extends javax.swing.JPanel {
      * Perform search with debouncing
      */
     private void performSearch() {
-        String searchText = formSearch.getText().toLowerCase().trim();
+        String searchText = style.getFieldText(formSearch).toLowerCase();
         if (searchText.isEmpty()) {
             // If search is empty, reload all data for current member selection
             int selectedIndex = memberList.getSelectedIndex();
@@ -1573,8 +1590,15 @@ public class manageLedger extends javax.swing.JPanel {
         loanTable.getColumnModel().getColumn(2).setCellEditor(new DateCellEditor());
 
         // Align No. of Months column (column 7) to the left
-        javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer();
-        leftRenderer.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+        javax.swing.table.DefaultTableCellRenderer leftRenderer = new javax.swing.table.DefaultTableCellRenderer() {
+            @Override
+            public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                javax.swing.JLabel label = (javax.swing.JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                label.setHorizontalAlignment(javax.swing.SwingConstants.LEFT);
+                style.applyTableCellPadding(label);
+                return label;
+            }
+        };
         loanTable.getColumnModel().getColumn(7).setCellRenderer(leftRenderer);
 
         // Apply custom header renderer for sort icon
@@ -1606,7 +1630,7 @@ public class manageLedger extends javax.swing.JPanel {
         int selectedMemberIndex = memberList.getSelectedIndex();
         
         if (selectedMemberIndex < 0) {
-            javax.swing.JOptionPane.showMessageDialog(this, "Please select a member first", "Info", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            style.showMessageDialog(this, "Please select a member first", "Info", javax.swing.JOptionPane.INFORMATION_MESSAGE);
             return;
         }
         
@@ -1674,7 +1698,7 @@ public class manageLedger extends javax.swing.JPanel {
     private void deletePaymentButtonActionPerformed(java.awt.event.ActionEvent evt) {
         int selectedRow = paymentTable.getSelectedRow();
         if (selectedRow < 0) {
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Please select a payment record to delete",
                 "Info",
                 javax.swing.JOptionPane.INFORMATION_MESSAGE);
@@ -1685,7 +1709,7 @@ public class manageLedger extends javax.swing.JPanel {
         PaymentTableModel model = (PaymentTableModel) paymentTable.getModel();
         Object idObj = model.getValueAt(selectedRow, 0);
         if (idObj == null || !(idObj instanceof Integer)) {
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Invalid record selected",
                 "Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -1694,7 +1718,7 @@ public class manageLedger extends javax.swing.JPanel {
         int recordId = (Integer) idObj;
 
         // Show confirmation dialog
-        int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
+        int confirm = style.showConfirmDialog(this,
             "Are you sure you want to delete this payment record?",
             "Confirm Delete",
             javax.swing.JOptionPane.YES_NO_OPTION,
@@ -1711,13 +1735,13 @@ public class manageLedger extends javax.swing.JPanel {
                 con.close();
 
                 if (rowsAffected > 0) {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Payment record deleted successfully",
                         "Success",
                         javax.swing.JOptionPane.INFORMATION_MESSAGE);
 
                     // Reload data
-                    String searchText = formSearch.getText().toLowerCase().trim();
+                    String searchText = style.getFieldText(formSearch).toLowerCase();
                     int selectedMemberIndex = memberList.getSelectedIndex();
                     if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
                         int memberId = memberIds.get(selectedMemberIndex);
@@ -1732,14 +1756,14 @@ public class manageLedger extends javax.swing.JPanel {
                         }
                     }
                 } else {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Failed to delete payment record",
                         "Error",
                         javax.swing.JOptionPane.ERROR_MESSAGE);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                javax.swing.JOptionPane.showMessageDialog(this,
+                style.showMessageDialog(this,
                     "Error deleting payment record: " + e.getMessage(),
                     "Error",
                     javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -1750,7 +1774,7 @@ public class manageLedger extends javax.swing.JPanel {
     private void deleteLoanButtonActionPerformed(java.awt.event.ActionEvent evt) {
         int selectedRow = loanTable.getSelectedRow();
         if (selectedRow < 0) {
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Please select a loan record to delete",
                 "Info",
                 javax.swing.JOptionPane.INFORMATION_MESSAGE);
@@ -1761,7 +1785,7 @@ public class manageLedger extends javax.swing.JPanel {
         LoanTableModel model = (LoanTableModel) loanTable.getModel();
         Object idObj = model.getValueAt(selectedRow, 0);
         if (idObj == null || !(idObj instanceof Integer)) {
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Invalid record selected",
                 "Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -1770,7 +1794,7 @@ public class manageLedger extends javax.swing.JPanel {
         int recordId = (Integer) idObj;
 
         // Show confirmation dialog
-        int confirm = javax.swing.JOptionPane.showConfirmDialog(this,
+        int confirm = style.showConfirmDialog(this,
             "Are you sure you want to delete this loan record?",
             "Confirm Delete",
             javax.swing.JOptionPane.YES_NO_OPTION,
@@ -1787,13 +1811,13 @@ public class manageLedger extends javax.swing.JPanel {
                 con.close();
 
                 if (rowsAffected > 0) {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Loan record deleted successfully",
                         "Success",
                         javax.swing.JOptionPane.INFORMATION_MESSAGE);
 
                     // Reload data
-                    String searchText = formSearch.getText().toLowerCase().trim();
+                    String searchText = style.getFieldText(formSearch).toLowerCase();
                     int selectedMemberIndex = memberList.getSelectedIndex();
                     if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
                         int memberId = memberIds.get(selectedMemberIndex);
@@ -1808,14 +1832,14 @@ public class manageLedger extends javax.swing.JPanel {
                         }
                     }
                 } else {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Failed to delete loan record",
                         "Error",
                         javax.swing.JOptionPane.ERROR_MESSAGE);
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                javax.swing.JOptionPane.showMessageDialog(this,
+                style.showMessageDialog(this,
                     "Error deleting loan record: " + e.getMessage(),
                     "Error",
                     javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -1825,48 +1849,53 @@ public class manageLedger extends javax.swing.JPanel {
 
 
     private void setupExportButtons() {
-        exportPdfButton = new javax.swing.JButton("Export PDF");
-        exportExcelButton = new javax.swing.JButton("Export Excel");
-        
-        style.applyButton(exportPdfButton);
-        style.applyButton(exportExcelButton);
+        removeAll();
+        setLayout(new java.awt.BorderLayout(0, 16));
+
+        JPanel titleArea = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+        titleArea.setOpaque(false);
+        titleArea.add(backButton);
+        titleArea.add(jLabel1);
         
         // Refactor jPanel1 to use BorderLayout for better control over dynamic components
         jPanel1.setLayout(new java.awt.BorderLayout(10, 10));
         jPanel1.removeAll();
         
         JPanel headerArea = new JPanel(new java.awt.BorderLayout());
-        headerArea.setBackground(java.awt.Color.WHITE);
+        headerArea.setBackground(style.BACKGROUND);
         
         JPanel leftHeader = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 0));
-        leftHeader.setBackground(java.awt.Color.WHITE);
+        leftHeader.setOpaque(false);
         leftHeader.add(formSearch);
-        leftHeader.add(exportPdfButton);
-        leftHeader.add(exportExcelButton);
         
         JPanel rightHeader = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 10, 0));
-        rightHeader.setBackground(java.awt.Color.WHITE);
+        rightHeader.setOpaque(false);
         rightHeader.add(paymentLoanButton);
         
         headerArea.add(leftHeader, java.awt.BorderLayout.WEST);
         headerArea.add(rightHeader, java.awt.BorderLayout.EAST);
         
         JPanel contentArea = new JPanel(new java.awt.BorderLayout(10, 0));
-        contentArea.setBackground(java.awt.Color.WHITE);
+        contentArea.setOpaque(false);
+        jScrollPane3.setPreferredSize(new java.awt.Dimension(214, 0));
+        jScrollPane3.setMinimumSize(new java.awt.Dimension(214, 120));
         contentArea.add(jScrollPane3, java.awt.BorderLayout.WEST);
         contentArea.add(paymentTab, java.awt.BorderLayout.CENTER);
         
         jPanel1.add(headerArea, java.awt.BorderLayout.NORTH);
         jPanel1.add(contentArea, java.awt.BorderLayout.CENTER);
+
+        add(titleArea, java.awt.BorderLayout.NORTH);
+        add(jPanel1, java.awt.BorderLayout.CENTER);
         
-        exportPdfButton.addActionListener(e -> exportToPDF());
-        exportExcelButton.addActionListener(e -> exportToExcel());
-        
+        revalidate();
+        repaint();
         jPanel1.revalidate();
         jPanel1.repaint();
     }
 
-    private void exportToExcel() {
+    @Override
+    public void exportToExcel() {
         if (paymentTab.getSelectedIndex() == 0) {
             ReportExporter.exportToExcel(paymentTable, "Payment Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
         } else {
@@ -1874,7 +1903,8 @@ public class manageLedger extends javax.swing.JPanel {
         }
     }
 
-    private void exportToPDF() {
+    @Override
+    public void exportToPDF() {
         if (paymentTab.getSelectedIndex() == 0) {
             ReportExporter.exportToPDF(paymentTable, "Payment Ledger Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
         } else {

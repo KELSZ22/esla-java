@@ -5,7 +5,6 @@
 package ui;
 
 import com.kelsz.esla.Database;
-import java.awt.Color;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -44,6 +43,7 @@ public class ServiceChargeForm extends javax.swing.JPanel {
         style.applyButton(saveServiceChargeButton);
         style.applySecondaryButton(serviceChargeCancelButton);
         style.applyTextField(description);
+        style.applyPlaceholder(description, "Enter service charge description");
         style.applyDateChooserStyle(fromDate);
         style.applyDateChooserStyle(toDate);
         
@@ -52,7 +52,7 @@ public class ServiceChargeForm extends javax.swing.JPanel {
         style.applyModernLabel(jLabel3, false);
         style.applyModernLabel(jLabel4, false);
         
-        setBackground(Color.WHITE);
+        style.applyFormPanel(this);
         jLabel1.setVisible(false);
     }
 
@@ -166,21 +166,33 @@ public class ServiceChargeForm extends javax.swing.JPanel {
 
     private void saveServiceChargeButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_saveServiceChargeButtonActionPerformed
         // Get form values
-        String desc = description.getText().trim();
+        style.clearFieldError(description);
+        style.clearFieldError(fromDate);
+        style.clearFieldError(toDate);
+
+        String desc = style.getFieldText(description);
         Date fromDateValue = fromDate.getDate();
         Date toDateValue = toDate.getDate();
 
         // Validate inputs
         if (desc.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please enter a description", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            style.showFieldError(description);
+            style.showMessageDialog(this, "Please enter a description", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         if (fromDateValue == null) {
-            JOptionPane.showMessageDialog(this, "Please select a from date", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            style.showFieldError(fromDate);
+            style.showMessageDialog(this, "Please select a from date", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
         if (toDateValue == null) {
-            JOptionPane.showMessageDialog(this, "Please select a to date", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            style.showFieldError(toDate);
+            style.showMessageDialog(this, "Please select a to date", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (toDateValue.before(fromDateValue)) {
+            style.showFieldError(toDate);
+            style.showMessageDialog(this, "To date must be on or after from date", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -208,7 +220,7 @@ public class ServiceChargeForm extends javax.swing.JPanel {
                 con.close();
 
                 lastCommittedDescription = desc;
-                JOptionPane.showMessageDialog(this,
+                style.showMessageDialog(this,
                     "Updated service charge for " + rows + " refund record(s).",
                     "Success", JOptionPane.INFORMATION_MESSAGE);
                 closeHostDialog();
@@ -262,7 +274,7 @@ public class ServiceChargeForm extends javax.swing.JPanel {
                 con.close();
 
                 lastCommittedDescription = desc;
-                JOptionPane.showMessageDialog(this, 
+                style.showMessageDialog(this, 
                     "Successfully created service charge refunds for " + refundCount + " members\n" +
                     "Total forms generated: " + totalFormsCreated,
                     "Success", JOptionPane.INFORMATION_MESSAGE);
@@ -280,7 +292,7 @@ public class ServiceChargeForm extends javax.swing.JPanel {
 
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error saving service charge: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            style.showMessageDialog(this, "Error saving service charge: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }//GEN-LAST:event_saveServiceChargeButtonActionPerformed
 

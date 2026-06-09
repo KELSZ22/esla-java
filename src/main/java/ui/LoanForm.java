@@ -94,29 +94,24 @@ public class LoanForm extends javax.swing.JPanel {
     }
 
     private void applyStyling() {
-        // Apply panel styling
-        setBackground(java.awt.Color.WHITE);
+        style.applyFormPanel(this);
 
         // Apply text field styling
         style.applyTextField(formNo);
         style.applyTextField(serviceCharge);
         style.applyTextField(no_of_months);
         style.applyTextField(jTextField1);
+        style.applyPlaceholder(formNo, "Auto if blank");
+        style.applyPlaceholder(serviceCharge, "Optional service charge %");
+        style.applyPlaceholder(no_of_months, "Enter number of months");
+        style.applyPlaceholder(jTextField1, "Enter principal amount");
 
         // Apply button styling
         style.applyButton(saveLoanButton);
         style.applySecondaryButton(loanCanvelButton);
 
-        // Style remarks text area
-        remarks.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 14));
-        remarks.setBackground(java.awt.Color.WHITE);
-        remarks.setForeground(new java.awt.Color(40, 40, 40));
-        remarks.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-            new javax.swing.border.LineBorder(style.PRIMARY, 1, true),
-            javax.swing.BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        ));
-        remarks.setLineWrap(true);
-        remarks.setWrapStyleWord(true);
+        style.applyTextArea(remarks);
+        style.applyPlaceholder(remarks, "Enter remarks");
 
         // Style date choosers
         style.applyDateChooserStyle(jDateChooser1);
@@ -285,7 +280,7 @@ public class LoanForm extends javax.swing.JPanel {
             // Parse form inputs
             java.util.Date selectedDate = jDateChooser2.getDate();
             if (selectedDate == null) {
-                javax.swing.JOptionPane.showMessageDialog(this,
+                style.showMessageDialog(this,
                     "Please select a date",
                     "Validation Error",
                     javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -304,11 +299,11 @@ public class LoanForm extends javax.swing.JPanel {
                     .toLocalDate();
             }
 
-            Integer formNumber = formNo.getText().trim().isEmpty() ? null : Integer.parseInt(formNo.getText().trim());
-            java.math.BigDecimal principal = parseDecimal(jTextField1.getText());
-            java.math.BigDecimal serviceChargeValue = parseDecimal(serviceCharge.getText());
-            Integer noOfMonths = no_of_months.getText().trim().isEmpty() ? null : Integer.parseInt(no_of_months.getText().trim());
-            String remarks = this.remarks.getText();
+            Integer formNumber = style.getFieldText(formNo).isEmpty() ? null : Integer.parseInt(style.getFieldText(formNo));
+            java.math.BigDecimal principal = parseDecimal(style.getFieldText(jTextField1));
+            java.math.BigDecimal serviceChargeValue = parseDecimal(style.getFieldText(serviceCharge));
+            Integer noOfMonths = style.getFieldText(no_of_months).isEmpty() ? null : Integer.parseInt(style.getFieldText(no_of_months));
+            String remarks = style.getFieldText(this.remarks);
 
             if (isEditMode) {
                 // Calculate computed fields
@@ -344,13 +339,13 @@ public class LoanForm extends javax.swing.JPanel {
                 con.close();
                 
                 if (rowsAffected > 0) {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Loan updated successfully!",
                         "Success",
                         javax.swing.JOptionPane.INFORMATION_MESSAGE);
                     javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
                 } else {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Failed to update loan. Please try again.",
                         "Error",
                         javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -364,13 +359,13 @@ public class LoanForm extends javax.swing.JPanel {
                 );
 
                 if (loanId > 0) {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Loan created successfully!",
                         "Success",
                         javax.swing.JOptionPane.INFORMATION_MESSAGE);
                     javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
                 } else {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Failed to create loan. Please try again.",
                         "Error",
                         javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -378,13 +373,13 @@ public class LoanForm extends javax.swing.JPanel {
             }
         } catch (NumberFormatException e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Please enter valid numeric values for form number and number of months",
                 "Validation Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Error creating loan: " + e.getMessage(),
                 "Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -400,29 +395,56 @@ public class LoanForm extends javax.swing.JPanel {
      * @return true if valid, false otherwise
      */
     private boolean validateForm() {
+        style.clearFieldError(formNo);
+        style.clearFieldError(jDateChooser2);
+        style.clearFieldError(jDateChooser1);
+        style.clearFieldError(serviceCharge);
+        style.clearFieldError(no_of_months);
+        style.clearFieldError(jTextField1);
+
         if (jDateChooser2.getDate() == null) {
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showFieldError(jDateChooser2);
+            style.showMessageDialog(this,
                 "Please select a date",
                 "Validation Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
             return false;
         }
 
+        if (style.getFieldText(jTextField1).isEmpty()) {
+            style.showFieldError(jTextField1);
+            style.showMessageDialog(this,
+                "Principal is required",
+                "Validation Error",
+                javax.swing.JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (style.getFieldText(no_of_months).isEmpty()) {
+            style.showFieldError(no_of_months);
+            style.showMessageDialog(this,
+                "Number of months is required",
+                "Validation Error",
+                javax.swing.JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
         try {
-            if (!formNo.getText().trim().isEmpty()) {
-                Integer.parseInt(formNo.getText().trim());
+            if (!style.getFieldText(formNo).isEmpty()) {
+                Integer.parseInt(style.getFieldText(formNo));
             }
-            if (!no_of_months.getText().trim().isEmpty()) {
-                Integer.parseInt(no_of_months.getText().trim());
+            if (!style.getFieldText(no_of_months).isEmpty()) {
+                Integer.parseInt(style.getFieldText(no_of_months));
             }
-            if (!jTextField1.getText().trim().isEmpty()) {
-                parseDecimal(jTextField1.getText());
+            if (!style.getFieldText(jTextField1).isEmpty()) {
+                parseDecimal(style.getFieldText(jTextField1));
             }
-            if (!serviceCharge.getText().trim().isEmpty()) {
-                parseDecimal(serviceCharge.getText());
+            if (!style.getFieldText(serviceCharge).isEmpty()) {
+                parseDecimal(style.getFieldText(serviceCharge));
             }
         } catch (NumberFormatException e) {
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showFieldError(jTextField1);
+            style.showMessageDialog(this,
                 "Please enter valid numeric values",
                 "Validation Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);

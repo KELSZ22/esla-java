@@ -4,7 +4,6 @@
  */
 package ui;
 
-import java.awt.Color;
 import java.time.LocalDate;
 
 /**
@@ -100,14 +99,15 @@ public class PaymentForm extends javax.swing.JPanel {
     }
 
     private void applyStyling() {
-        // Apply panel styling
-        setBackground(java.awt.Color.WHITE);
+        style.applyFormPanel(this);
 
         // Apply text field styling
         style.applyTextField(scheduledPayment);
         style.applyTextField(shouldBePaid);
         style.applyTextField(actualPayment);
         style.applyTextField(premium);
+        style.applyPlaceholder(actualPayment, "Enter actual payment");
+        style.applyPlaceholder(premium, "Enter premium");
 
         // Make read-only fields visually distinct
         scheduledPayment.setBackground(new java.awt.Color(245, 245, 250));
@@ -119,16 +119,8 @@ public class PaymentForm extends javax.swing.JPanel {
         style.applyButton(saveButton);
         style.applySecondaryButton(Cancel);
 
-        // Style remarks text area
-        remarks.setFont(new java.awt.Font("Ubuntu", java.awt.Font.PLAIN, 15));
-        remarks.setBackground(java.awt.Color.WHITE);
-        remarks.setForeground(new java.awt.Color(40, 40, 40));
-        remarks.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-            new javax.swing.border.LineBorder(new java.awt.Color(200, 200, 210), 1, true),
-            javax.swing.BorderFactory.createEmptyBorder(10, 14, 10, 14)
-        ));
-        remarks.setLineWrap(true);
-        remarks.setWrapStyleWord(true);
+        style.applyTextArea(remarks);
+        style.applyPlaceholder(remarks, "Enter remarks");
 
         // Modernize labels
         style.applyModernLabel(jLabel1, true);
@@ -510,7 +502,7 @@ public class PaymentForm extends javax.swing.JPanel {
             // Parse form inputs
             java.util.Date selectedDate = date.getDate();
             if (selectedDate == null) {
-                javax.swing.JOptionPane.showMessageDialog(this,
+                style.showMessageDialog(this,
                     "Please select a date",
                     "Validation Error",
                     javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -521,10 +513,10 @@ public class PaymentForm extends javax.swing.JPanel {
                 .atZone(java.time.ZoneId.systemDefault())
                 .toLocalDate();
 
-            java.math.BigDecimal scheduledPayment = parseDecimal(this.scheduledPayment.getText());
-            java.math.BigDecimal premium = parseDecimal(this.premium.getText());
-            java.math.BigDecimal actualPayment = parseDecimal(this.actualPayment.getText());
-            String remarks = this.remarks.getText();
+            java.math.BigDecimal scheduledPayment = parseDecimal(style.getFieldText(this.scheduledPayment));
+            java.math.BigDecimal premium = parseDecimal(style.getFieldText(this.premium));
+            java.math.BigDecimal actualPayment = parseDecimal(style.getFieldText(this.actualPayment));
+            String remarks = style.getFieldText(this.remarks);
 
             if (isEditMode) {
                 try {
@@ -594,14 +586,14 @@ public class PaymentForm extends javax.swing.JPanel {
                     con.close();
                     
                     if (rowsAffected > 0) {
-                        javax.swing.JOptionPane.showMessageDialog(this, "Payment updated successfully!", "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+                        style.showMessageDialog(this, "Payment updated successfully!", "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
                         javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
                     } else {
-                        javax.swing.JOptionPane.showMessageDialog(this, "Failed to update payment.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                        style.showMessageDialog(this, "Failed to update payment.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                     }
                 } catch (Exception ex) {
                     ex.printStackTrace();
-                    javax.swing.JOptionPane.showMessageDialog(this, "Error updating payment: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+                    style.showMessageDialog(this, "Error updating payment: " + ex.getMessage(), "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                 }
             } else {
                 // Create payment using PaymentService
@@ -612,13 +604,13 @@ public class PaymentForm extends javax.swing.JPanel {
                 );
 
                 if (recordId > 0) {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Payment created successfully!",
                         "Success",
                         javax.swing.JOptionPane.INFORMATION_MESSAGE);
                     javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
                 } else {
-                    javax.swing.JOptionPane.showMessageDialog(this,
+                    style.showMessageDialog(this,
                         "Failed to create payment. Please try again.",
                         "Error",
                         javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -626,7 +618,7 @@ public class PaymentForm extends javax.swing.JPanel {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showMessageDialog(this,
                 "Error creating payment: " + e.getMessage(),
                 "Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
@@ -638,26 +630,50 @@ public class PaymentForm extends javax.swing.JPanel {
      * @return true if valid, false otherwise
      */
     private boolean validateForm() {
+        style.clearFieldError(date);
+        style.clearFieldError(actualPayment);
+        style.clearFieldError(premium);
+
         if (date.getDate() == null) {
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showFieldError(date);
+            style.showMessageDialog(this,
                 "Please select a date",
                 "Validation Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);
             return false;
         }
 
+        if (style.getFieldText(actualPayment).isEmpty()) {
+            style.showFieldError(actualPayment);
+            style.showMessageDialog(this,
+                "Actual payment is required",
+                "Validation Error",
+                javax.swing.JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (style.getFieldText(premium).isEmpty()) {
+            style.showFieldError(premium);
+            style.showMessageDialog(this,
+                "Premium is required",
+                "Validation Error",
+                javax.swing.JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
         try {
-            if (!scheduledPayment.getText().trim().isEmpty()) {
-                parseDecimal(scheduledPayment.getText());
+            if (!style.getFieldText(scheduledPayment).isEmpty()) {
+                parseDecimal(style.getFieldText(scheduledPayment));
             }
-            if (!premium.getText().trim().isEmpty()) {
-                parseDecimal(premium.getText());
+            if (!style.getFieldText(premium).isEmpty()) {
+                parseDecimal(style.getFieldText(premium));
             }
-            if (!actualPayment.getText().trim().isEmpty()) {
-                parseDecimal(actualPayment.getText());
+            if (!style.getFieldText(actualPayment).isEmpty()) {
+                parseDecimal(style.getFieldText(actualPayment));
             }
         } catch (NumberFormatException e) {
-            javax.swing.JOptionPane.showMessageDialog(this,
+            style.showFieldError(actualPayment);
+            style.showMessageDialog(this,
                 "Please enter valid numeric values for payment fields",
                 "Validation Error",
                 javax.swing.JOptionPane.ERROR_MESSAGE);

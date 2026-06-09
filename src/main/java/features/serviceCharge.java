@@ -41,7 +41,7 @@ import javax.swing.table.TableRowSorter;
  *
  * @author kelsz-dev
  */
-public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable {
+public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable, ui.Exportable {
     
     @Override
     public void refresh() {
@@ -71,6 +71,8 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
      */
     public serviceCharge() {
         initComponents();
+        style.applyModulePanel(this);
+        style.applyToolbarPanel(jPanel1);
         refundFormService = new MemberServiceChargeRefundFormService();
         
         // Apply styles
@@ -108,8 +110,8 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
         
         setupExportButtons();
         style.applyListStyle(memberList);
-    style.applyScrollStyle(jScrollPane1);
-        style.applyScrollStyle(jScrollPane2);
+        style.applyTableContainer(jScrollPane1);
+        style.applyTableContainer(jScrollPane2);
         style.applyScrollStyle(jScrollPane3);
         
         // Setup debounced search
@@ -129,6 +131,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
         style.applyCardPanel(jPanel5);
         
         style.applySearchField(formSearch);
+        style.applyPlaceholder(formSearch, "Search members");
         style.applyComboBox(selectServiceCharge);
         style.applyStandardSizes(formSearch, selectServiceCharge);
 
@@ -152,7 +155,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
         DefaultTableModel paymentModel = new DefaultTableModel(
             new Object [][] {},
             new String [] {
-                "Member Name", "Form No", "Date", "Loan", "Interest", "Service Charge", "Total",
+                "Form No", "Date", "Loan", "Interest", "Service Charge", "Total",
                 "No. of Months", "Collected Interest", "Total Interest", "Refund 60%", "Refund 40%", "Remarks", ""
             }
         ) {
@@ -178,6 +181,9 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
             @Override
             public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 java.awt.Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                if (c instanceof javax.swing.JLabel label) {
+                    style.applyTableCellPadding(label);
+                }
                 
                 // Check if this is a group header row (member name in uppercase, empty columns 1-11)
                 if (column == 0 && value != null && !value.toString().isEmpty()) {
@@ -225,10 +231,14 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
             public void mouseClicked(java.awt.event.MouseEvent evt) {
                 int row = paymentTable.rowAtPoint(evt.getPoint());
                 int col = paymentTable.columnAtPoint(evt.getPoint());
-                if (row >= 0 && col == 13) { // Edit column
-                    if (row < formIds.size()) {
-                        int formId = formIds.get(row);
-                        Object ciValue = paymentTable.getModel().getValueAt(row, 8);
+                if (row >= 0 && col == 12) { // Edit column
+                    int modelRow = paymentTable.convertRowIndexToModel(row);
+                    if (modelRow < formIds.size()) {
+                        Integer formId = formIds.get(modelRow);
+                        if (formId == null) {
+                            return;
+                        }
+                        Object ciValue = paymentTable.getModel().getValueAt(modelRow, 7);
                         java.math.BigDecimal currentCI = null;
                         if (ciValue instanceof java.math.BigDecimal) {
                             currentCI = (java.math.BigDecimal) ciValue;
@@ -302,6 +312,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
         javax.swing.SwingUtilities.invokeLater(this::onServiceChargeOrMemberContextChanged);
 
         style.applySearchField(formSearch);
+        style.applyPlaceholder(formSearch, "Search members");
         style.applyComboBox(selectServiceCharge);
         style.applyStandardSizes(formSearch, selectServiceCharge);
     }
@@ -369,18 +380,11 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
         int memberIndex = memberList.getSelectedIndex();
         if (memberIndex >= 0) {
             int memberId = memberIds.get(memberIndex);
-            String desc = (String) selectServiceCharge.getSelectedItem();
-            Integer refundId = findRefundIdForMemberDescription(memberId, desc);
-            if (refundId != null) {
-                loadMemberServiceChargeDataByServiceCharge(memberId, refundId);
-            } else {
-                clearPaymentTable();
-                clearSummaryTable();
-            }
+            loadMemberServiceChargeDataByServiceCharge(memberId, representativeRefundId);
         } else {
             clearPaymentTable();
-            clearSummaryTable();
         }
+        loadAllMembersServiceChargeRefunds();
     }
 
     private void setDisplayDateLabels(java.sql.Date from, java.sql.Date to) {
@@ -492,7 +496,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
 
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(null, "Error loading members: " + e.getMessage());
+            style.showMessageDialog(null, "Error loading members: " + e.getMessage());
         }
 
         memberList.setModel(model);
@@ -543,7 +547,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
 
             } catch (Exception e) {
                 e.printStackTrace();
-                javax.swing.JOptionPane.showMessageDialog(null, "Error loading service charges: " + e.getMessage());
+                style.showMessageDialog(null, "Error loading service charges: " + e.getMessage());
             }
 
             if (descriptionToSelectIfPresent != null) {
@@ -702,88 +706,43 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
 
     private void loadMemberServiceChargeDataByServiceCharge(int memberId, int serviceChargeId) {
         try {
-            Connection con = Database.getConnection();
-            // Get the refund for this member and service charge
-            String sql = "SELECT id, description, date_from, date_to FROM member_service_charge_refunds WHERE id = ? AND member_id = ? AND deleted_at IS NULL";
-            PreparedStatement ps = con.prepareStatement(sql);
-            ps.setInt(1, serviceChargeId);
-            ps.setInt(2, memberId);
-            ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                Map<String, Object> refund = new java.util.HashMap<>();
-                refund.put("id", rs.getInt("id"));
-                refund.put("description", rs.getString("description"));
-                
-                // Safe date parsing from string using utility
-                for (String key : new String[]{"date_from", "date_to"}) {
-                    String dateStr = rs.getString(key);
-                    refund.put(key, com.kelsz.esla.util.DateUtils.parseSqlDateSafely(dateStr));
-                }
-
-                int refundId = (Integer) refund.get("id");
-
-                // Get member name
-                String memberName = getMemberName(memberId);
-
-                // Load refund forms
-                List<Map<String, Object>> forms = refundFormService.getRefundForms(refundId);
-
-                // Filter by the selected service charge period (combo), not only this row's dates,
-                // so the Member tab matches the batch range; fallback if combo dates are missing.
-                java.sql.Date refundDateFrom = (java.sql.Date) refund.get("date_from");
-                java.sql.Date refundDateTo = (java.sql.Date) refund.get("date_to");
-                java.sql.Date filterFrom = summaryFilterDateFrom != null ? summaryFilterDateFrom : refundDateFrom;
-                java.sql.Date filterTo = summaryFilterDateTo != null ? summaryFilterDateTo : refundDateTo;
-                List<Map<String, Object>> filteredForms = filterFormsByDateRange(forms, filterFrom, filterTo);
-
-                // Totals for the TOTAL row must match visible (date-filtered) rows only
-                BigDecimal totalInterestSum = BigDecimal.ZERO;
-                BigDecimal refund60Sum = BigDecimal.ZERO;
-                BigDecimal refund40Sum = BigDecimal.ZERO;
-                for (Map<String, Object> f : filteredForms) {
-                    if (f.get("total_interest") != null) {
-                        totalInterestSum = totalInterestSum.add((BigDecimal) f.get("total_interest"));
-                    }
-                    if (f.get("refund_60") != null) {
-                        refund60Sum = refund60Sum.add((BigDecimal) f.get("refund_60"));
-                    }
-                    if (f.get("refund_40") != null) {
-                        refund40Sum = refund40Sum.add((BigDecimal) f.get("refund_40"));
-                    }
-                }
-
-                Map<String, Object> summary = new java.util.HashMap<>();
-                summary.put("total_interest", totalInterestSum);
-                summary.put("refund_60", refund60Sum);
-                summary.put("refund_40", refund40Sum);
-                summary.put("count", filteredForms.size());
-
-                // Populate payment table with filtered forms and summary row
-                populatePaymentTable(filteredForms, memberName, totalInterestSum, refund60Sum, refund40Sum);
-
-                // Do not call setDisplayDateLabels here — onServiceChargeOrMemberContextChanged already
-                // set period from the combo so summary + member tab stay aligned.
-                populateSummaryTable(summary, refund);
-            } else {
-                // Clear tables if no refund exists for this combination
+            if (summaryFilterDateFrom == null || summaryFilterDateTo == null) {
                 clearPaymentTable();
-                clearSummaryTable();
+                return;
             }
 
-            rs.close();
-            ps.close();
-            con.close();
+            List<Map<String, Object>> forms = refundFormService.getComputedLoanRows(
+                    memberId,
+                    summaryFilterDateFrom.toLocalDate(),
+                    summaryFilterDateTo.toLocalDate()
+            );
 
+            BigDecimal totalInterestSum = BigDecimal.ZERO;
+            BigDecimal refund60Sum = BigDecimal.ZERO;
+            BigDecimal refund40Sum = BigDecimal.ZERO;
+            for (Map<String, Object> form : forms) {
+                if (form.get("total_interest") != null) {
+                    totalInterestSum = totalInterestSum.add((BigDecimal) form.get("total_interest"));
+                }
+                if (form.get("refund_60") != null) {
+                    refund60Sum = refund60Sum.add((BigDecimal) form.get("refund_60"));
+                }
+                if (form.get("refund_40") != null) {
+                    refund40Sum = refund40Sum.add((BigDecimal) form.get("refund_40"));
+                }
+            }
+
+            populatePaymentTable(forms, getMemberName(memberId), totalInterestSum, refund60Sum, refund40Sum);
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(null, "Error loading service charge data: " + e.getMessage());
+            style.showMessageDialog(null, "Error loading service charge data: " + e.getMessage());
         }
     }
 
     private void clearPaymentTable() {
         DefaultTableModel model = (DefaultTableModel) paymentTable.getModel();
         model.setRowCount(0);
+        formIds.clear();
     }
 
     private void clearSummaryTable() {
@@ -832,7 +791,6 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
             }
 
             model.addRow(new Object[]{
-                memberName,
                 formNumber,
                 dateLoan != null ? dateFormat.format(dateLoan) : "",
                 principal != null ? principal : "",
@@ -869,77 +827,50 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
     private void loadAllMembersServiceChargeRefunds() {
         DefaultTableModel model = (DefaultTableModel) summaryTable.getModel();
         model.setRowCount(0);
-        
+
+        if (summaryFilterDateFrom == null || summaryFilterDateTo == null) {
+            sumOfServiceCharge.setText("0.00");
+            sumOfTotalInterest.setText("0.00");
+            sumOfRefund60.setText("0.00");
+            sumOfRefund40.setText("0.00");
+            return;
+        }
+
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        
         BigDecimal totalServiceChargeSum = BigDecimal.ZERO;
         BigDecimal totalInterestSum = BigDecimal.ZERO;
         BigDecimal totalRefund60Sum = BigDecimal.ZERO;
         BigDecimal totalRefund40Sum = BigDecimal.ZERO;
-        
-        java.sql.Date dateFrom = summaryFilterDateFrom;
-        java.sql.Date dateTo = summaryFilterDateTo;
-        String selectedDescription = null;
-        if (selectServiceCharge.getSelectedIndex() >= 0 && selectServiceCharge.getSelectedItem() != null) {
-            selectedDescription = selectServiceCharge.getSelectedItem().toString();
-        }
-        
+
         try {
-            Connection con = Database.getConnection();
-            String sql = """
-                SELECT m.name, f.form_number, f.date_loan, f.principal, f.interest, f.service_charge,
-                       f.total, f.no_of_months, f.collected_interest, f.total_interest, f.refund_60, f.refund_40, f.remarks
-                FROM member_service_charge_refund_forms f
-                INNER JOIN member_service_charge_refunds r ON f.mscr_refund_id = r.id
-                INNER JOIN members m ON r.member_id = m.id
-                WHERE f.deleted_at IS NULL AND r.deleted_at IS NULL
-                """ + (selectedDescription != null ? " AND r.description = ? " : "") + """
-                ORDER BY m.name ASC, f.form_number ASC
-                """;
-            PreparedStatement ps = con.prepareStatement(sql);
-            if (selectedDescription != null) {
-                ps.setString(1, selectedDescription);
-            }
-            ResultSet rs = ps.executeQuery();
-            
+            List<Map<String, Object>> rows = refundFormService.getComputedLoanRows(
+                    null,
+                    summaryFilterDateFrom.toLocalDate(),
+                    summaryFilterDateTo.toLocalDate()
+            );
+
             String currentMemberName = "";
             BigDecimal memberTotalInterestSum = BigDecimal.ZERO;
             BigDecimal memberRefund60Sum = BigDecimal.ZERO;
             BigDecimal memberRefund40Sum = BigDecimal.ZERO;
-            
-            while (rs.next()) {
-                String memberName = rs.getString("name");
-                Integer formNumber = rs.getInt("form_number");
-                String dlStr = rs.getString("date_loan");
-                java.sql.Date dateLoan = null;
-                if (dlStr != null && !dlStr.isEmpty()) {
-                    if (dlStr.length() > 10) dlStr = dlStr.substring(0, 10);
-                    dateLoan = java.sql.Date.valueOf(dlStr);
-                }
-                BigDecimal principal = rs.getBigDecimal("principal");
-                BigDecimal interest = rs.getBigDecimal("interest");
-                BigDecimal serviceCharge = rs.getBigDecimal("service_charge");
-                BigDecimal total = rs.getBigDecimal("total");
-                BigDecimal noOfMonths = rs.getBigDecimal("no_of_months");
-                BigDecimal collectedInterest = rs.getBigDecimal("collected_interest");
-                BigDecimal totalInterest = rs.getBigDecimal("total_interest");
-                BigDecimal refund60 = rs.getBigDecimal("refund_60");
-                BigDecimal refund40 = rs.getBigDecimal("refund_40");
-                String remarks = rs.getString("remarks");
-                
-                // Filter by date range if dates are set
-                if (dateFrom != null && dateTo != null && dateLoan != null) {
-                    java.time.LocalDate loan = dateLoan.toLocalDate();
-                    java.time.LocalDate from = dateFrom.toLocalDate();
-                    java.time.LocalDate to = dateTo.toLocalDate();
-                    if (loan.isBefore(from) || loan.isAfter(to)) {
-                        continue; // Skip this form if it's outside the date range
-                    }
-                }
-                
+
+            for (Map<String, Object> row : rows) {
+                String memberName = String.valueOf(row.get("member_name"));
+                Integer formNumber = (Integer) row.get("form_number");
+                java.sql.Date dateLoan = (java.sql.Date) row.get("date_loan");
+                BigDecimal principal = (BigDecimal) row.get("principal");
+                BigDecimal interest = (BigDecimal) row.get("interest");
+                BigDecimal serviceCharge = (BigDecimal) row.get("service_charge");
+                BigDecimal total = (BigDecimal) row.get("total");
+                BigDecimal noOfMonths = (BigDecimal) row.get("no_of_months");
+                BigDecimal collectedInterest = (BigDecimal) row.get("collected_interest");
+                BigDecimal totalInterest = (BigDecimal) row.get("total_interest");
+                BigDecimal refund60 = (BigDecimal) row.get("refund_60");
+                BigDecimal refund40 = (BigDecimal) row.get("refund_40");
+                String remarks = (String) row.get("remarks");
+
                 // Check if member name changed - add group header and summary for previous member
                 if (!memberName.equals(currentMemberName) && !currentMemberName.isEmpty()) {
-                    // Add summary row for previous member
                     model.addRow(new Object[]{
                         "TOTAL",
                         "",
@@ -954,8 +885,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                         memberRefund40Sum.compareTo(BigDecimal.ZERO) == 0 ? "0.00" : memberRefund40Sum,
                         ""
                     });
-                    
-                    // Reset member totals
+
                     memberTotalInterestSum = BigDecimal.ZERO;
                     memberRefund60Sum = BigDecimal.ZERO;
                     memberRefund40Sum = BigDecimal.ZERO;
@@ -979,18 +909,14 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                         ""
                     });
                 }
-                
-                // Calculate displayed total based on has_balance logic
-                // For summary, show the actual total from the form
-                BigDecimal displayedTotal = total;
-                
+
                 model.addRow(new Object[]{
                     formNumber != null ? formNumber : "",
                     dateLoan != null ? dateFormat.format(dateLoan) : "",
                     principal != null ? principal : "",
                     interest != null ? interest : "",
                     serviceCharge != null ? serviceCharge : "",
-                    displayedTotal != null ? displayedTotal : "",
+                    total != null ? total : "",
                     noOfMonths != null ? noOfMonths : "",
                     collectedInterest != null ? collectedInterest : "",
                     totalInterest != null ? totalInterest : "",
@@ -998,8 +924,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                     refund40 != null ? refund40 : "",
                     remarks != null ? remarks : ""
                 });
-                
-                // Accumulate member sums
+
                 if (totalInterest != null) {
                     memberTotalInterestSum = memberTotalInterestSum.add(totalInterest);
                 }
@@ -1009,8 +934,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                 if (refund40 != null) {
                     memberRefund40Sum = memberRefund40Sum.add(refund40);
                 }
-                
-                // Accumulate global sums
+
                 if (serviceCharge != null) {
                     totalServiceChargeSum = totalServiceChargeSum.add(serviceCharge);
                 }
@@ -1024,7 +948,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                     totalRefund40Sum = totalRefund40Sum.add(refund40);
                 }
             }
-            
+
             // Add summary row for last member
             if (!currentMemberName.isEmpty()) {
                 model.addRow(new Object[]{
@@ -1042,29 +966,27 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                     ""
                 });
             }
-            
-            rs.close();
-            ps.close();
-            con.close();
-            
+
             // Update sum labels
             sumOfServiceCharge.setText(totalServiceChargeSum.toString());
             sumOfTotalInterest.setText(totalInterestSum.toString());
             sumOfRefund60.setText(totalRefund60Sum.toString());
             sumOfRefund40.setText(totalRefund40Sum.toString());
-            
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     private void setupEditColumn() {
-        if (paymentTable.getColumnCount() > 13) {
-            paymentTable.getColumnModel().getColumn(13).setPreferredWidth(30);
-            paymentTable.getColumnModel().getColumn(13).setMinWidth(30);
-            paymentTable.getColumnModel().getColumn(13).setMaxWidth(30);
+        if (paymentTable.getColumnCount() > 12) {
+            paymentTable.getColumnModel().getColumn(12).setPreferredWidth(30);
+            paymentTable.getColumnModel().getColumn(12).setMinWidth(30);
+            paymentTable.getColumnModel().getColumn(12).setMaxWidth(30);
+            style.applyTableActionTooltips(paymentTable, java.util.Map.of(
+                    12, "Edit collected interest"
+            ));
 
-            paymentTable.getColumnModel().getColumn(13).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            paymentTable.getColumnModel().getColumn(12).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
                 private javax.swing.Icon editIcon;
                 {
                     java.net.URL iconUrl = getClass().getResource("/images/square-pen.png");
@@ -1075,7 +997,9 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                 @Override
                 public java.awt.Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                     javax.swing.JLabel label = (javax.swing.JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                    label.setIcon(editIcon);
+                    int modelRow = table.convertRowIndexToModel(row);
+                    boolean editable = modelRow >= 0 && modelRow < formIds.size() && formIds.get(modelRow) != null;
+                    label.setIcon(editable ? editIcon : null);
                     label.setText("");
                     label.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
                     label.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
@@ -1095,7 +1019,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
             
             // Get the new collected interest value from the table
             DefaultTableModel model = (DefaultTableModel) paymentTable.getModel();
-            Object value = model.getValueAt(row, 8);
+            Object value = model.getValueAt(row, 7);
             
             if (value == null) {
                 return;
@@ -1124,11 +1048,11 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
                     }
                 }
             } else {
-                javax.swing.JOptionPane.showMessageDialog(null, "Failed to update collected interest");
+                style.showMessageDialog(null, "Failed to update collected interest");
             }
         } catch (Exception e) {
             e.printStackTrace();
-            javax.swing.JOptionPane.showMessageDialog(null, "Error updating collected interest: " + e.getMessage());
+            style.showMessageDialog(null, "Error updating collected interest: " + e.getMessage());
         }
     }
 
@@ -1455,7 +1379,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
     private void editServiceChargeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_editServiceChargeActionPerformed
         int idx = selectServiceCharge.getSelectedIndex();
         if (idx < 0 || serviceChargeIds.isEmpty()) {
-            javax.swing.JOptionPane.showMessageDialog(this, "Select a service charge to edit.", "Edit", javax.swing.JOptionPane.WARNING_MESSAGE);
+            style.showMessageDialog(this, "Select a service charge to edit.", "Edit", javax.swing.JOptionPane.WARNING_MESSAGE);
             return;
         }
         int repId = serviceChargeIds.get(idx);
@@ -1481,40 +1405,40 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
     }//GEN-LAST:event_editServiceChargeActionPerformed
 
     private void setupExportButtons() {
-        exportPdfButton = new javax.swing.JButton("Export PDF");
-        exportExcelButton = new javax.swing.JButton("Export Excel");
-        
-        style.applyButton(exportPdfButton);
-        style.applyButton(exportExcelButton);
-        
-        // Use FlowLayout for the header panel to easily accommodate the new buttons
-        jPanel1.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 0));
-        jPanel1.removeAll(); // Remove GroupLayout components to re-add with FlowLayout
-        jPanel1.add(formSearch);
-        jPanel1.add(selectServiceCharge);
-        jPanel1.add(displayDateFrom);
-        jPanel1.add(jLabel2);
-        jPanel1.add(displayDateTo);
-        jPanel1.add(editServiceCharge);
-        jPanel1.add(exportPdfButton);
-        jPanel1.add(exportExcelButton);
-        jPanel1.add(addServiceCharge);
-        
-        exportPdfButton.addActionListener(e -> exportToPDF());
-        exportExcelButton.addActionListener(e -> exportToExcel());
+        jPanel1.setLayout(new java.awt.BorderLayout(10, 0));
+        jPanel1.removeAll(); // Remove GroupLayout components to re-add with a responsive toolbar
+        style.applyToolbarPanel(jPanel1);
+
+        JPanel filterPanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 0));
+        filterPanel.setOpaque(false);
+        filterPanel.add(formSearch);
+        filterPanel.add(selectServiceCharge);
+        filterPanel.add(displayDateFrom);
+        filterPanel.add(jLabel2);
+        filterPanel.add(displayDateTo);
+        filterPanel.add(editServiceCharge);
+
+        JPanel actionPanel = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 0));
+        actionPanel.setOpaque(false);
+        actionPanel.add(addServiceCharge);
+
+        jPanel1.add(filterPanel, java.awt.BorderLayout.CENTER);
+        jPanel1.add(actionPanel, java.awt.BorderLayout.EAST);
     }
 
-    private void exportToExcel() {
+    @Override
+    public void exportToExcel() {
         if (memberServiceCharge.getSelectedIndex() == 0) {
-            ReportExporter.exportToExcel(paymentTable, "Service Charge Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+            ReportExporter.exportToExcel(paymentTable, "Service Charge Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
         } else {
             ReportExporter.exportToExcel(summaryTable, "Service Charge Summary", "Period: " + displayDateFrom.getText() + " to " + displayDateTo.getText(), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
         }
     }
 
-    private void exportToPDF() {
+    @Override
+    public void exportToPDF() {
         if (memberServiceCharge.getSelectedIndex() == 0) {
-            ReportExporter.exportToPDF(paymentTable, "Service Charge Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+            ReportExporter.exportToPDF(paymentTable, "Service Charge Report", "Member: " + (memberList.getSelectedValue() != null ? memberList.getSelectedValue() : "All"), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
         } else {
             ReportExporter.exportToPDF(summaryTable, "Service Charge Summary", "Period: " + displayDateFrom.getText() + " to " + displayDateTo.getText(), new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
         }
@@ -1525,7 +1449,7 @@ public class serviceCharge extends javax.swing.JPanel implements ui.Refreshable 
     }
 
     private void performSearch() {
-        String text = formSearch.getText().trim();
+        String text = style.getFieldText(formSearch);
         int selectedIndex = memberServiceCharge.getSelectedIndex();
         
         if (selectedIndex == 0) {

@@ -5,6 +5,7 @@
 package features;
 
 import com.kelsz.esla.Database;
+import com.kelsz.esla.util.ReportExporter;
 import com.toedter.calendar.JDateChooser;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -40,7 +41,7 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class ledger extends javax.swing.JPanel implements ui.Refreshable {
+public class ledger extends javax.swing.JPanel implements ui.Refreshable, ui.Exportable {
     
     @Override
     public void refresh() {
@@ -100,6 +101,7 @@ public class ledger extends javax.swing.JPanel implements ui.Refreshable {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            style.applyTableCellPadding(this);
 
             if (value != null && !value.toString().isEmpty()) {
                 try {
@@ -147,6 +149,7 @@ public class ledger extends javax.swing.JPanel implements ui.Refreshable {
         @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            style.applyTableCellPadding(this);
 
             if (value != null && !value.toString().isEmpty()) {
                 String text = value.toString();
@@ -167,13 +170,15 @@ public class ledger extends javax.swing.JPanel implements ui.Refreshable {
      */
     public ledger() {
     initComponents();
-    setBackground(Color.WHITE);
+    style.applyModulePanel(this);
+    style.applyToolbarPanel(ledgerSearchPanel);
     style.applyTableStyle(ledgerTable, 14, 14);
-    style.applyScrollStyle(jScrollPane1);
+    style.applyTableContainer(jScrollPane1);
     style.applyModernLabel(jLabel1, true);
     style.applyComboBox(selectField);
     style.applyButton(AddLedger);
     style.applySearchField(ledgerSearchField);
+    style.applyPlaceholder(ledgerSearchField, "Search ledgers");
     
     setupTable();
     populateMemberTypes();
@@ -256,7 +261,7 @@ public class ledger extends javax.swing.JPanel implements ui.Refreshable {
     // APPLY FILTERS
     // =========================
     private void applyFilters() {
-        String searchText = ledgerSearchField.getText();
+        String searchText = style.getFieldText(ledgerSearchField);
         String memberType = (String) selectField.getSelectedItem();
         if (memberType == null) {
             memberType = "All";
@@ -344,7 +349,7 @@ model.addColumn(""); // Delete
 
     } catch (Exception e) {
         e.printStackTrace();
-        JOptionPane.showMessageDialog(null, "Error loading ledger: " + e.getMessage());
+        style.showMessageDialog(null, "Error loading ledger: " + e.getMessage());
     }
 
     // Set column identifiers before setting model
@@ -460,6 +465,11 @@ model.addColumn(""); // Delete
     ledgerTable.getColumnModel().getColumn(5).setPreferredWidth(30);
     ledgerTable.getColumnModel().getColumn(5).setMinWidth(30);
     ledgerTable.getColumnModel().getColumn(5).setMaxWidth(30);
+    style.applyTableActionTooltips(ledgerTable, java.util.Map.of(
+            3, "Edit ledger",
+            4, "Manage ledger forms",
+            5, "Delete ledger"
+    ));
 
     // Track hovered row for hover effect
     final int[] hoveredRow = {-1};
@@ -652,11 +662,12 @@ model.addColumn(""); // Delete
             
             // Apply standard styles
             style.applyTableStyle(ledgerTable, 14, 14);
-            style.applyScrollStyle(jScrollPane1);
+            style.applyTableContainer(jScrollPane1);
             style.applyModernLabel(jLabel1, true);
             style.applyComboBox(selectField);
             style.applyButton(AddLedger);
             style.applySearchField(ledgerSearchField);
+            style.applyPlaceholder(ledgerSearchField, "Search ledgers");
             
             applyFilters();
             populateMemberTypes();
@@ -716,7 +727,7 @@ model.addColumn(""); // Delete
     // Handle Delete column click (Column 5)
     if (col == 5) {
         int id = rowIds.get(row);
-        int confirm = JOptionPane.showConfirmDialog(
+        int confirm = style.showConfirmDialog(
             this,
             "Are you sure you want to delete this ledger entry?",
             "Confirm Delete",
@@ -735,10 +746,10 @@ model.addColumn(""); // Delete
 
                 // Refresh table
                 setupTable();
-                JOptionPane.showMessageDialog(null, "Entry deleted successfully!");
+                style.showMessageDialog(null, "Entry deleted successfully!");
             } catch (Exception e) {
                 e.printStackTrace();
-                JOptionPane.showMessageDialog(null, "Error deleting entry: " + e.getMessage());
+                style.showMessageDialog(null, "Error deleting entry: " + e.getMessage());
             }
         }
         return;
@@ -781,6 +792,24 @@ model.addColumn(""); // Delete
 
         dialog.setVisible(true);
     }//GEN-LAST:event_AddLedgerActionPerformed
+
+    @Override
+    public void exportToPDF() {
+        if (currentManagePanel != null) {
+            currentManagePanel.exportToPDF();
+            return;
+        }
+        ReportExporter.exportToPDF(ledgerTable, "Ledger Report", "Generated on: " + java.time.LocalDate.now(), new int[]{0, 1, 2});
+    }
+
+    @Override
+    public void exportToExcel() {
+        if (currentManagePanel != null) {
+            currentManagePanel.exportToExcel();
+            return;
+        }
+        ReportExporter.exportToExcel(ledgerTable, "Ledger Report", "Generated on: " + java.time.LocalDate.now(), new int[]{0, 1, 2});
+    }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

@@ -24,7 +24,9 @@ public class HeaderNav extends javax.swing.JPanel {
     private static final Color BACKGROUND_COLOR = Color.WHITE;
     
     private JButton reloadButton;
+    private JButton exportButton;
     private JButton userDropdown;
+    private JPopupMenu exportMenu;
     private JPopupMenu logoutMenu;
 
     /**
@@ -83,6 +85,38 @@ public class HeaderNav extends javax.swing.JPanel {
         
         reloadButton.addActionListener(e -> frame.refreshActivePage());
 
+        // Export Dropdown
+        exportButton = new JButton(style.createSvgIcon("/images/file-down.svg", 20));
+        exportButton.setToolTipText("Export");
+        exportButton.setPreferredSize(new Dimension(36, 36));
+        exportButton.setForeground(TEXT_COLOR);
+        exportButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        exportButton.setBorderPainted(false);
+        exportButton.setFocusPainted(false);
+        exportButton.setContentAreaFilled(false);
+        exportButton.setOpaque(true);
+        exportButton.setBackground(BACKGROUND_COLOR);
+        exportButton.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+
+        exportButton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) { exportButton.setBackground(HOVER_COLOR); }
+            @Override
+            public void mouseExited(MouseEvent e) { exportButton.setBackground(BACKGROUND_COLOR); }
+        });
+
+        exportMenu = new JPopupMenu();
+        JMenuItem exportPdfItem = new JMenuItem("Export PDF");
+        JMenuItem exportExcelItem = new JMenuItem("Export Excel");
+        exportPdfItem.setFont(new Font("Ubuntu", Font.PLAIN, 14));
+        exportExcelItem.setFont(new Font("Ubuntu", Font.PLAIN, 14));
+        exportPdfItem.addActionListener(e -> frame.exportActivePage("pdf"));
+        exportExcelItem.addActionListener(e -> frame.exportActivePage("excel"));
+        exportMenu.add(exportPdfItem);
+        exportMenu.add(exportExcelItem);
+
+        exportButton.addActionListener(e -> exportMenu.show(exportButton, 0, exportButton.getHeight()));
+
         // User Dropdown
         String userName = com.kelsz.esla.UserSession.getInstance().getName();
         userDropdown = new JButton(userName);
@@ -126,46 +160,31 @@ public class HeaderNav extends javax.swing.JPanel {
         
         userDropdown.addActionListener(e -> logoutMenu.show(userDropdown, 0, userDropdown.getHeight()));
 
-        // Add to current layout manually since we're in setupUserArea which runs after initComponents
-        javax.swing.GroupLayout layout = (javax.swing.GroupLayout) getLayout();
-        
-        layout.setHorizontalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addGap(24, 24, 24)
-                .addComponent(jLabel1)
-                .addGap(40, 40, 40)
-                .addComponent(dashboardNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(8, 8, 8)
-                .addComponent(ledgerNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(8, 8, 8)
-                .addComponent(memberNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(8, 8, 8)
-                .addComponent(serviceNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(8, 8, 8)
-                .addComponent(dividendNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 200, Short.MAX_VALUE)
-                .addComponent(reloadButton, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(12, 12, 12)
-                .addComponent(userDropdown, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(24, 24, 24))
-        );
-        
-        layout.setVerticalGroup(
-            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(layout.createSequentialGroup()
-                .addContainerGap(12, 12)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
-                    .addComponent(jLabel1)
-                    .addComponent(dashboardNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(ledgerNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(memberNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(serviceNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(dividendNav, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(reloadButton, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(userDropdown, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(12, Short.MAX_VALUE))
-        );
+        rebuildHeaderLayout();
+    }
+
+    private void rebuildHeaderLayout() {
+        removeAll();
+        setLayout(new BorderLayout(24, 0));
+
+        JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        navPanel.setOpaque(false);
+        navPanel.add(dashboardNav);
+        navPanel.add(ledgerNav);
+        navPanel.add(memberNav);
+        navPanel.add(serviceNav);
+        navPanel.add(dividendNav);
+
+        JPanel actionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 0));
+        actionPanel.setOpaque(false);
+        actionPanel.add(exportButton);
+        actionPanel.add(reloadButton);
+        actionPanel.add(userDropdown);
+
+        add(navPanel, BorderLayout.CENTER);
+        add(actionPanel, BorderLayout.EAST);
+        revalidate();
+        repaint();
     }
 
     private void setupNavButton(JButton button, String text) {
@@ -240,6 +259,8 @@ public class HeaderNav extends javax.swing.JPanel {
             BorderFactory.createEmptyBorder(12, 20, 12, 20),
             BorderFactory.createMatteBorder(0, 0, 2, 0, PRIMARY_COLOR)
         ));
+        revalidate();
+        repaint();
     }
 
 

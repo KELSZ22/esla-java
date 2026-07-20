@@ -106,9 +106,10 @@ public class LoanService {
             ps.setBigDecimal(10, cutoffsAmount);
             ps.setString(11, startDeductionDate != null ? startDeductionDate.toString() : null);
             ps.setBoolean(12, startDeductionOnLoanDate != null ? startDeductionOnLoanDate : false);
-            // Set balances equal to initial values for new loans
-            ps.setBigDecimal(13, serviceChargeBalance); // Store service_charge_balance rate (0.03)
-            ps.setBigDecimal(14, interest); // Store interest as interest_balance for new loans
+            // Store rates (not dollar amounts) so PaymentService can recompute safely
+            BigDecimal interestBalance = new BigDecimal("0.03");
+            ps.setBigDecimal(13, serviceChargeBalance);
+            ps.setBigDecimal(14, interestBalance);
             ps.setString(15, remarks);
 
             int rowsAffected = ps.executeUpdate();

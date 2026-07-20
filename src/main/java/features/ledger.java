@@ -45,6 +45,10 @@ public class ledger extends javax.swing.JPanel implements ui.Refreshable, ui.Exp
     
     @Override
     public void refresh() {
+        if (currentManagePanel != null && currentManagePanel.isVisible()) {
+            currentManagePanel.refresh();
+            return;
+        }
         setupTable();
         populateMemberTypes();
     }
@@ -207,7 +211,7 @@ public class ledger extends javax.swing.JPanel implements ui.Refreshable, ui.Exp
     private void populateMemberTypes() {
         try {
             Connection con = Database.getConnection();
-            String sql = "SELECT DISTINCT type FROM ledgers ORDER BY type";
+            String sql = "SELECT DISTINCT type FROM ledgers WHERE deleted_at IS NULL ORDER BY type";
             PreparedStatement ps = con.prepareStatement(sql);
             ResultSet rs = ps.executeQuery();
 
@@ -299,6 +303,7 @@ model.addColumn(""); // Delete
         String sql = """
             SELECT id, description, type, date
             FROM ledgers
+            WHERE deleted_at IS NULL
             ORDER BY date DESC
         """;
 
@@ -737,14 +742,53 @@ model.addColumn(""); // Delete
         if (confirm == JOptionPane.YES_OPTION) {
             try {
                 Connection con = Database.getConnection();
-                String sql = "DELETE FROM ledgers WHERE id = ?";
-                PreparedStatement ps = con.prepareStatement(sql);
-                ps.setInt(1, id);
-                ps.executeUpdate();
-                ps.close();
+                String ledgerTypeForRecompute = null;
+                java.util.Set<Integer> memberIdsToRecompute = new java.util.HashSet<>();
+
+                try (PreparedStatement typePs = con.prepareStatement(
+                        "SELECT type FROM ledgers WHERE id = ? AND deleted_at IS NULL")) {
+                    typePs.setInt(1, id);
+                    try (ResultSet trs = typePs.executeQuery()) {
+                        if (trs.next()) {
+                            ledgerTypeForRecompute = trs.getString("type");
+                        }
+                    }
+                }
+                try (PreparedStatement memPs = con.prepareStatement(
+                        "SELECT DISTINCT member_id FROM form_data WHERE ledger_id = ? AND deleted_at IS NULL")) {
+                    memPs.setInt(1, id);
+                    try (ResultSet mrs = memPs.executeQuery()) {
+                        while (mrs.next()) {
+                            memberIdsToRecompute.add(mrs.getInt("member_id"));
+                        }
+                    }
+                }
+
+                // Soft-delete ledger + related payment/loan rows (keeps continuous history recoverable)
+                try (PreparedStatement ps = con.prepareStatement(
+                        "UPDATE form_data SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE ledger_id = ? AND deleted_at IS NULL")) {
+                    ps.setInt(1, id);
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = con.prepareStatement(
+                        "UPDATE loans SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE ledger_id = ? AND deleted_at IS NULL")) {
+                    ps.setInt(1, id);
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = con.prepareStatement(
+                        "UPDATE ledgers SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE id = ? AND deleted_at IS NULL")) {
+                    ps.setInt(1, id);
+                    ps.executeUpdate();
+                }
                 con.close();
 
-                // Refresh table
+                if (ledgerTypeForRecompute != null) {
+                    services.PaymentService paymentService = new services.PaymentService();
+                    for (Integer memberId : memberIdsToRecompute) {
+                        paymentService.recomputeMemberChain(memberId, ledgerTypeForRecompute, null);
+                    }
+                }
+
                 setupTable();
                 style.showMessageDialog(null, "Entry deleted successfully!");
             } catch (Exception e) {

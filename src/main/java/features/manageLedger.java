@@ -36,7 +36,24 @@ import ui.style;
  *
  * @author kelsz-dev
  */
-public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
+public class manageLedger extends javax.swing.JPanel implements ui.Exportable, ui.Refreshable {
+
+    @Override
+    public void refresh() {
+        if (ledgerId <= 0 || ledgerType == null) {
+            return;
+        }
+        int selectedMemberIndex = memberList.getSelectedIndex();
+        loadMembersByLedger(ledgerType);
+        if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+            memberList.setSelectedIndex(selectedMemberIndex);
+            loadFormDataByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+            loadLoansByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+        } else {
+            loadFormDataByLedger(ledgerId);
+            loadLoansByLedger(ledgerId);
+        }
+    }
 
     private Runnable backButtonCallback;
     private int ledgerId;
@@ -265,20 +282,18 @@ public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
                         );
                         if (confirm == javax.swing.JOptionPane.YES_OPTION) {
                             try {
-                                java.sql.Connection con = com.kelsz.esla.Database.getConnection();
-                                java.sql.PreparedStatement ps = con.prepareStatement("DELETE FROM form_data WHERE id = ?");
-                                ps.setInt(1, recordId);
-                                ps.executeUpdate();
-                                ps.close();
-                                con.close();
-                                
-                                int selectedMemberIndex = memberList.getSelectedIndex();
-                                if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
-                                    loadFormDataByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                                boolean deleted = new services.PaymentService().softDeletePayment(recordId);
+                                if (deleted) {
+                                    int selectedMemberIndex = memberList.getSelectedIndex();
+                                    if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                                        loadFormDataByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                                    } else {
+                                        loadFormDataByLedger(ledgerId, null);
+                                    }
+                                    style.showMessageDialog(manageLedger.this, "Payment deleted successfully!");
                                 } else {
-                                    loadFormDataByLedger(ledgerId, null);
+                                    style.showMessageDialog(manageLedger.this, "Failed to delete payment.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                                 }
-                                style.showMessageDialog(manageLedger.this, "Payment deleted successfully!");
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -337,20 +352,20 @@ public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
                         );
                         if (confirm == javax.swing.JOptionPane.YES_OPTION) {
                             try {
-                                java.sql.Connection con = com.kelsz.esla.Database.getConnection();
-                                java.sql.PreparedStatement ps = con.prepareStatement("DELETE FROM loans WHERE id = ?");
-                                ps.setInt(1, recordId);
-                                ps.executeUpdate();
-                                ps.close();
-                                con.close();
-                                
-                                int selectedMemberIndex = memberList.getSelectedIndex();
-                                if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
-                                    loadLoansByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                                boolean deleted = new services.PaymentService().softDeleteLoan(recordId);
+                                if (deleted) {
+                                    int selectedMemberIndex = memberList.getSelectedIndex();
+                                    if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
+                                        loadLoansByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                                        loadFormDataByLedger(ledgerId, memberIds.get(selectedMemberIndex));
+                                    } else {
+                                        loadLoansByLedger(ledgerId, null);
+                                        loadFormDataByLedger(ledgerId, null);
+                                    }
+                                    style.showMessageDialog(manageLedger.this, "Loan deleted successfully!");
                                 } else {
-                                    loadLoansByLedger(ledgerId, null);
+                                    style.showMessageDialog(manageLedger.this, "Failed to delete loan.", "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
                                 }
-                                style.showMessageDialog(manageLedger.this, "Loan deleted successfully!");
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
@@ -909,7 +924,7 @@ public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
             String sql = """
                 SELECT id, name, email, phone
                 FROM members
-                WHERE member_type = ?
+                WHERE member_type = ? AND deleted_at IS NULL
                 ORDER BY name
             """;
             PreparedStatement ps = con.prepareStatement(sql);
@@ -1043,7 +1058,9 @@ public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
                            fd.remarks, m.name as member_name
                     FROM form_data fd
                     LEFT JOIN members m ON fd.member_id = m.id
-                    WHERE fd.ledger_id = ? AND fd.member_id = ?""";
+                    WHERE fd.ledger_id = ? AND fd.member_id = ?
+                      AND fd.deleted_at IS NULL
+                    ORDER BY fd.date ASC, fd.id ASC""";
                 ps = con.prepareStatement(sql);
                 ps.setInt(1, ledgerId);
                 ps.setInt(2, memberId);
@@ -1055,7 +1072,8 @@ public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
                            fd.remarks, m.name as member_name
                     FROM form_data fd
                     LEFT JOIN members m ON fd.member_id = m.id
-                    WHERE fd.ledger_id = ?""";
+                    WHERE fd.ledger_id = ? AND fd.deleted_at IS NULL
+                    ORDER BY fd.date ASC, fd.id ASC""";
                 ps = con.prepareStatement(sql);
                 ps.setInt(1, ledgerId);
             }
@@ -1206,7 +1224,9 @@ public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
-                    WHERE l.ledger_id = ? AND l.member_id = ?""";
+                    WHERE l.ledger_id = ? AND l.member_id = ?
+                      AND l.deleted_at IS NULL
+                    ORDER BY l.date ASC, l.id ASC""";
                 ps = con.prepareStatement(sql);
                 ps.setInt(1, ledgerId);
                 ps.setInt(2, memberId);
@@ -1216,7 +1236,8 @@ public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
                            l.interest, l.total, l.cutoffs, l.cutoffs_amount, l.remarks, m.name as member_name
                     FROM loans l
                     LEFT JOIN members m ON l.member_id = m.id
-                    WHERE l.ledger_id = ?""";
+                    WHERE l.ledger_id = ? AND l.deleted_at IS NULL
+                    ORDER BY l.date ASC, l.id ASC""";
                 ps = con.prepareStatement(sql);
                 ps.setInt(1, ledgerId);
             }
@@ -1726,21 +1747,13 @@ public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
 
         if (confirm == javax.swing.JOptionPane.YES_OPTION) {
             try {
-                Connection con = Database.getConnection();
-                String sql = "DELETE FROM form_data WHERE id = ?";
-                PreparedStatement ps = con.prepareStatement(sql);
-                ps.setInt(1, recordId);
-                int rowsAffected = ps.executeUpdate();
-                ps.close();
-                con.close();
-
-                if (rowsAffected > 0) {
+                boolean deleted = new services.PaymentService().softDeletePayment(recordId);
+                if (deleted) {
                     style.showMessageDialog(this,
                         "Payment record deleted successfully",
                         "Success",
                         javax.swing.JOptionPane.INFORMATION_MESSAGE);
 
-                    // Reload data
                     String searchText = style.getFieldText(formSearch).toLowerCase();
                     int selectedMemberIndex = memberList.getSelectedIndex();
                     if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
@@ -1802,31 +1815,25 @@ public class manageLedger extends javax.swing.JPanel implements ui.Exportable {
 
         if (confirm == javax.swing.JOptionPane.YES_OPTION) {
             try {
-                Connection con = Database.getConnection();
-                String sql = "DELETE FROM loans WHERE id = ?";
-                PreparedStatement ps = con.prepareStatement(sql);
-                ps.setInt(1, recordId);
-                int rowsAffected = ps.executeUpdate();
-                ps.close();
-                con.close();
-
-                if (rowsAffected > 0) {
+                boolean deleted = new services.PaymentService().softDeleteLoan(recordId);
+                if (deleted) {
                     style.showMessageDialog(this,
                         "Loan record deleted successfully",
                         "Success",
                         javax.swing.JOptionPane.INFORMATION_MESSAGE);
 
-                    // Reload data
                     String searchText = style.getFieldText(formSearch).toLowerCase();
                     int selectedMemberIndex = memberList.getSelectedIndex();
                     if (selectedMemberIndex >= 0 && selectedMemberIndex < memberIds.size()) {
                         int memberId = memberIds.get(selectedMemberIndex);
                         loadLoansByLedger(ledgerId, memberId);
+                        loadFormDataByLedger(ledgerId, memberId);
                         if (!searchText.isEmpty()) {
                             filterLoanTable(searchText);
                         }
                     } else {
                         loadLoansByLedger(ledgerId, null);
+                        loadFormDataByLedger(ledgerId, null);
                         if (!searchText.isEmpty()) {
                             filterLoanTable(searchText);
                         }

@@ -520,72 +520,13 @@ public class PaymentForm extends javax.swing.JPanel {
 
             if (isEditMode) {
                 try {
-                    java.sql.Connection con = com.kelsz.esla.Database.getConnection();
-                    // Get previous entry
-                    String prevSql = "SELECT fd.id, fd.balance, fd.under_paid, fd.premium_total FROM form_data fd INNER JOIN ledgers l ON fd.ledger_id = l.id WHERE l.type = ? AND fd.member_id = ? AND fd.id != ? AND fd.date <= ? ORDER BY fd.date DESC LIMIT 1";
-                    java.sql.PreparedStatement prevPs = con.prepareStatement(prevSql);
-                    prevPs.setString(1, ledgerType);
-                    prevPs.setInt(2, memberId);
-                    prevPs.setInt(3, paymentRecordId);
-                    prevPs.setString(4, paymentDate.toString());
-                    java.sql.ResultSet prevRs = prevPs.executeQuery();
-                    
-                    java.math.BigDecimal prevBalance = java.math.BigDecimal.ZERO;
-                    java.math.BigDecimal prevUnderPaid = java.math.BigDecimal.ZERO;
-                    java.math.BigDecimal prevPremiumTotal = java.math.BigDecimal.ZERO;
-                    
-                    if (prevRs.next()) {
-                        prevBalance = prevRs.getBigDecimal("balance");
-                        if (prevBalance == null) prevBalance = java.math.BigDecimal.ZERO;
-                        prevUnderPaid = prevRs.getBigDecimal("under_paid");
-                        if (prevUnderPaid == null) prevUnderPaid = java.math.BigDecimal.ZERO;
-                        prevPremiumTotal = prevRs.getBigDecimal("premium_total");
-                        if (prevPremiumTotal == null) prevPremiumTotal = java.math.BigDecimal.ZERO;
-                    }
-                    prevRs.close();
-                    prevPs.close();
-                    
-                    // Get loan total
-                    java.math.BigDecimal loanTotal = java.math.BigDecimal.ZERO;
-                    String loanSql = "SELECT l.total FROM loans l INNER JOIN ledgers led ON l.ledger_id = led.id WHERE led.type = ? AND l.member_id = ? AND l.date = ? LIMIT 1";
-                    java.sql.PreparedStatement loanPs = con.prepareStatement(loanSql);
-                    loanPs.setString(1, ledgerType);
-                    loanPs.setInt(2, memberId);
-                    loanPs.setString(3, paymentDate.toString());
-                    java.sql.ResultSet loanRs = loanPs.executeQuery();
-                    if (loanRs.next()) {
-                        loanTotal = loanRs.getBigDecimal("total");
-                        if (loanTotal == null) loanTotal = java.math.BigDecimal.ZERO;
-                    }
-                    loanRs.close();
-                    loanPs.close();
-                    
-                    // Calculate
-                    java.math.BigDecimal calculatedShouldBePaid = prevUnderPaid.add(scheduledPayment);
-                    java.math.BigDecimal balance = prevBalance.subtract(actualPayment).add(loanTotal);
-                    java.math.BigDecimal underPaid = actualPayment.compareTo(calculatedShouldBePaid) < 0 ? calculatedShouldBePaid.subtract(actualPayment) : java.math.BigDecimal.ZERO;
-                    java.math.BigDecimal premiumTotal = prevPremiumTotal.add(premium);
-                    java.math.BigDecimal actualPayroll = actualPayment.add(premium);
-                                   // Update
-                    String updateSql = "UPDATE form_data SET date=?, scheduled_payment=?, actual_payment=?, premium=?, remarks=?, should_be_paid=?, balance=?, under_paid=?, premium_total=?, actual_payroll=? WHERE id=?";
-                    java.sql.PreparedStatement updatePs = con.prepareStatement(updateSql);
-                    updatePs.setString(1, paymentDate.toString());
-                    updatePs.setBigDecimal(2, scheduledPayment);
-                    updatePs.setBigDecimal(3, actualPayment);
-                    updatePs.setBigDecimal(4, premium);
-                    updatePs.setString(5, remarks);
-                    updatePs.setBigDecimal(6, calculatedShouldBePaid);
-                    updatePs.setBigDecimal(7, balance);
-                    updatePs.setBigDecimal(8, underPaid);
-                    updatePs.setBigDecimal(9, premiumTotal);
-                    updatePs.setBigDecimal(10, actualPayroll);
-                    updatePs.setInt(11, paymentRecordId);
-                    
-                    int rowsAffected = updatePs.executeUpdate();
-                    updatePs.close();
-                    con.close();
-                    
-                    if (rowsAffected > 0) {
+                    services.PaymentService paymentService = new services.PaymentService();
+                    boolean updated = paymentService.updatePayment(
+                        paymentRecordId, ledgerId, memberId, ledgerType, paymentDate,
+                        scheduledPayment, premium, actualPayment, remarks
+                    );
+
+                    if (updated) {
                         style.showMessageDialog(this, "Payment updated successfully!", "Success", javax.swing.JOptionPane.INFORMATION_MESSAGE);
                         javax.swing.SwingUtilities.getWindowAncestor(this).dispose();
                     } else {

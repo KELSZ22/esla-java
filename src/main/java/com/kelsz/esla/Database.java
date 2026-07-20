@@ -24,6 +24,7 @@ public class Database {
             
             // Set SQLite Pragmas for better concurrency and performance
             try (Statement stmt = connection.createStatement()) {
+                stmt.execute("PRAGMA foreign_keys=ON;");
                 stmt.execute("PRAGMA journal_mode=WAL;");
                 stmt.execute("PRAGMA synchronous=NORMAL;");
                 stmt.execute("PRAGMA busy_timeout=5000;");

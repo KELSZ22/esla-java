@@ -109,13 +109,25 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable, ui.
     seedButton = new JButton("Seed Data");
     style.applySecondaryButton(seedButton);
     seedButton.addActionListener(evt -> {
-        int confirm = style.showConfirmDialog(this, 
-            "This will clear all existing data and populate the database with sample data. Continue?", 
+        int confirm = style.showConfirmDialog(this,
+            "WARNING: This permanently wipes members, ledgers, payments, and loans,\n"
+                + "then replaces them with sample data.\n\n"
+                + "Type SEED in the next prompt to confirm.",
             "Confirm Seeding", JOptionPane.YES_NO_OPTION);
-        if (confirm == JOptionPane.YES_OPTION) {
+        if (confirm != JOptionPane.YES_OPTION) {
+            return;
+        }
+        String typed = javax.swing.JOptionPane.showInputDialog(
+            this,
+            "Type SEED to wipe and reseed the database:",
+            "Confirm Destructive Action",
+            javax.swing.JOptionPane.WARNING_MESSAGE);
+        if (typed != null && "SEED".equals(typed.trim())) {
             com.kelsz.esla.DatabaseSeeder.seed();
             style.showMessageDialog(this, "Database seeded successfully!");
             refresh();
+        } else {
+            style.showMessageDialog(this, "Seeding cancelled.");
         }
     });
 
@@ -288,6 +300,37 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable, ui.
         return scheduledPayments;
     }
 
+    private java.util.Map<Integer, BigDecimal> getLoanTotalsByDate(LocalDate date) {
+        java.util.Map<Integer, BigDecimal> loanTotals = new java.util.HashMap<>();
+        try {
+            Connection con = Database.getConnection();
+            String sql = """
+                SELECT member_id, SUM(total) AS loan_total
+                FROM loans
+                WHERE date = ? AND deleted_at IS NULL
+                GROUP BY member_id
+            """;
+            PreparedStatement ps = con.prepareStatement(sql);
+            ps.setDate(1, java.sql.Date.valueOf(date));
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                BigDecimal loanTotal = rs.getBigDecimal("loan_total");
+                if (loanTotal == null) {
+                    loanTotal = BigDecimal.ZERO;
+                }
+                loanTotals.put(rs.getInt("member_id"), loanTotal);
+            }
+
+            rs.close();
+            ps.close();
+            con.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return loanTotals;
+    }
+
     private java.util.Map<Integer, BigDecimal> getPreviousUnderPaid(LocalDate date) {
         java.util.Map<Integer, BigDecimal> previousUnderPaidMap = new java.util.HashMap<>();
         try {
@@ -384,6 +427,7 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable, ui.
         // Fetch all data in bulk queries
         java.util.Map<Integer, BigDecimal> premiums = getAllMemberPremiums();
         java.util.Map<Integer, BigDecimal> scheduledPayments = getAllScheduledPayments(date);
+        java.util.Map<Integer, BigDecimal> loanTotalsByDate = getLoanTotalsByDate(date);
         java.util.Map<Integer, BigDecimal> previousUnderPaid = getPreviousUnderPaid(date);
 
         Connection con = Database.getConnection();
@@ -424,11 +468,18 @@ public class dashboard extends javax.swing.JPanel implements ui.Refreshable, ui.
             // 👉 Get scheduled payment from bulk query result
             BigDecimal scheduledPayment = scheduledPayments.getOrDefault(memberId, BigDecimal.ZERO);
 
+            // 👉 Get loan records created on the selected date
+            BigDecimal loanTotalForDate = loanTotalsByDate.getOrDefault(memberId, BigDecimal.ZERO);
+
             // 👉 Get previous underpaid from bulk query result
             BigDecimal underPaid = previousUnderPaid.getOrDefault(memberId, BigDecimal.ZERO);
 
-            // 👉 Calculate should_be_paid = previous underpaid + scheduled payment (PaymentService logic)
-            BigDecimal loan = underPaid.add(scheduledPayment);
+            // 👉 Show same-day loan records, otherwise show scheduled deduction due.
+            BigDecimal loan = underPaid.add(
+                    loanTotalForDate.compareTo(BigDecimal.ZERO) > 0
+                    ? loanTotalForDate
+                    : scheduledPayment
+            );
 
             // 👉 Calculate total
             BigDecimal total = premium.add(loan);

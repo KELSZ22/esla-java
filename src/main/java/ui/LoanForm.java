@@ -320,8 +320,9 @@ public class LoanForm extends javax.swing.JPanel {
                 }
                 
                 java.sql.Connection con = com.kelsz.esla.Database.getConnection();
-                String sql = "UPDATE loans SET form_number=?, date=?, start_deduction_date=?, principal=?, service_charge=?, interest=?, total=?, cutoffs=?, cutoffs_amount=?, remarks=? WHERE id=?";
+                String sql = "UPDATE loans SET form_number=?, date=?, start_deduction_date=?, principal=?, service_charge=?, interest=?, total=?, cutoffs=?, cutoffs_amount=?, service_charge_balance=?, interest_balance=?, remarks=?, updated_at=datetime('now') WHERE id=?";
                 java.sql.PreparedStatement ps = con.prepareStatement(sql);
+                java.math.BigDecimal rate = new java.math.BigDecimal("0.03");
                 ps.setObject(1, formNumber);
                 ps.setString(2, loanDate != null ? loanDate.toString() : null);
                 ps.setString(3, startDeductionDate != null ? startDeductionDate.toString() : null);
@@ -331,12 +332,18 @@ public class LoanForm extends javax.swing.JPanel {
                 ps.setBigDecimal(7, total);
                 ps.setInt(8, cutoffs);
                 ps.setBigDecimal(9, cutoffsAmount);
-                ps.setString(10, remarks);
-                ps.setInt(11, loanRecordId);
+                ps.setBigDecimal(10, rate);
+                ps.setBigDecimal(11, rate);
+                ps.setString(12, remarks);
+                ps.setInt(13, loanRecordId);
                 
                 int rowsAffected = ps.executeUpdate();
                 ps.close();
                 con.close();
+
+                if (rowsAffected > 0 && ledgerType != null) {
+                    new services.PaymentService().recomputeMemberChain(memberId, ledgerType, loanDate);
+                }
                 
                 if (rowsAffected > 0) {
                     style.showMessageDialog(this,

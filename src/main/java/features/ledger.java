@@ -369,7 +369,7 @@ model.addColumn(""); // Delete
     ledgerTable.getColumnModel().getColumn(1).setCellRenderer(new TypeCellRenderer());
 
     // Custom renderer for Edit column
-    ledgerTable.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
+    ledgerTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
         private ImageIcon editIcon;
         {
             java.net.URL iconUrl = getClass().getResource("/images/square-pen.png");
@@ -398,12 +398,12 @@ model.addColumn(""); // Delete
     });
 
     // Minimize Edit column width
-    ledgerTable.getColumnModel().getColumn(3).setPreferredWidth(30);
-    ledgerTable.getColumnModel().getColumn(3).setMinWidth(30);
-    ledgerTable.getColumnModel().getColumn(3).setMaxWidth(30);
+    ledgerTable.getColumnModel().getColumn(4).setPreferredWidth(30);
+    ledgerTable.getColumnModel().getColumn(4).setMinWidth(30);
+    ledgerTable.getColumnModel().getColumn(4).setMaxWidth(30);
 
     // Custom renderer for Manage column
-    ledgerTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+    ledgerTable.getColumnModel().getColumn(3).setCellRenderer(new DefaultTableCellRenderer() {
         private ImageIcon manageIcon;
         {
             java.net.URL settingsUrl = getClass().getResource("/images/file-text.png");
@@ -432,9 +432,9 @@ model.addColumn(""); // Delete
     });
 
     // Minimize Manage column width
-    ledgerTable.getColumnModel().getColumn(4).setPreferredWidth(30);
-    ledgerTable.getColumnModel().getColumn(4).setMinWidth(30);
-    ledgerTable.getColumnModel().getColumn(4).setMaxWidth(30);
+    ledgerTable.getColumnModel().getColumn(3).setPreferredWidth(30);
+    ledgerTable.getColumnModel().getColumn(3).setMinWidth(30);
+    ledgerTable.getColumnModel().getColumn(3).setMaxWidth(30);
 
     // Custom renderer for Delete column with hover effect
     ledgerTable.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
@@ -471,8 +471,8 @@ model.addColumn(""); // Delete
     ledgerTable.getColumnModel().getColumn(5).setMinWidth(30);
     ledgerTable.getColumnModel().getColumn(5).setMaxWidth(30);
     style.applyTableActionTooltips(ledgerTable, java.util.Map.of(
-            3, "Edit ledger",
-            4, "Manage ledger forms",
+            3, "Manage ledger forms",
+            4, "Edit ledger",
             5, "Delete ledger"
     ));
 
@@ -608,8 +608,8 @@ model.addColumn(""); // Delete
 
     if (row < 0 || col < 0) return;
 
-    // Handle Edit column click (Column 3)
-    if (col == 3) {
+    // Handle Edit column click (Column 4)
+    if (col == 4) {
         int id = rowIds.get(row);
         currentLedgerForm = new LedgerForm(id);
 
@@ -632,8 +632,8 @@ model.addColumn(""); // Delete
         return;
     }
 
-    // Handle Manage column click (Column 4)
-    if (col == 4) {
+    // Handle Manage column click (Column 3)
+    if (col == 3) {
         int id = rowIds.get(row);
         // Open manageLedger panel with selected ledger data
         currentManagePanel = new manageLedger();
